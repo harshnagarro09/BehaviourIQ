@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
+import { StoryStrip } from '@/components/StoryStrip';
 import { RotateCcw, SlidersHorizontal } from 'lucide-react';
-import { useEngine } from '@/state';
+import { useApp, useEngine } from '@/state';
 import { Chip, FilterSelect, Kpi, Meter, Panel, Toggle, ViewToggle } from '@/components/ui';
 import { BarChart, DivergingBars, GroupedBars, Heat, HBars, Legend, LineChart, Scatter, Waterfall } from '@/components/charts';
 import { TYPES } from '@/engine/segments';
@@ -39,7 +40,9 @@ type ValView = 'profit' | 'predicted' | 'accuracy' | 'skipped';
 export function Analytics() {
   const e = useEngine();
   const [f, setF] = useState<Filters>(DEFAULT_FILTERS);
-  const [tab, setTab] = useState<Tab>('results');
+  const { tab: tabId, setTab: setTabId } = useApp();
+  const tab: Tab = (['results', 'behaviour', 'prediction', 'impact'] as const).find((t) => t === tabId) ?? 'results';
+  const setTab = (t: Tab) => setTabId(t);
   const [more, setMore] = useState(false);
   const [featView, setFeatView] = useState<'chart' | 'table'>('chart');
   const [featMetric, setFeatMetric] = useState('roi');
@@ -423,6 +426,7 @@ export function PageTop({ title, sub, right }: { title: string; sub: string; rig
         </div>
         {right}
       </div>
+      <StoryStrip />
     </div>
   );
 }
