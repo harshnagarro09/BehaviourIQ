@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Download, Search } from 'lucide-react';
 import { useEngine } from '@/state';
 import { Help, Lbl } from '@/components/Help';
-import { Btn, Card, CardTitle, Chip, FilterSelect, Kpi, Meter, Panel, Toggle, TypeBadge, ViewToggle, WindowChip } from '@/components/ui';
+import { Btn, Card, CardTitle, Chip, FilterSelect, Meter, Panel, Toggle, TypeBadge, ViewToggle, WindowChip } from '@/components/ui';
 import { BarChart, GroupedBars, HBars, Legend } from '@/components/charts';
 import { PageTop } from '@/pages/Analytics';
 import { compareOptions, explain, promoOptions, shortOffer, type PromoOption } from '@/engine/options';
@@ -36,7 +36,6 @@ export function CustomerPrediction() {
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('net');
   const [limit, setLimit] = useState(12);
-  const [offerKey, setOfferKey] = useState('best');
   const [sel, setSel] = useState<string | null>(null);
 
   const cats = e.ds.categories;
@@ -75,7 +74,7 @@ export function CustomerPrediction() {
   const filters = (
     <div className="flex flex-wrap items-center gap-2.5 border-b border-[var(--line)] bg-white px-6 py-2.5">
       <span className="text-[9.5px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-3)]">Filters</span>
-      <FilterSelect value={category} onChange={(v) => { setCategory(v); setOfferKey('best'); }} options={cats.map((c) => ({ value: c, label: `Category: ${c}` }))} />
+      <FilterSelect value={category} onChange={(v) => { setCategory(v); }} options={cats.map((c) => ({ value: c, label: `Category: ${c}` }))} />
       <FilterSelect value={persona} onChange={setPersona} options={[{ value: 'all', label: 'All Customer Types' }, ...TYPES.map((t) => ({ value: t.id, label: t.name }))]} />
       <FilterSelect value={channel} onChange={setChannel} options={[{ value: 'all', label: 'All Channels' }, ...channels.map((c) => ({ value: c, label: c }))]} />
       <div className="flex h-8 items-center gap-1.5 rounded-md border border-[var(--line)] bg-white px-2.5"><Search className="h-3 w-3 text-[var(--ink-3)]" /><input value={query} onChange={(ev) => setQuery(ev.target.value)} placeholder="Customer ID" className="w-24 bg-transparent text-[11.5px] outline-none" /></div>
@@ -93,12 +92,6 @@ export function CustomerPrediction() {
         <>
           {filters}
           <CustomerView S={S} filtered={filtered} sel={sel} setSel={setSel} sort={sort} setSort={setSort} limit={limit} setLimit={setLimit} category={category} />
-          <div className="px-6 pb-6">
-            <Panel flush title="Target list: who to contact, with which offer" defaultOpen={false}
-              what={`Customers worth an offer in ${category}, grouped by how they respond, with a CSV export for a campaign tool.`}>
-              <TargetView S={S} filtered={filtered} offerKey={offerKey} setOfferKey={setOfferKey} category={category} />
-            </Panel>
-          </div>
         </>
       ) : (
         <div className="p-6 pt-4"><ModelSection /></div>
@@ -145,6 +138,7 @@ function CustomerView({ S, filtered, sel, setSel, sort, setSort, limit, setLimit
           {limit < filtered.length && <button className="font-semibold text-[var(--ink)] hover:underline" onClick={() => setLimit(limit + 12)}>Show more</button>}
         </div>
       </Card>
+      <TargetSummary S={S} filtered={filtered} category={category} />
       <Insights S={S} filtered={filtered} category={category} />
       </div>
       {cid ? <Detail key={cid + category} cid={cid} S={S} category={category} /> : <Card><p className="py-10 text-center text-[12px] text-[var(--ink-3)]">No customers match these filters.</p></Card>}
@@ -278,12 +272,11 @@ function Detail({ cid, S, category }: { cid: string; S: Props['S']; category: st
   );
 }
 
-function TargetView({ S, filtered, offerKey, setOfferKey, category }: Props & { offerKey: string; setOfferKey: (k: string) => void }) {
-  const offer = S.promos.find((o) => o.key === offerKey) ?? null; // null = each customer's own best
-
-  const rows = useMemo(() => filtered.map((row) => {
-    const x = offer ? S.x(row.cid, offer.key) : row.b?.e ?? null;
-    const used = offer ?? row.b?.o ?? null;
+/** each customer's best offer, classified into the five "who to contact" groups */
+function targetRows(S: Props['S'], filtered: Props['filtered']) {
+  return filtered.map((row) => {
+    const x = row.b?.e ?? null;
+    const used = row.b?.o ?? null;
     const maxP = Math.max(...S.promos.map((o) => S.x(row.cid, o.key).p1));
     let g: Group;
     if (x && x.net > 0 && x.uplift >= 0.03) g = x.uplift >= 0.1 ? 'target' : 'light';
@@ -291,10 +284,14 @@ function TargetView({ S, filtered, offerKey, setOfferKey, category }: Props & { 
     else if (maxP >= 0.5) g = 'stronger';
     else g = 'skip';
     return { ...row, x, used, g };
-  }), [filtered, offer, S]);
+  });
+}
 
+/** Who to contact: totals for contacting only the customers an offer pays off for, vs 20% off to everyone, and the CSV export */
+function TargetSummary({ S, filtered, category }: Props) {
+  const rows = useMemo(() => targetRows(S, filtered), [S, filtered]);
   const targeted = rows.filter((r) => r.g === 'target' || r.g === 'light');
-  const sum = (f: (r: (typeof rows)[number]) => number) => targeted.reduce((s, r) => s + f(r), 0);
+  const sum = (fn: (r: (typeof rows)[number]) => number) => targeted.reduce((a, r) => a + fn(r), 0);
   const cost = sum((r) => r.x!.discountCost);
   const net = sum((r) => r.x!.net);
   const inc = sum((r) => r.x!.uplift);
@@ -312,65 +309,33 @@ function TargetView({ S, filtered, offerKey, setOfferKey, category }: Props & { 
     URL.revokeObjectURL(url);
   };
 
+  const stats: [string, string, string, ReactNode?][] = [
+    ['Customers to contact', int(targeted.length), `of ${int(filtered.length)} in view · ${pct(targeted.length / Math.max(1, filtered.length))}`],
+    ['Extra buyers expected', int(inc), 'because of the offer'],
+    ['Discount cost', inr(cost), `vs ${inr(trad.cost)} for 20% off to all`],
+    ['Net profit', inr(net), `vs ${inr(trad.net)} for 20% off to all`, <Help key="h" term="netProfit" />],
+  ];
   return (
-    <div className="space-y-4 p-4 pt-0">
-      <div className="flex flex-wrap items-center gap-3">
-        <FilterSelect value={offerKey} onChange={setOfferKey} options={[{ value: 'best', label: "Each customer's best promotion" }, ...S.promos.map((o) => ({ value: o.key, label: `Offer: ${o.label}` }))]} />
-        <span className="text-[11px] text-[var(--ink-3)]">Customers are contacted only where the offer earns more than it costs.</span>
-        <Btn variant="navy" className="ml-auto" onClick={exportCsv} disabled={!list.length}><Download className="h-3 w-3" />Export target list (CSV)</Btn>
+    <Card>
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1"><CardTitle title="Who to contact" sub="Each customer's best promotion, only where it earns more than it costs" /></div>
+        <Btn variant="navy" className="shrink-0" onClick={exportCsv} disabled={!list.length}><Download className="h-3 w-3" />Export target list (CSV)</Btn>
       </div>
-
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi label="Customers to contact" value={int(targeted.length)} note={`of ${int(filtered.length)} in view · ${pct(targeted.length / Math.max(1, filtered.length))}`} />
-        <Kpi label="Extra buyers expected" value={int(inc)} note="because of the offer" />
-        <Kpi label="Discount cost" value={inr(cost)} note={`vs ${inr(trad.cost)} for 20% off to all`} />
-        <Kpi help="netProfit" label="Net profit" value={inr(net)} tone={net < 0 ? 'bad' : 'good'} note={`vs ${inr(trad.net)} for 20% off to all`} />
+      <div className="grid grid-cols-2 gap-3">
+        {stats.map(([l, v, note, help]) => (
+          <div key={l} className="rounded-lg bg-[var(--page)] p-3">
+            <p className="text-[9.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">{l}{help}</p>
+            <p className="num mt-1 text-[18px] font-bold leading-none" style={{ color: l === 'Net profit' ? (net < 0 ? 'var(--red)' : 'var(--green-dark)') : undefined }}>{v}</p>
+            <p className="mt-1 text-[10.5px] text-[var(--ink-3)]">{note}</p>
+          </div>
+        ))}
       </div>
-
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        {GROUPS.map((g) => {
-          const rs = rows.filter((r) => r.g === g.id);
-          const avg = rs.length ? rs.reduce((s, r) => s + (r.x?.p1 ?? r.p0), 0) / rs.length : 0;
-          const avg0 = rs.length ? rs.reduce((s, r) => s + r.p0, 0) / rs.length : 0;
-          return (
-            <div key={g.id} className="card p-3.5">
-              <Chip tone={g.tone}>{g.title}</Chip>
-              <p className="num mt-2 text-[22px] font-bold leading-none">{rs.length}</p>
-              <p className="mt-1.5 min-h-[30px] text-[10.5px] leading-snug text-[var(--ink-3)]">{g.body}</p>
-              <p className="num mt-1 text-[10.5px] text-[var(--ink-2)]">{pct(avg0)} → {pct(avg)} avg chance</p>
-            </div>
-          );
-        })}
-      </div>
-
-      <Card pad={false}>
-        <div className="px-4 pt-4"><div className="mb-1"><WindowChip /></div><CardTitle title="Target list" sub={`Ranked by expected profit for ${category}. Export includes every contacted customer.`} /></div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-[11.5px]">
-            <thead><tr className="border-y border-[var(--line)] text-left text-[9.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">
-              {['#', 'Customer', 'Customer type', 'Promotion', 'Without offer', 'With offer', 'Uplift', `Expected profit (${PREDICTION_WINDOW_DAYS} days)`].map((h) => <th key={h} className="px-3 py-2"><Lbl t={h} /></th>)}
-            </tr></thead>
-            <tbody>
-              {list.slice(0, 30).map((r, i) => (
-                <tr key={r.cid} className="border-b border-[var(--line-2)] last:border-0">
-                  <td className="px-3 py-2 text-[var(--ink-3)]">{i + 1}</td><td className="px-3 font-semibold">{r.cid}</td>
-                  <td className="px-3"><TypeBadge type={r.r.type} /></td>
-                  <td className="px-3 font-medium">{r.used?.label}</td><td className="num px-3">{pct(r.p0)}</td><td className="num px-3 font-semibold">{pct(r.x!.p1)}</td>
-                  <td className="num px-3">+{Math.round(r.x!.uplift * 100)} pts</td><td className="num px-3 font-semibold" style={{ color: 'var(--green-dark)' }}>{inr(r.x!.net)}</td>
-                </tr>
-              ))}
-              {!list.length && <tr><td colSpan={9} className="px-3 py-6 text-center text-[var(--ink-3)]">No customer clears the bar for this offer. Try each customer's best promotion.</td></tr>}
-            </tbody>
-          </table>
-        </div>
-        {list.length > 30 && <p className="px-4 py-3 text-[11px] text-[var(--ink-3)]">Showing the top 30 of {list.length}. Export for the full list.</p>}
-      </Card>
-    </div>
+    </Card>
   );
 }
 
 /** Roll-ups for the customers currently in view: fills the space under the list and answers "what does this group respond to?" */
-function Insights({ filtered, category }: Props) {
+function Insights({ S, filtered, category }: Props) {
   const [view, setView] = useState('mix');
   const mix = new Map<string, number>();
   filtered.forEach((x) => { const k = x.b ? shortOffer(x.b.o.label) : 'No discount'; mix.set(k, (mix.get(k) ?? 0) + 1); });
@@ -384,12 +349,19 @@ function Insights({ filtered, category }: Props) {
     const avg = (f: (x: (typeof rs)[number]) => number) => (rs.length ? rs.reduce((s, x) => s + f(x), 0) / rs.length : 0);
     return { name: sg.short, n: rs.length, none: avg((x) => x.p0), best: avg((x) => x.b?.e.p1 ?? x.p0) };
   }).filter((g) => g.n > 0);
+  const groupRows = GROUPS.map((g) => {
+    const rs = targetRows(S, filtered).filter((r) => r.g === g.id);
+    const avg = (fn: (r: (typeof rs)[number]) => number) => (rs.length ? rs.reduce((a, r) => a + fn(r), 0) / rs.length : 0);
+    return { title: g.title, n: rs.length, p0: avg((r) => r.p0), p1: avg((r) => r.x?.p1 ?? r.p0), color: g.tone === 'green' ? 'var(--green)' : g.tone === 'amber' ? 'var(--amber)' : g.tone === 'red' ? 'var(--red)' : '#94a3b8' };
+  });
   return (
     <Panel title="Summary of the customers in view" defaultOpen={false} what={`Roll-ups for the ${filtered.length} customers matching the filters. Pick a view from the dropdown.`}
-      right={<FilterSelect value={view} onChange={setView} options={[{ value: 'mix', label: 'Best promotion mix' }, { value: 'profit', label: 'Profit by customer type' }, { value: 'lift', label: 'Response lift by customer type' }]} />}
+      right={<FilterSelect value={view} onChange={setView} options={[{ value: 'mix', label: 'Best promotion mix' }, { value: 'profit', label: 'Profit by customer type' }, { value: 'lift', label: 'Response lift by customer type' }, { value: 'groups', label: 'Who to contact, by group' }]} />}
       legend={view === 'mix' ? [{ label: 'Bar', text: `Number of customers for whom each ${category} promotion earns the most. No discount means nothing pays off.` }]
+        : view === 'groups' ? GROUPS.map((g) => ({ label: g.title, text: g.body }))
         : view === 'profit' ? [{ label: 'Bar', text: 'Expected profit if every customer in view gets their own best promotion, summed by customer type. Colours match the customer types.' }]
         : [{ label: 'Grey', color: '#94a3b8', text: 'Average chance of buying with no promotion.' }, { label: 'Navy', color: '#0b1c2f', text: "Average chance with each customer's best promotion. The gap is the lift." }]}>
+      {view === 'groups' && <HBars labelW={170} format={(v) => String(v)} rows={groupRows.map((g) => ({ label: g.title, value: g.n, color: g.color, note: `${pct(g.p0)} → ${pct(g.p1)} avg chance` }))} />}
       {view === 'mix' && <HBars labelW={110} format={(v) => String(v)} rows={mixRows.map(([l, v]) => ({ label: l, value: v, color: l === 'No discount' ? '#94a3b8' : 'var(--navy)' }))} />}
       {view === 'profit' && <BarChart height={200} posColor="var(--green)" negColor="var(--red)" format={(v) => inr(v, 0)} data={byType.map((g) => ({ label: g.t.short, value: g.net, color: g.t.color, tip: <><b>{g.t.name}</b><br />{g.n} customers · {inr(g.net)}</> }))} />}
       {view === 'lift' && (
