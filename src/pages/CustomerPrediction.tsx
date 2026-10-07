@@ -1,8 +1,8 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Download, Search } from 'lucide-react';
-import { useEngine } from '@/state';
+import { useApp, useEngine } from '@/state';
 import { Help, Lbl } from '@/components/Help';
-import { Btn, Card, CardTitle, Chip, FilterSelect, Meter, Panel, Toggle, TypeBadge, ViewToggle, WindowChip } from '@/components/ui';
+import { Btn, Card, CardTitle, Chip, FilterSelect, Meter, Panel, Tabs, TypeBadge, ViewToggle, WindowChip } from '@/components/ui';
 import { BarChart, GroupedBars, HBars, Legend } from '@/components/charts';
 import { PageTop } from '@/pages/Analytics';
 import { compareOptions, explain, promoOptions, shortOffer, type PromoOption } from '@/engine/options';
@@ -29,14 +29,17 @@ const GROUPS: { id: Group; title: string; body: string; tone: 'green' | 'neutral
 
 export function CustomerPrediction() {
   const e = useEngine();
-  const [tab, setTab] = useState<Tab>('customers');
+  const { params, syncParams } = useApp();
+  const [tab, setTabState] = useState<Tab>(() => (params.tab === 'model' ? 'model' : 'customers'));
   const [category, setCategory] = useState('Beverages');
   const [persona, setPersona] = useState('all');
   const [channel, setChannel] = useState('all');
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('net');
   const [limit, setLimit] = useState(12);
-  const [sel, setSel] = useState<string | null>(null);
+  const [sel, setSelState] = useState<string | null>(params.id ?? null);
+  const setTab = (t: Tab) => { setTabState(t); syncParams(t === 'model' ? { tab: t } : sel ? { id: sel } : {}); };
+  const setSel = (id: string) => { setSelState(id); syncParams({ id }); };
 
   const cats = e.ds.categories;
   const channels = [...new Set(e.records.map((r) => r.b.topChannel))].sort();
@@ -84,10 +87,8 @@ export function CustomerPrediction() {
 
   return (
     <>
-      <PageTop title="Customer Prediction" sub="What promotion will this customer respond to? Behaviour in, predicted response out, one customer at a time" />
-      <div className="px-6 py-4">
-        <Toggle value={tab} onChange={setTab} options={[{ id: 'customers', label: 'Customers' }, { id: 'model', label: 'How the model predicts, and does it work' }]} />
-      </div>
+      <PageTop title="Customer Prediction" sub="What promotion will this customer respond to? Behaviour in, predicted response out, one customer at a time"
+        tabs={<Tabs value={tab} onChange={setTab} options={[{ id: 'customers', label: 'Customers' }, { id: 'model', label: 'How the model predicts, and does it work' }]} />} />
       {tab === 'customers' ? (
         <>
           {filters}

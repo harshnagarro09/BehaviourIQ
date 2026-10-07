@@ -15,7 +15,7 @@ import { WindowChip } from '@/components/ui';
 import { Takeaway } from '@/components/Takeaway';
 import { planningTakeaway } from '@/lib/takeaways';
 
-const COLS = 'grid-cols-[minmax(0,2.6fr)_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,1.3fr)_minmax(0,0.7fr)_minmax(0,1.7fr)]';
+const COLS = 'grid-cols-[minmax(0,2.4fr)_minmax(0,1.1fr)_minmax(0,0.95fr)_minmax(0,0.7fr)_minmax(0,1.2fr)_minmax(0,0.65fr)_minmax(0,2.3fr)]';
 
 function windowOf(r: Recommendation) {
   const end = new Date((dayOf(r.candidate.start) + r.candidate.days - 1) * 864e5).toISOString().slice(0, 10);
@@ -58,7 +58,7 @@ export function Planning() {
           <div className="min-w-0">
             <p className="text-[13px] font-semibold">{r.candidate.name} <span className="font-normal text-[var(--ink-3)]">— {sc ? sc.option.label : 'No offer'}</span></p>
             <p className="text-[11.5px] font-medium text-[var(--green-dark)]">{r.candidate.category} · {sc ? `${sc.audience.targeted} of ${sc.audience.total} customers` : 'no profitable audience'}</p>
-            <p className="mt-0.5 truncate text-[11.5px] text-[var(--ink-3)]">{r.rationale[0]}</p>
+            <p className="mt-0.5 text-[11.5px] leading-snug text-[var(--ink-3)]" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }} title={r.rationale[0]}>{r.rationale[0]}</p>
           </div>
           <div><Chip tone="navy">{objectiveOf(sc)}</Chip></div>
           <div><p className="text-[12.5px] font-medium">{windowOf(r)}</p><p className="text-[11px] text-[var(--ink-3)]">{r.candidate.days} days</p></div>
@@ -74,7 +74,7 @@ export function Planning() {
             {d?.status === 'rejected' && <Chip tone="red">Rejected</Chip>}
             {!d && (
               <>
-                <Btn variant="accept" disabled={!sc} onClick={() => sc && decide(r.candidate.id, { status: 'accepted', optionKey: sc.option.key })}><Check className="h-3 w-3" />Accept</Btn>
+                <Btn variant="primary" disabled={!sc} onClick={() => sc && decide(r.candidate.id, { status: 'accepted', optionKey: sc.option.key })}><Check className="h-3 w-3" />Accept</Btn>
                 <Btn variant="reject" onClick={() => decide(r.candidate.id, { status: 'rejected', optionKey: '' })}><X className="h-3 w-3" />Reject</Btn>
               </>
             )}

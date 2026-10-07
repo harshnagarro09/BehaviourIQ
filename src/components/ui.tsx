@@ -34,15 +34,15 @@ export function Delta({ value, good }: { value: string; good: boolean | null }) 
 }
 
 export function Kpi({
-  label, value, delta, note, tone, help,
-}: { help?: GlossaryKey; label: string; value: ReactNode; delta?: { text: string; good: boolean | null } | null; note?: string; tone?: 'bad' | 'good' }) {
+  label, value, delta, note, tone, help, emphasis = false,
+}: { emphasis?: boolean; help?: GlossaryKey; label: string; value: ReactNode; delta?: { text: string; good: boolean | null } | null; note?: string; tone?: 'bad' | 'good' }) {
   return (
-    <div className="card p-3.5">
+    <div className="card p-3.5" style={emphasis ? { borderLeft: '3px solid var(--green)' } : undefined}>
       <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--ink-3)]">{label}{help && <Help term={help} />}</p>
       <p className="num mt-1.5 text-[22px] font-bold leading-none tracking-tight" style={{ color: tone === 'bad' ? 'var(--red)' : tone === 'good' ? 'var(--green-dark)' : 'var(--ink)' }}>{value}</p>
-      <div className="mt-2 flex items-center gap-1.5 text-[11.5px] text-[var(--ink-3)]">
+      <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11.5px] leading-snug text-[var(--ink-3)]">
         {delta && <Delta value={delta.text} good={delta.good} />}
-        <span className="truncate">{note}</span>
+        <span>{note}</span>
       </div>
     </div>
   );
@@ -61,10 +61,11 @@ export function Chip({ children, tone = 'neutral' }: { children: ReactNode; tone
 
 export function Btn({
   children, onClick, variant = 'ghost', disabled, className = '',
-}: { children: ReactNode; onClick?: () => void; variant?: 'ghost' | 'accept' | 'reject' | 'navy' | 'ai'; disabled?: boolean; className?: string }) {
+}: { children: ReactNode; onClick?: () => void; variant?: 'ghost' | 'accept' | 'primary' | 'reject' | 'navy' | 'ai'; disabled?: boolean; className?: string }) {
   const v = {
     ghost: 'border border-[var(--line)] bg-white text-[var(--ink)] hover:bg-[var(--page)]',
     accept: 'border border-[#a7e8c8] bg-[#d1fae5] text-[#065f46] hover:bg-[#bbf3d8]',
+    primary: 'bg-[var(--green-dark)] text-white hover:bg-[#036a4c]',
     reject: 'border border-[#fbc4c4] bg-[#fee2e2] text-[#b91c1c] hover:bg-[#fdd0d0]',
     navy: 'bg-[var(--navy)] text-white hover:bg-black',
     ai: 'border border-[#f5c98a] bg-[#fff7ea] text-[#b45309] hover:bg-[#ffefd2]',
@@ -129,6 +130,23 @@ export function WindowChip() {
   );
 }
 
+/** Page tabs: underlined, shown at the bottom of the page header (see PageTop) */
+export function Tabs<T extends string>({ value, onChange, options }: { value: T; onChange: (v: T) => void; options: { id: T; label: string }[] }) {
+  return (
+    <div role="tablist" className="flex flex-wrap gap-x-6">
+      {options.map((o) => (
+        <button
+          key={o.id}
+          role="tab"
+          aria-selected={value === o.id}
+          onClick={() => onChange(o.id)}
+          className={`-mb-px border-b-2 pb-2.5 pt-1 text-[13px] font-semibold transition-colors ${value === o.id ? 'border-[var(--navy)] text-[var(--ink)]' : 'border-transparent text-[var(--ink-3)] hover:text-[var(--ink)]'}`}
+        >{o.label}</button>
+      ))}
+    </div>
+  );
+}
+
 export function ViewToggle({ value, onChange }: { value: 'chart' | 'table'; onChange: (v: 'chart' | 'table') => void }) {
   return <Toggle value={value} onChange={onChange} options={[{ id: 'chart', label: 'Chart' }, { id: 'table', label: 'Table' }]} />;
 }
@@ -161,7 +179,9 @@ export function Panel({
           {legend.map((l) => (
             <span key={l.label} className="inline-flex items-start gap-1.5">
               {l.color && <span className="mt-[3px] h-2 w-2 shrink-0 rounded-sm" style={{ background: l.color }} />}
-              <span><b className="font-semibold text-[var(--ink-2)]">{l.label}:</b> {l.text}</span>
+              {l.color && l.text.length > 45
+                ? <b className="cursor-help font-semibold text-[var(--ink-2)] underline decoration-dotted underline-offset-2" title={l.text}>{l.label}</b>
+                : <span><b className="font-semibold text-[var(--ink-2)]">{l.label}:</b> {l.text}</span>}
             </span>
           ))}
         </p>

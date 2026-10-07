@@ -2,9 +2,9 @@ import { useMemo, useState, type ComponentProps, type ReactNode } from 'react';
 import { Takeaway } from '@/components/Takeaway';
 import { behaviourTakeaway, pastResultsTakeaway } from '@/lib/takeaways';
 import { RotateCcw, SlidersHorizontal } from 'lucide-react';
-import { useEngine } from '@/state';
+import { useApp, useEngine } from '@/state';
 import { Help, Lbl } from '@/components/Help';
-import { Chip, FilterSelect, Kpi, Meter, Panel, Toggle, ViewToggle } from '@/components/ui';
+import { Chip, FilterSelect, Kpi, Meter, Panel, Tabs, Toggle, ViewToggle } from '@/components/ui';
 import { BarChart, Heat, Scatter, Waterfall, useWidth } from '@/components/charts';
 import { TYPES } from '@/engine/segments';
 import { offerName } from '@/engine/options';
@@ -40,7 +40,9 @@ type Tab = 'results' | 'behaviour';
 export function Analytics() {
   const e = useEngine();
   const [f, setF] = useState<Filters>(DEFAULT_FILTERS);
-  const [tab, setTab] = useState<Tab>('results');
+  const { params, syncParams } = useApp();
+  const [tab, setTabState] = useState<Tab>(() => (params.tab === 'behaviour' ? 'behaviour' : 'results'));
+  const setTab = (t: Tab) => { setTabState(t); syncParams({ tab: t }); };
   const [more, setMore] = useState(false);
   const [featView, setFeatView] = useState<'chart' | 'table'>('chart');
   const [featMetric, setFeatMetric] = useState('roi');
@@ -138,6 +140,7 @@ export function Analytics() {
   return (
     <>
       <PageTop
+        tabs={<Tabs value={tab} onChange={setTab} options={[{ id: 'results', label: 'Past results' }, { id: 'behaviour', label: 'Customer behaviour' }]} />}
         title="Behaviour Analytics"
         sub={`How customer behaviour predicts promotion response, and whether acting on it pays · ${dateLabel(isoOf(e.ds.minDay))} – ${dateLabel(isoOf(e.ds.maxDay))}`}
         right={<Toggle value={f.period} onChange={(v) => setF({ ...f, period: v })} options={[{ id: '3m', label: 'Last 3 months' }, { id: '6m', label: 'Last 6 months' }, { id: 'all', label: 'All time' }]} />}
@@ -166,13 +169,10 @@ export function Analytics() {
           <Kpi help="netProfit" label="Net promo profit" value={inr(A.net)} tone={A.net < 0 ? 'bad' : 'good'} delta={dPct(A.net, P.net)} note={sub || 'past promotions'} />
           <Kpi help="roi" label="Avg promo ROI" value={roiOf(A).toFixed(2)} tone={roiOf(A) < 0 ? 'bad' : undefined} delta={dAbs(roiOf(A), roiOf(P), (n) => n.toFixed(2))} note={sub || 'profit per ₹ of discount'} />
           <Kpi label="Response rate" value={pct(respOf(A))} delta={dAbs(respOf(A), respOf(P), pp)} note={sub || 'bought on promo'} />
-          <Kpi help="auc" label="Prediction quality" value={`AUC ${e.model.aucTest.toFixed(2)}`} note={`top 20% hold ${pct(top20?.pctResponders ?? 0)} of buyers`} />
-          <Kpi label="Profit from acting on it" value={inr(vt.real)} tone={makesMoney ? 'good' : 'bad'} note={`ROI ${vt.roi.toFixed(2)} vs ${broadRoi.toFixed(2)} offering all`} />
+          <Kpi emphasis help="auc" label="Prediction quality" value={`AUC ${e.model.aucTest.toFixed(2)}`} note={`top 20% hold ${pct(top20?.pctResponders ?? 0)} of buyers`} />
+          <Kpi emphasis label="Profit from acting on it" value={inr(vt.real)} tone={makesMoney ? 'good' : 'bad'} note={`ROI ${vt.roi.toFixed(2)} vs ${broadRoi.toFixed(2)} offering all`} />
         </div>
 
-        <Toggle value={tab} onChange={setTab} options={[
-          { id: 'results', label: 'Past results' }, { id: 'behaviour', label: 'Customer behaviour' },
-        ]} />
         <Takeaway>{takeaway}</Takeaway>
 
         {/* ------------------------------------------------------------ PAST RESULTS */}
@@ -315,9 +315,9 @@ function FitHeat(props: Omit<ComponentProps<typeof Heat>, 'cell'>) {
   return <div ref={ref}><Heat {...props} cell={cell} /></div>;
 }
 
-export function PageTop({ title, sub, right }: { title: string; sub: string; right?: ReactNode }) {
+export function PageTop({ title, sub, right, tabs }: { title: string; sub: string; right?: ReactNode; tabs?: ReactNode }) {
   return (
-    <div className="border-b border-[var(--line)] bg-white px-6 py-3.5">
+    <div className={`border-b border-[var(--line)] bg-white px-6 pt-3.5 ${tabs ? 'pb-0' : 'pb-3.5'}`}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-[16px] font-bold tracking-tight">{title}</h1>
@@ -325,6 +325,7 @@ export function PageTop({ title, sub, right }: { title: string; sub: string; rig
         </div>
         {right}
       </div>
+      {tabs && <div className="mt-3">{tabs}</div>}
     </div>
   );
 }
