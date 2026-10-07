@@ -663,6 +663,8 @@ The panel always shows two chips: a green *Profit-making* (or red *Loss-making*)
 
 ## 9. Page 2: Customer Prediction
 
+> **Current layout.** Two tabs. **Customers** holds the filters, the customer list with the selected customer's detail (9.1), and, further down, a collapsed panel *Target list: who to contact, with which offer* with the content described in 9.2 (offer choice, number cards, five group cards, ranked table, CSV export). The separate "Customer view / Target list" switch was removed because the two views overlapped. **How the model predicts, and does it work** is the second tab (the drivers, who responds to what, and the held-out validation, see 8.5). The customer list shows 10 rows at a time.
+
 **Purpose:** answer the manager's exact question for one customer, "what promotion will this customer respond to?", and turn predictions into a target list.
 
 **Header and switch.** *Customer view* and *Target list* on the right.

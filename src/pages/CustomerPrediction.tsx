@@ -17,7 +17,7 @@ import { Takeaway } from '@/components/Takeaway';
 import { ModelSection } from '@/components/ModelPanels';
 import { customerTakeaway } from '@/lib/takeaways';
 
-type View = 'customer' | 'target';
+type Tab = 'customers' | 'model';
 type Group = 'target' | 'light' | 'none' | 'stronger' | 'skip';
 const GROUPS: { id: Group; title: string; body: string; tone: 'green' | 'neutral' | 'amber' | 'red' }[] = [
   { id: 'target', title: 'High-probability responders', body: 'Offer lifts purchase chance by 10+ points and pays for itself', tone: 'green' },
@@ -29,7 +29,7 @@ const GROUPS: { id: Group; title: string; body: string; tone: 'green' | 'neutral
 
 export function CustomerPrediction() {
   const e = useEngine();
-  const [view, setView] = useState<View>(() => (window.location.hash.includes('view=target') ? 'target' : 'customer'));
+  const [tab, setTab] = useState<Tab>('customers');
   const [category, setCategory] = useState('Beverages');
   const [persona, setPersona] = useState('all');
   const [channel, setChannel] = useState('all');
@@ -85,13 +85,24 @@ export function CustomerPrediction() {
 
   return (
     <>
-      <PageTop title="Customer Prediction" sub="What promotion will this customer respond to? Behaviour in, predicted response out, one customer at a time or as a target list"
-        right={<Toggle value={view} onChange={setView} options={[{ id: 'customer', label: 'Customer view' }, { id: 'target', label: 'Target list' }]} />} />
-      {filters}
-      {view === 'customer'
-        ? <CustomerView S={S} filtered={filtered} sel={sel} setSel={setSel} sort={sort} setSort={setSort} limit={limit} setLimit={setLimit} category={category} />
-        : <TargetView S={S} filtered={filtered} offerKey={offerKey} setOfferKey={setOfferKey} category={category} />}
-      <div className="px-6 pb-6"><ModelSection /></div>
+      <PageTop title="Customer Prediction" sub="What promotion will this customer respond to? Behaviour in, predicted response out, one customer at a time" />
+      <div className="px-6 pt-4">
+        <Toggle value={tab} onChange={setTab} options={[{ id: 'customers', label: 'Customers' }, { id: 'model', label: 'How the model predicts, and does it work' }]} />
+      </div>
+      {tab === 'customers' ? (
+        <>
+          {filters}
+          <CustomerView S={S} filtered={filtered} sel={sel} setSel={setSel} sort={sort} setSort={setSort} limit={limit} setLimit={setLimit} category={category} />
+          <div className="px-6 pb-6">
+            <Panel flush title="Target list: who to contact, with which offer" defaultOpen={false}
+              what={`Customers worth an offer in ${category}, grouped by how they respond, with a CSV export for a campaign tool.`}>
+              <TargetView S={S} filtered={filtered} offerKey={offerKey} setOfferKey={setOfferKey} category={category} />
+            </Panel>
+          </div>
+        </>
+      ) : (
+        <div className="p-6 pt-4"><ModelSection /></div>
+      )}
     </>
   );
 }
@@ -302,7 +313,7 @@ function TargetView({ S, filtered, offerKey, setOfferKey, category }: Props & { 
   };
 
   return (
-    <div className="space-y-4 p-6">
+    <div className="space-y-4 p-4 pt-0">
       <div className="flex flex-wrap items-center gap-3">
         <FilterSelect value={offerKey} onChange={setOfferKey} options={[{ value: 'best', label: "Each customer's best promotion" }, ...S.promos.map((o) => ({ value: o.key, label: `Offer: ${o.label}` }))]} />
         <span className="text-[11px] text-[var(--ink-3)]">Customers are contacted only where the offer earns more than it costs.</span>

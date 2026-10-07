@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { ChevronDown } from 'lucide-react';
 import { Takeaway } from '@/components/Takeaway';
 import { Help } from '@/components/Help';
 import { Chip, FilterSelect, Panel, Toggle, WindowChip } from '@/components/ui';
@@ -17,11 +16,10 @@ type ValView = 'profit' | 'predicted' | 'accuracy' | 'skipped';
 
 /**
  * "How the model predicts, and does it work": which behaviours drive the prediction, who responds to what,
- * and the held-out backtest. Collapsed by default under the customer view on the Customer Prediction page.
+ * and the held-out backtest. It is the second tab of the Customer Prediction page.
  */
 export function ModelSection() {
   const e = useEngine();
-  const [open, setOpen] = useState(false);
   const [predCat, setPredCat] = useState('Beverages');
   const [valView, setValView] = useState<ValView>('profit');
   const [drvView, setDrvView] = useState<'group' | 'signal'>('group');
@@ -48,13 +46,7 @@ export function ModelSection() {
 
   return (
     <section className="space-y-4">
-      <button onClick={() => setOpen(!open)} aria-expanded={open} className="card flex w-full flex-wrap items-center gap-2 px-4 py-3 text-left">
-        <ChevronDown className={`h-3.5 w-3.5 text-[var(--ink-3)] transition-transform ${open ? '' : '-rotate-90'}`} />
-        <span className="text-[12.5px] font-semibold tracking-tight">How the model predicts, and does it work</span>
-        <span className="text-[10.5px] text-[var(--ink-3)]">which behaviours drive it, who responds to what, accuracy and profit on unseen campaigns</span>
-      </button>
-      {open && (
-        <>
+      <>
           <Takeaway>{predictionTakeaway({ groups: e.model.groupImportance, auc: e.model.aucTest, testCampaigns: e.model.testCampaigns.length })}</Takeaway>
           <Takeaway>{proofTakeaway({ roi: vt.roi, broadRoi, campaigns: V.length })}</Takeaway>
             <Panel title="Which behaviours predict promotion response" what={`Behaviour themes group the ${e.model.importance.length} signals the model reads into ${e.model.groupImportance.length} kinds; individual signals show each one. In the signals view, green raises the chance of responding and orange lowers it.`}
@@ -128,8 +120,7 @@ export function ModelSection() {
                   ]} />
               )}
             </Panel>
-        </>
-      )}
+      </>
     </section>
   );
 }
