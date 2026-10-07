@@ -50,3 +50,24 @@ test('UI strings avoid retired terminology', () => {
     for (const re of banned) assert.ok(!re.test(t), `${f} contains banned phrase ${re}`);
   }
 });
+
+test('brand names come from one source and the old placeholder name is gone', () => {
+  const brand = fs.readFileSync('src/lib/brand.ts', 'utf8');
+  const gen = fs.readFileSync('scripts/generate-data.mjs', 'utf8');
+  for (const k of ['RETAILER_NAME', 'OUR_BRAND_NAME']) {
+    const a = brand.match(new RegExp(`${k} = '([^']+)'`))?.[1];
+    const b = gen.match(new RegExp(`${k} = '([^']+)'`))?.[1];
+    assert.ok(a && a === b, `${k} must match between brand.ts and generate-data.mjs`);
+  }
+  const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((f) => (f.isDirectory() ? walk(path.join(d, f.name)) : [path.join(d, f.name)]));
+  const files = [...walk('src'), ...walk('tests'), 'README.md', 'docs/PROJECT_GUIDE.md', 'scripts/generate-data.mjs', 'public/data/promo_behaviour_data.csv'].filter((f) => !f.endsWith('invariants.test.mjs'));
+  for (const f of files) assert.ok(!/Aurora/.test(fs.readFileSync(f, 'utf8')), `${f} still mentions the old placeholder brand`);
+});
+
+test('engine identifies our brand by the is_our_brand column', () => {
+  const ours = e.ds.lines ? e.ds.lines.filter((l) => l.ours).length : null;
+  const csv = fs.readFileSync('public/data/promo_behaviour_data.csv', 'utf8').trim().split('\n').slice(1);
+  const n = csv.filter((l) => l.split(',')[7] === '1').length;
+  assert.ok(n > 0 && csv.filter((l) => l.split(',')[7] === '1').every((l) => l.split(',')[6] === 'Reliance Fresh'));
+  assert.ok(ours === null || ours === n);
+});
