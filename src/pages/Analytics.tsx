@@ -4,7 +4,8 @@ import { Takeaway } from '@/components/Takeaway';
 import { behaviourTakeaway, pastResultsTakeaway, predictionTakeaway, proofTakeaway } from '@/lib/takeaways';
 import { RotateCcw, SlidersHorizontal } from 'lucide-react';
 import { useApp, useEngine } from '@/state';
-import { Chip, FilterSelect, Kpi, Meter, Panel, Toggle, ViewToggle } from '@/components/ui';
+import { Chip, FilterBar, FilterSelect, Kpi, Meter, ModeToggle, Panel, Toggle, ViewToggle } from '@/components/ui';
+import { useViewMode } from '@/lib/viewMode';
 import { BarChart, DivergingBars, GroupedBars, Heat, HBars, Legend, LineChart, Scatter, Waterfall } from '@/components/charts';
 import { TYPES } from '@/engine/segments';
 import { activeAt, buildCtxs } from '@/engine/planner';
@@ -52,6 +53,10 @@ export function Analytics() {
   const [predCat, setPredCat] = useState('Beverages');
   const [valView, setValView] = useState<ValView>('profit');
   const [drvView, setDrvView] = useState<'group' | 'signal'>('group');
+  const { summary } = useViewMode();
+  const [moreKpi, setMoreKpi] = useState(false);
+  const secondary = !summary || moreKpi; // Summary shows 3 KPIs; the rest sit behind "More metrics"
+  const nActive = (['category', 'promo', 'persona', 'channel', 'loyalty', 'frequency'] as const).filter((k) => f[k] !== 'all').length;
   const set = (k: keyof Filters) => (v: string) => setF({ ...f, [k]: v });
 
   const { cur, prior } = useMemo(() => selectCampaigns(e, f), [e, f]);
@@ -165,7 +170,7 @@ export function Analytics() {
         sub={`How customer behaviour predicts promotion response, and whether acting on it pays · ${dateLabel(isoOf(e.ds.minDay))} – ${dateLabel(isoOf(e.ds.maxDay))}`}
         right={<Toggle value={f.period} onChange={(v) => setF({ ...f, period: v })} options={[{ id: '3m', label: 'Last 3 months' }, { id: '6m', label: 'Last 6 months' }, { id: 'all', label: 'All time' }]} />}
       />
-      <div className="flex flex-wrap items-center gap-2.5 border-b border-[var(--line)] bg-white px-6 py-2.5">
+      <FilterBar active={nActive} className="flex flex-wrap items-center gap-2.5 border-b border-[var(--line)] bg-white px-6 py-2.5">
         <FilterSelect value={f.category} onChange={set('category')} options={[{ value: 'all', label: 'All Categories' }, ...cats.map((c) => ({ value: c, label: c }))]} />
         <FilterSelect value={f.promo} onChange={set('promo')} options={[
           { value: 'all', label: 'All Promotion Types' }, { value: 'pct10', label: '10% Discount' }, { value: 'pct20', label: '20% Discount' },
@@ -181,17 +186,20 @@ export function Analytics() {
           </>
         )}
         {filtered && <button onClick={() => setF({ ...DEFAULT_FILTERS, period: f.period })} className="flex items-center gap-1 text-[11px] font-medium text-[var(--ink-2)] hover:text-[var(--ink)]"><RotateCcw className="h-3 w-3" />Reset</button>}
-      </div>
+      </FilterBar>
 
       <div className="space-y-4 p-6">
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
-          <Kpi label="Discount invested" value={inr(A.cost)} delta={dPct(A.cost, P.cost, null)} note={sub || `${A.campaigns} campaigns`} />
+        <div className={`grid grid-cols-2 gap-3 lg:grid-cols-3 ${secondary ? 'xl:grid-cols-6' : ''}`}>
+          {secondary && <Kpi label="Discount invested" value={inr(A.cost)} delta={dPct(A.cost, P.cost, null)} note={sub || `${A.campaigns} campaigns`} />}
           <Kpi label="Net promo profit" value={inr(A.net)} tone={A.net < 0 ? 'bad' : 'good'} delta={dPct(A.net, P.net)} note={sub || 'past promotions'} />
-          <Kpi label="Avg promo ROI" value={roiOf(A).toFixed(2)} tone={roiOf(A) < 0 ? 'bad' : undefined} delta={dAbs(roiOf(A), roiOf(P), (n) => n.toFixed(2))} note={sub || 'profit per ₹ of discount'} />
-          <Kpi label="Response rate" value={pct(respOf(A))} delta={dAbs(respOf(A), respOf(P), pp)} note={sub || 'bought on promo'} />
+          {secondary && <Kpi label="Avg promo ROI" value={roiOf(A).toFixed(2)} tone={roiOf(A) < 0 ? 'bad' : undefined} delta={dAbs(roiOf(A), roiOf(P), (n) => n.toFixed(2))} note={sub || 'profit per ₹ of discount'} />}
+          {secondary && <Kpi label="Response rate" value={pct(respOf(A))} delta={dAbs(respOf(A), respOf(P), pp)} note={sub || 'bought on promo'} />}
           <Kpi label="Prediction quality" value={`AUC ${e.model.aucTest.toFixed(2)}`} note={`top 20% hold ${pct(top20?.pctResponders ?? 0)} of buyers`} />
           <Kpi label="Profit from acting on it" value={inr(vt.real)} tone={makesMoney ? 'good' : 'bad'} note={`ROI ${vt.roi.toFixed(2)} vs ${broadRoi.toFixed(2)} offering all`} />
         </div>
+        {summary && (
+          <button onClick={() => setMoreKpi(!moreKpi)} aria-expanded={moreKpi} className="-mt-2 flex h-7 items-center gap-1.5 rounded-md border border-[var(--line)] bg-white px-2.5 text-[11px] font-medium text-[var(--ink-2)] hover:bg-[var(--page)]">{moreKpi ? 'Fewer metrics' : 'More metrics'}</button>
+        )}
 
         <Toggle value={tab} onChange={setTab} options={[
           { id: 'results', label: 'Past results' }, { id: 'behaviour', label: 'Customer behaviour' }, { id: 'prediction', label: 'Prediction' }, { id: 'impact', label: 'Business impact' },
@@ -200,11 +208,11 @@ export function Analytics() {
 
         {/* ------------------------------------------------------------ PAST RESULTS */}
         {tab === 'results' && (A.campaigns === 0 ? (
-          <Panel title="Past promotion results" what="Nothing to show for these filters."><p className="py-6 text-center text-[12px] text-[var(--ink-3)]">No campaigns match these filters in this period. Try All time or reset the filters.</p></Panel>
+          <Panel hero title="Past promotion results" what="Nothing to show for these filters."><p className="py-6 text-center text-[12px] text-[var(--ink-3)]">No campaigns match these filters in this period. Try All time or reset the filters.</p></Panel>
         ) : (
           <>
             <div className="grid gap-4 lg:grid-cols-3">
-              <Panel className="lg:col-span-2" title="Campaign performance" what="Each past campaign: the discount it cost against the profit it made."
+              <Panel hero className="lg:col-span-2" title="Campaign performance" what="Each past campaign: the discount it cost against the profit it made."
                 right={<ViewToggle value={perfView} onChange={setPerfView} />}
                 legend={[
                   { label: 'Across', text: 'discount invested' }, { label: 'Up', text: 'net profit (below zero is a loss)' }, { label: 'Size', text: 'customers who bought' },
@@ -272,7 +280,7 @@ export function Analytics() {
         {/* ------------------------------------------------------------ CUSTOMER BEHAVIOUR */}
         {tab === 'behaviour' && (
           <>
-            <Panel title="How each customer type behaves and responds" what="The five customer types, grouped by how they react to promotions. Behaviours are the model's inputs; results show what each type earned."
+            <Panel hero title="How each customer type behaves and responds" what="The five customer types, grouped by how they react to promotions. Behaviours are the model's inputs; results show what each type earned."
               right={<>
                 {featView === 'chart' && <FilterSelect value={featMetric} onChange={setFeatMetric} options={FEAT_METRICS.map((m) => ({ value: m.key, label: m.label }))} />}
                 <ViewToggle value={featView} onChange={setFeatView} />
@@ -318,7 +326,7 @@ export function Analytics() {
         {/* ------------------------------------------------------------ PREDICTION */}
         {tab === 'prediction' && (
           <>
-            <Panel title="Which behaviours predict promotion response" what="How much each kind of behaviour contributes to the prediction."
+            <Panel hero title="Which behaviours predict promotion response" what="How much each kind of behaviour contributes to the prediction."
               right={<Toggle value={drvView} onChange={setDrvView} options={[{ id: 'group', label: 'By group' }, { id: 'signal', label: 'By signal' }]} />}
               legend={drvView === 'group'
                 ? [{ label: 'Bar', text: "share of the model's weight" }, { label: 'Purchasing', text: 'frequency, recency, quantity' }, { label: 'Price', text: 'discount taken' }, { label: 'Promotion', text: 'past response' }, { label: 'Brand', text: 'loyalty vs competitors' }, { label: 'Basket', text: 'items, category mix' }, { label: 'Timing', text: 'purchase rhythm' }]
@@ -394,7 +402,7 @@ export function Analytics() {
         {/* ------------------------------------------------------------ BUSINESS IMPACT */}
         {tab === 'impact' && (
           <>
-            <Panel title="Business impact: traditional vs behaviour-based" what="Forecast for the six planned campaigns: the same offer to everyone, versus the best offer only for customers it pays off with."
+            <Panel hero title="Business impact: traditional vs behaviour-based" what="Forecast for the six planned campaigns: the same offer to everyone, versus the best offer only for customers it pays off with."
               right={<Chip tone="green">{pct(1 - impact.beh.cost / impact.trad.cost)} less discount · {inr(impact.beh.net - impact.trad.net)} more profit</Chip>}
               legend={[{ label: 'Grey', color: '#94a3b8', text: 'traditional: 20% Discount to every recently active customer' }, { label: 'Navy', color: '#0b1c2f', text: 'behaviour-based: best promotion, only where it pays off' }, { label: 'Leakage', text: 'discount given to sales that would have happened anyway' }]}>
               <GroupedBars height={230} format={(v) => inr(v, 0)} series={[{ label: 'Traditional', color: '#94a3b8' }, { label: 'Behaviour-based', color: '#0b1c2f' }]}
@@ -432,7 +440,7 @@ export function PageTop({ title, sub, right }: { title: string; sub: string; rig
           <h1 className="text-[16px] font-bold tracking-tight">{title}</h1>
           <p className="mt-0.5 text-[11px] text-[var(--ink-3)]">{sub}</p>
         </div>
-        {right}
+        <div className="flex flex-wrap items-center gap-3">{right}<ModeToggle /></div>
       </div>
       <StoryStrip />
     </div>

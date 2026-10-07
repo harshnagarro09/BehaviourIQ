@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { ArrowDown, ArrowUp, ChevronDown } from 'lucide-react';
 import type { TypeId } from '@/engine/behaviour';
 import { TYPE_BY_ID } from '@/engine/segments';
+import { useViewMode } from '@/lib/viewMode';
 
 export function Card({ children, className = '', pad = true }: { children: ReactNode; className?: string; pad?: boolean }) {
   return <section className={`card ${pad ? 'p-4' : ''} ${className}`}>{children}</section>;
@@ -117,6 +118,27 @@ export function Meter({ value, color = 'var(--green)', width = 90 }: { value: nu
 
 
 /** Chart / Table switch for cards that can show either */
+/** Summary | Detailed switch. Remounts the page so every panel takes its mode default. */
+export function ModeToggle() {
+  const { mode, setMode } = useViewMode();
+  return <Toggle value={mode} onChange={setMode} options={[{ id: 'summary', label: 'Summary' }, { id: 'detailed', label: 'Detailed' }]} />;
+}
+
+/** Filter row. Detailed: exactly the row it wraps. Summary: one "Filters (n active)" button that opens it. */
+export function FilterBar({ active, className = '', children }: { active: number; className?: string; children: ReactNode }) {
+  const { summary } = useViewMode();
+  const [open, setOpen] = useState(false);
+  if (!summary) return <div className={className}>{children}</div>;
+  return (
+    <div className={className}>
+      <button onClick={() => setOpen(!open)} aria-expanded={open} className={`flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[11.5px] font-medium ${open || active ? 'border-[var(--navy)] text-[var(--ink)]' : 'border-[var(--line)] text-[var(--ink-2)]'} hover:bg-[var(--page)]`}>
+        <ChevronDown className={`h-3 w-3 transition-transform ${open ? '' : '-rotate-90'}`} />Filters ({active} active)
+      </button>
+      {open && children}
+    </div>
+  );
+}
+
 export function ViewToggle({ value, onChange }: { value: 'chart' | 'table'; onChange: (v: 'chart' | 'table') => void }) {
   return <Toggle value={value} onChange={onChange} options={[{ id: 'chart', label: 'Chart' }, { id: 'table', label: 'Table' }]} />;
 }
@@ -126,12 +148,15 @@ export function ViewToggle({ value, onChange }: { value: 'chart' | 'table'; onCh
  * colour / axis / mark, and a collapse arrow so secondary charts can be tucked away.
  */
 export function Panel({
-  title, what, legend, right, children, defaultOpen = true, flush = false, className = '',
+  title, what, legend, right, children, defaultOpen = true, flush = false, className = '', hero = false,
 }: {
   title: ReactNode; what?: ReactNode; legend?: { label: string; text: string; color?: string }[]; right?: ReactNode;
   children: ReactNode; defaultOpen?: boolean; flush?: boolean; className?: string;
+  /** the one panel of a view that stays open in Summary mode; ignored in Detailed mode */
+  hero?: boolean;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
+  const { summary } = useViewMode();
+  const [open, setOpen] = useState(defaultOpen && (!summary || hero));
   return (
     <section className={`card ${className}`}>
       <div className="flex flex-wrap items-start gap-2 px-4 py-3">

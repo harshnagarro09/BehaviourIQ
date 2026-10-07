@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { BarChart3, CalendarRange, UserSearch, Activity, MessageSquareText, SlidersHorizontal, Upload } from 'lucide-react';
 import { RETAILER_NAME, DATA_NOTE } from '@/lib/brand';
+import { ViewModeProvider, useViewMode } from '@/lib/viewMode';
 import { AppProvider, useApp, type PageId } from '@/state';
 import { Analytics } from '@/pages/Analytics';
 import { CustomerPrediction } from '@/pages/CustomerPrediction';
@@ -24,6 +25,7 @@ const NAV: { group: string; items: { id: PageId; label: string; icon: React.Reac
 function Shell() {
   const { engine, error, page, go, loadText } = useApp();
   const fileRef = useRef<HTMLInputElement>(null);
+  const { mode } = useViewMode();
 
   return (
     <div className="flex h-full">
@@ -71,7 +73,7 @@ function Shell() {
           {error && <div className="card m-6 border-[#f3b4b4] bg-[#fdeeee] p-4 text-[12px] text-[#b91c1c]"><p className="font-semibold">Could not load the data</p><p className="mt-1">{error}</p></div>}
           {!engine && !error && <Loading />}
           {engine && (
-            <div key={page} className={`rise ${page === 'advisor' ? 'h-full' : ''}`}>
+            <div key={`${page}-${mode}`} className={`rise ${page === 'advisor' ? 'h-full' : ''}`}>
               {page === 'analytics' && <Analytics />}
               {page === 'customers' && <CustomerPrediction />}
               {page === 'planning' && <Planning />}
@@ -102,7 +104,9 @@ function Loading() {
 export default function App() {
   return (
     <AppProvider>
-      <Shell />
+      <ViewModeProvider>
+        <Shell />
+      </ViewModeProvider>
     </AppProvider>
   );
 }
