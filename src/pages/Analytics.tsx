@@ -1,11 +1,11 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ComponentProps, type ReactNode } from 'react';
 import { Takeaway } from '@/components/Takeaway';
 import { behaviourTakeaway, pastResultsTakeaway } from '@/lib/takeaways';
 import { RotateCcw, SlidersHorizontal } from 'lucide-react';
 import { useEngine } from '@/state';
 import { Help, Lbl } from '@/components/Help';
 import { Chip, FilterSelect, Kpi, Meter, Panel, Toggle, ViewToggle } from '@/components/ui';
-import { BarChart, Heat, Scatter, Waterfall } from '@/components/charts';
+import { BarChart, Heat, Scatter, Waterfall, useWidth } from '@/components/charts';
 import { TYPES } from '@/engine/segments';
 import { offerName } from '@/engine/options';
 import {
@@ -108,6 +108,14 @@ export function Analytics() {
     const a = aggregate(e, camps, (cid) => e.recById.get(cid)!.type === t.id && ok(cid));
     return a.reached ? a.buyers / a.reached : null;
   })), [e, cur, ok, f.persona]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // summarise the response map per customer type (display only, from the same numbers)
+  const bestWorst = personaRows.flatMap((t, r) => {
+    const cells = cats.map((cat, c) => ({ cat, v: heat[r][c] })).filter((x): x is { cat: string; v: number } => x.v !== null);
+    if (cells.length < 2) return [];
+    const sorted = [...cells].sort((a, b) => b.v - a.v);
+    return [{ id: t.id, name: t.short, color: t.color, best: sorted[0], worst: sorted[sorted.length - 1] }];
+  });
 
   const promoGroups = useMemo(() => {
     const defs: { key: string; label: string }[] = [
@@ -240,7 +248,7 @@ export function Analytics() {
 
         {/* ------------------------------------------------------------ CUSTOMER BEHAVIOUR */}
         {tab === 'behaviour' && (
-          <div className="grid items-start gap-4 xl:grid-cols-2">
+          <div className="grid gap-4 xl:grid-cols-2">
             <Panel className="min-w-0" title="How each customer type behaves and responds" what="The five customer types, grouped by how they react to promotions. Behaviours are the model's inputs; results show what each type earned."
               right={<>
                 {featView === 'chart' && <FilterSelect value={featMetric} onChange={setFeatMetric} options={FEAT_METRICS.map((m) => ({ value: m.key, label: m.label }))} />}
@@ -248,7 +256,7 @@ export function Analytics() {
               </>}
               legend={[{ label: 'Bars', text: 'the metric chosen in the dropdown for each customer type' }, ...typeKey]}>
               {featView === 'chart' ? (
-                <BarChart height={230} posColor="var(--navy)" negColor="var(--red)" format={FEAT_METRICS.find((m) => m.key === featMetric)!.fmt}
+                <BarChart height={260} maxW={900} posColor="var(--navy)" negColor="var(--red)" format={FEAT_METRICS.find((m) => m.key === featMetric)!.fmt}
                   data={feat.map((g) => { const m = FEAT_METRICS.find((x) => x.key === featMetric)!; const t = TYPES.find((x) => x.id === g.id)!; return { label: shortName(g.name), value: m.get(g), color: t.color, tip: <><b>{g.name}</b><br />{m.label}: {m.fmt(m.get(g))} · {g.n} customers</> }; })} />
               ) : (
                 <div className="-mx-4 overflow-x-auto">
@@ -275,11 +283,21 @@ export function Analytics() {
             </Panel>
             <Panel className="min-w-0" title="Response map" what="Which customer types respond in which categories."
               legend={[{ label: 'Rows', text: 'customer types' }, { label: 'Columns', text: 'categories' }, { label: 'Cell', text: '% of reached customers who bought on promotion; darker green is higher' }, { label: '–', text: 'no campaign in the period' }]}>
-              <Heat rows={personaRows.map((t) => t.short)} cols={cats} cell={66} rowW={100}
-                value={(r, c) => heat[r][c] ?? -1}
-                color={(v) => (v < 0 ? '#f1f4f8' : v < 0.25 ? '#cbd5e1' : v < 0.5 ? '#86efac' : v < 0.7 ? '#34d399' : '#059669')}
-                label={(v) => (v < 0 ? '–' : `${Math.round(v * 100)}%`)}
-                tip={(r, c) => <>{personaRows[r].name} · {cats[c]}<br />{heat[r][c] === null ? 'no campaign' : pct(heat[r][c]!) + ' responded'}</>} />
+                <FitHeat rows={personaRows.map((t) => t.short)} cols={cats} rowW={100}
+                  value={(r, c) => heat[r][c] ?? -1}
+                  color={(v) => (v < 0 ? '#f1f4f8' : v < 0.25 ? '#cbd5e1' : v < 0.5 ? '#86efac' : v < 0.7 ? '#34d399' : '#059669')}
+                  label={(v) => (v < 0 ? '–' : `${Math.round(v * 100)}%`)}
+                  tip={(r, c) => <>{personaRows[r].name} · {cats[c]}<br />{heat[r][c] === null ? 'no campaign' : pct(heat[r][c]!) + ' responded'}</>} />
+              <p className="mb-1.5 mt-4 text-[9.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">Strongest and weakest category for each customer type</p>
+              <div className="space-y-1.5">
+                {bestWorst.map((b) => (
+                  <div key={b.id} className="flex items-center gap-2 text-[11.5px]">
+                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: b.color }} />
+                    <span className="w-28 shrink-0 font-semibold">{b.name}</span>
+                    <span className="text-[var(--ink-2)]">strongest in <b>{b.best.cat}</b> ({pct(b.best.v)}), weakest in <b>{b.worst.cat}</b> ({pct(b.worst.v)})</span>
+                  </div>
+                ))}
+              </div>
             </Panel>
           </div>
         )}
@@ -287,6 +305,14 @@ export function Analytics() {
       </div>
     </>
   );
+}
+
+/** the response map, with cells sized to fill the panel */
+function FitHeat(props: Omit<ComponentProps<typeof Heat>, 'cell'>) {
+  const [ref, w] = useWidth<HTMLDivElement>();
+  const n = props.cols.length;
+  const cell = Math.max(52, Math.min(130, Math.floor((w - (props.rowW ?? 150) - 6 * n - 6) / Math.max(1, n))));
+  return <div ref={ref}><Heat {...props} cell={cell} /></div>;
 }
 
 export function PageTop({ title, sub, right }: { title: string; sub: string; right?: ReactNode }) {

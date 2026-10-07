@@ -78,11 +78,13 @@ export function Legend({ items }: { items: { label: string; color: string }[] })
 export interface BarDatum { label: string; value: number; color?: string; tip?: ReactNode; sub?: string }
 
 export function BarChart({
-  data, height = 220, format, color = 'var(--t-anyways)', posColor, negColor, showValues = false, yLabel,
+  data, height = 220, format, color = 'var(--t-anyways)', posColor, negColor, showValues = false, yLabel, maxW,
 }: {
   data: BarDatum[]; height?: number; format: (v: number) => string; color?: string; posColor?: string; negColor?: string; showValues?: boolean; yLabel?: string;
+  /** override the default maximum width (see useWidth) */
+  maxW?: number;
 }) {
-  const [ref, w] = useWidth<HTMLDivElement>(capFor(data.length, 120, 380, 1000));
+  const [ref, w] = useWidth<HTMLDivElement>(maxW ?? capFor(data.length, 120, 380, 1000));
   const { box, show, hide, el } = useTip();
   const m = { t: 14, r: 8, b: 34, l: 52 };
   const min = Math.min(0, ...data.map((d) => d.value));
