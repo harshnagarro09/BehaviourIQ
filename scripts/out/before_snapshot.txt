@@ -1,0 +1,26 @@
+customers: 520
+orders: 22798
+lines: 48213
+revenue: 9914364.6
+campaigns: 30
+customer types: {"ignores":109,"anyways":117,"stockup":79,"switcher":109,"deal":106}
+promo units: 18508
+incremental share: 0.7673
+discount cost: 686384.4
+leakage pct: 0.0923
+net profit all campaigns: -22497.8658
+roi all campaigns: -0.0328
+AUC test: 0.817
+AUC train: 0.7983
+test campaigns: ["PRM23","PRM24","PRM25","PRM26","PRM27","PRM28","PRM29","PRM30"]
+top20 capture: 0.3761
+backtest model net / roi: [41094.861279856195,1.1779233932980722,34887.55000000003]
+backtest blanket net / roi: [17662.776158652203,0.08043675007663166,219585.89999999964]
+validation predicted net: 17055.053
+validation actual net: 41094.8613
+loss avoided (skipped net): -23432.0851
+group importance: [["Brand",0.424],["Promotion",0.299],["Price",0.102],["Purchasing",0.097],["Basket",0.071],["Timing",0.008]]
+planner net by campaign: [4989,1552,2288,9327,544,6933]
+numeric CSV checksum (all columns except brand, product_name): "07a28ef36d4ed700"
+engine numeric digest: "4d949588a5f3b202"
+type-classifier match vs hidden truth: 0.919 (scripts/check-classifier.mjs)
