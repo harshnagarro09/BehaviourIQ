@@ -50,12 +50,12 @@ The app does the following, in this order:
 
 ## 2. The business setting and key assumptions
 
-The demo is set in **retail**. The data looks like loyalty-card data from a grocery / FMCG store:
+The demo is set in **retail**, for the retailer **Reliance Fresh**. The data looks like loyalty-card data from a grocery / FMCG store. It is **simulated demo data and not actual Reliance Fresh data**: no real figures, customers, margins or campaigns are implied.
 
 * There are **six product categories**: Beverages, Snacks, Breakfast, Dairy, Household, Personal Care.
-* In every category there is one brand we are promoting, called **Aurora** ("our brand"), and competitor brands on the same shelf (for example Fizzo, Crispo, GoldenGrain, FarmFresh, Sparkle, Silkora).
-* Every promotion discounts **Aurora products only**.
-* **Profit** means the margin on Aurora products (list price minus unit cost) after the discount, so the party funding the discount (the retailer, or the retailer and brand together) is the one measuring ROI.
+* In every category the products we are promoting are the retailer's own label, **Reliance Fresh** ("our brand"), and the competitors are other brands on the same shelf (fictional brands such as Fizzo, Crispo, GoldenGrain, DairyDale, Sparkle, Silkora). Reliance Fresh is not modelled as one store competing against other store chains; that would need cross-retailer data.
+* Every promotion discounts **Reliance Fresh own-label products only**.
+* **Profit** means the margin on Reliance Fresh products (list price minus unit cost) after the discount, so the party funding the discount (the retailer, or the retailer and brand together) is the one measuring ROI.
 
 **Why retail-shaped?** Two of the five customer types need to see competitor purchases (a "switcher" moves from a competitor to us; a "buys anyway" customer is loyal to us). A brand manufacturer usually cannot see what customers buy from rival brands, but a retailer or a shopper panel can. So the data has to look like a retailer's.
 
@@ -132,8 +132,8 @@ The interface went through several rounds of feedback:
 | `order_date` | Date of the order. |
 | `product_id`, `product_name` | The product bought. |
 | `category` | One of six categories. |
-| `brand` | Aurora or a competitor brand. |
-| `is_our_brand` | 1 for Aurora, 0 for competitors. |
+| `brand` | Reliance Fresh or a competitor brand. |
+| `is_our_brand` | 1 for Reliance Fresh, 0 for competitors. |
 | `quantity` | Units bought. |
 | `list_price` | Normal price per unit. |
 | `unit_price` | Price actually paid per unit (lower when discounted). |
@@ -151,7 +151,7 @@ In this build: **520 customers, 22,798 orders, 48,213 order lines, about ₹99 l
 
 ### 5.3 The product catalogue
 
-24 products, 4 per category: two Aurora products and two competitor products. For example Beverages has Aurora Cola, Aurora Iced Tea, Fizzo Cola and Zing Energy Drink. Prices range from about ₹38 to ₹320, with a margin of roughly 20% to 45% depending on the product.
+24 products, 4 per category: two Reliance Fresh own-label products and two competitor products. For example Beverages has Reliance Fresh Cola, Reliance Fresh Iced Tea, Fizzo Cola and Zing Energy Drink. Prices range from about ₹38 to ₹320, with a margin of roughly 20% to 45% depending on the product.
 
 ### 5.4 The 30 past campaigns
 
@@ -159,7 +159,7 @@ Every campaign lasts 14 days and is one of **five promotion types** (plus "no pr
 
 | Type | How it works in the data |
 |---|---|
-| **10% Discount** | Percentage off Aurora products in the category (7 campaigns). |
+| **10% Discount** | Percentage off Reliance Fresh products in the category (7 campaigns). |
 | **20% Discount** | Same at 20% (9 campaigns). |
 | **₹x Off on ₹y+** | A flat rupee amount off per unit, only when the customer spends at least ₹y on the line (5 campaigns). For example ₹30 off on ₹250+ in Household. |
 | **BOGO** | Buy one get one free (6 campaigns). Quantity is forced to even numbers, minimum 2. |
@@ -173,7 +173,7 @@ The generator creates each customer with a hidden behaviour type and then simula
 
 * Each customer has a **shopping rate** (1 to 4+ trips a month), a **weekend preference**, **category preferences**, a **household quantity habit**, and a start and end date (some join late, some lapse).
 * Each trip picks 1 to 4 categories, with realistic **pairs** (Snacks with Beverages, Breakfast with Dairy, Household with Personal Care).
-* Within a category the customer chooses Aurora or a competitor with a probability that depends on their type.
+* Within a category the customer chooses Reliance Fresh or a competitor with a probability that depends on their type.
 * Some customers make **dedicated promotion trips** during a campaign, with a probability that rises with the discount depth.
 * Seasonality is built in (beverages peak in summer, household peaks before Diwali, snacks peak in the festive months).
 
@@ -181,11 +181,11 @@ The five hidden types, and what they do:
 
 | Type | Behaviour |
 |---|---|
-| **Buys anyways** | Mostly buys Aurora at full price whether or not there is a promotion. A discount only gives margin away. |
-| **Deal-only** | Rarely buys Aurora at full price; responds strongly to almost every promotion, even shallow ones. |
+| **Buys anyways** | Mostly buys Reliance Fresh at full price whether or not there is a promotion. A discount only gives margin away. |
+| **Deal-only** | Rarely buys Reliance Fresh at full price; responds strongly to almost every promotion, even shallow ones. |
 | **Stock-up** | Buys 2.6 to 4 times the usual quantity on promotion, then holds off for weeks (pulling future purchases forward). |
-| **Switcher** | Normally buys a competitor; tries Aurora only when the discount is deep (around 20% or more). |
-| **Ignores** | Rarely buys Aurora and barely reacts to promotions. |
+| **Switcher** | Normally buys a competitor; tries Reliance Fresh only when the discount is deep (around 20% or more). |
+| **Ignores** | Rarely buys Reliance Fresh and barely reacts to promotions. |
 
 About 8% of customers are **hybrids** (a blend of two types) and about 17% join late or lapse, so the types overlap a little, as they do in real life.
 
@@ -205,7 +205,7 @@ All logic lives in `src/engine/`. It runs in the browser. This section walks thr
 * Groups lines by customer (sorted by date) for fast lookups.
 * **Detects campaigns** from the `promo_id` column: each campaign's start and end are the first and last day a promoted line appears; depth is the largest discount seen; for flat offers it also records the rupee amount off and the minimum spend (and converts the amount to an **equivalent percentage** so it can be compared with percentage offers).
 * Works out the **economics of our brand per category**: average list price and unit cost (weighted by units).
-* Works out a **prior buying rate** per category: Aurora units per customer per day outside any promotion window. This is used to steady estimates for customers with little history.
+* Works out a **prior buying rate** per category: Reliance Fresh units per customer per day outside any promotion window. This is used to steady estimates for customers with little history.
 
 ### 6.2 The behaviour profile (`behaviour.ts`)
 
@@ -214,9 +214,9 @@ For one customer, using only orders **before a chosen date**, it measures:
 | Group | Signals |
 |---|---|
 | **Purchasing** | orders, order lines, days since last order (**recency**), orders per month (**frequency**), average units per line, items per order, average order value, total spend. |
-| **Price** | average discount % taken on promoted Aurora lines, lowest discount taken, share of Aurora lines bought at full price. |
-| **Brand** | Aurora lines, competitor lines, **our-brand share at full price** (full-price Aurora lines divided by full-price Aurora plus competitor lines), **promo reliance** (share of Aurora lines bought on promotion), competitor items per month. |
-| **Promotion** | **active campaigns** (ones the customer could have responded to), **responded campaigns** (bought a promoted Aurora item in the window), **response rate**, **lift** (units in promotion windows compared with their baseline), **quantity ratio** (units per promoted line divided by units per normal line, counting only percentage and flat offers), **dip ratio** (category buying in the 3 weeks after a promotion compared with normal). |
+| **Price** | average discount % taken on promoted Reliance Fresh lines, lowest discount taken, share of Reliance Fresh lines bought at full price. |
+| **Brand** | Reliance Fresh lines, competitor lines, **our-brand share at full price** (full-price Reliance Fresh lines divided by full-price Reliance Fresh plus competitor lines), **promo reliance** (share of Reliance Fresh lines bought on promotion), competitor items per month. |
+| **Promotion** | **active campaigns** (ones the customer could have responded to), **responded campaigns** (bought a promoted Reliance Fresh item in the window), **response rate**, **lift** (units in promotion windows compared with their baseline), **quantity ratio** (units per promoted line divided by units per normal line, counting only percentage and flat offers), **dip ratio** (category buying in the 3 weeks after a promotion compared with normal). |
 | **Timing** | weekend share of order days, average gap between orders (days), how regular the gaps are, share of orders in the Oct–Nov festive weeks. |
 | **Basket / product** | share of lines in each category, top category and its share. |
 | **Channel** | share of orders in each channel, preferred channel. |
@@ -225,7 +225,7 @@ Because every measurement uses only data before a date, the same function can bu
 
 **"Active" customers.** A customer counts as active for a campaign if they had an order in the 90 days before it started (or were new). The same 90-day rule is used for the "recently active customers" shown on the planning and prediction pages.
 
-**Baseline buying rate.** `baselineRate()` estimates how many Aurora units per day a customer normally buys in a category: it looks back 120 days from the campaign start, ignores days inside any campaign window of that category (plus a 21-day tail after each), counts their Aurora units on the remaining days, and steadies the estimate towards the category average with a weight of 30 days:
+**Baseline buying rate.** `baselineRate()` estimates how many Reliance Fresh units per day a customer normally buys in a category: it looks back 120 days from the campaign start, ignores days inside any campaign window of that category (plus a 21-day tail after each), counts their Reliance Fresh units on the remaining days, and steadies the estimate towards the category average with a weight of 30 days:
 
 ```
 baseline = (their units + 30 × category average) / (eligible days + 30)
@@ -240,7 +240,7 @@ Types are assigned by **plain rules in this order**; the first rule that fits wi
 | Order | Rule | Type |
 |---|---|---|
 | 1 | Buys at least **1.7 times** the usual quantity when a percentage promotion runs | **Stock-up** |
-| 2 | At least **55%** of their full-price purchases in our categories are Aurora | **Buys anyways** |
+| 2 | At least **55%** of their full-price purchases in our categories are Reliance Fresh | **Buys anyways** |
 | 3 | Responded to fewer than **20%** of campaigns they could have | **Ignores** |
 | 4 | Response rate below **55%** | **Switcher** |
 | 5 | Everything else (response rate 55% or more) | **Deal-only** |
@@ -263,7 +263,7 @@ The five types, in plain English:
 
 For every campaign and every active customer, the engine compares what happened with what would have happened:
 
-* **A** = Aurora units the customer bought in that category during the 14-day window.
+* **A** = Reliance Fresh units the customer bought in that category during the 14-day window.
 * **B** = their baseline for those 14 days (baseline rate × 14).
 * **Incremental units** = A − B (can be negative).
 * **Leakage share** = min(A, B) / A: the part of their purchases that would have happened anyway.
@@ -286,7 +286,7 @@ Results are stored per customer per campaign, so any filter (customer type, chan
 
 **Training examples (about 19,800 in total):**
 
-* **Campaign windows**: for every campaign, every active customer. Inputs are measured at the campaign start; the answer is "did they buy any Aurora item in that category during the window?".
+* **Campaign windows**: for every campaign, every active customer. Inputs are measured at the campaign start; the answer is "did they buy any Reliance Fresh item in that category during the window?".
 * **Non-campaign windows**: 14-day slots with no campaign in that category (and none in the 21 days before), with the discount set to zero. The category rotates so all six are represented.
 
 Including the no-promotion windows is what lets the model learn "what they do anyway".
@@ -550,7 +550,7 @@ Colour rules: navy for the main series, grey for the baseline or comparison, gre
 | **Promotion type** | 10% Discount (percentage campaigns up to 15%), 20% Discount (above 15%), ₹ Off on Minimum Spend, BOGO, Bundle / Combo Offer. |
 | **Customer type** | Only customers of that type. |
 | **Channel** | Customers whose most-used channel is Store, App or Online. |
-| **More filters** | **Brand loyalty** (mostly our brand = 50% or more of full-price purchases are Aurora; mixed 15 to 50%; mostly competitors below 15%) and **Frequency** (frequent 3+ orders a month, regular 1.5 to 3, occasional below 1.5). |
+| **More filters** | **Brand loyalty** (mostly our brand = 50% or more of full-price purchases are Reliance Fresh; mixed 15 to 50%; mostly competitors below 15%) and **Frequency** (frequent 3+ orders a month, regular 1.5 to 3, occasional below 1.5). |
 | **Reset** | Appears when any filter is set. |
 
 Filters change the number cards, the Past results tab, the Customer behaviour tab and "Who responds to what". They do **not** change the drivers chart, the validation panel or the business impact forecast, which always use all the data (the held-out test and the forecast are not meaningful for a slice).
@@ -888,7 +888,7 @@ project/
 
 | Term | Meaning |
 |---|---|
-| **Our brand (Aurora)** | The brand being promoted. Competitors are other brands on the same shelf. |
+| **Our brand (Reliance Fresh)** | The Reliance Fresh own-label products being promoted. Competitors are other brands on the same shelf. |
 | **Behaviour profile** | The set of measured behaviours for one customer. |
 | **Customer type** | One of five groups by how customers react to promotions. |
 | **Response / response rate** | Buying a promoted item during a campaign. Rate = share of reached customers who did. |
@@ -921,7 +921,7 @@ About 10 minutes:
 7. **Planning and Simulation** (1.5 min): accept a campaign; in Simulation raise the discount and show the guardrail banner, the profit peak and the "Prediction vs decision" note.
 8. **AI Advisor** (30 sec): ask "Is the prediction accurate and does it make money?"
 
-**Closing line:** *"Customer behaviour is not only useful for understanding what customers have done in the past. It can also help predict what promotions they are most likely to respond to in the future, and we tested that on campaigns the model had never seen."*
+**Closing line:** *"Customer behaviour is not only useful for understanding what Reliance Fresh customers have done in the past. It can also help predict what promotions they are most likely to respond to in the future, and we tested that on campaigns the model had never seen."*
 
 If asked about real data: *"This is a simulated dataset to demonstrate the method. The pipeline works the same on real data, and we can load your file with the same columns."*
 
