@@ -4,6 +4,7 @@ import { Takeaway } from '@/components/Takeaway';
 import { behaviourTakeaway, pastResultsTakeaway, predictionTakeaway, proofTakeaway } from '@/lib/takeaways';
 import { RotateCcw, SlidersHorizontal } from 'lucide-react';
 import { useApp, useEngine } from '@/state';
+import { Help, Lbl } from '@/components/Help';
 import { Chip, FilterBar, FilterSelect, Kpi, Meter, ModeToggle, Panel, Toggle, ViewToggle } from '@/components/ui';
 import { useViewMode } from '@/lib/viewMode';
 import { BarChart, DivergingBars, GroupedBars, Heat, HBars, Legend, LineChart, Scatter, Waterfall } from '@/components/charts';
@@ -191,10 +192,10 @@ export function Analytics() {
       <div className="space-y-4 p-6">
         <div className={`grid grid-cols-2 gap-3 lg:grid-cols-3 ${secondary ? 'xl:grid-cols-6' : ''}`}>
           {secondary && <Kpi label="Discount invested" value={inr(A.cost)} delta={dPct(A.cost, P.cost, null)} note={sub || `${A.campaigns} campaigns`} />}
-          <Kpi label="Net promo profit" value={inr(A.net)} tone={A.net < 0 ? 'bad' : 'good'} delta={dPct(A.net, P.net)} note={sub || 'past promotions'} />
-          {secondary && <Kpi label="Avg promo ROI" value={roiOf(A).toFixed(2)} tone={roiOf(A) < 0 ? 'bad' : undefined} delta={dAbs(roiOf(A), roiOf(P), (n) => n.toFixed(2))} note={sub || 'profit per ₹ of discount'} />}
+          <Kpi help="netProfit" label="Net promo profit" value={inr(A.net)} tone={A.net < 0 ? 'bad' : 'good'} delta={dPct(A.net, P.net)} note={sub || 'past promotions'} />
+          {secondary && <Kpi help="roi" label="Avg promo ROI" value={roiOf(A).toFixed(2)} tone={roiOf(A) < 0 ? 'bad' : undefined} delta={dAbs(roiOf(A), roiOf(P), (n) => n.toFixed(2))} note={sub || 'profit per ₹ of discount'} />}
           {secondary && <Kpi label="Response rate" value={pct(respOf(A))} delta={dAbs(respOf(A), respOf(P), pp)} note={sub || 'bought on promo'} />}
-          <Kpi label="Prediction quality" value={`AUC ${e.model.aucTest.toFixed(2)}`} note={`top 20% hold ${pct(top20?.pctResponders ?? 0)} of buyers`} />
+          <Kpi help="auc" label="Prediction quality" value={`AUC ${e.model.aucTest.toFixed(2)}`} note={`top 20% hold ${pct(top20?.pctResponders ?? 0)} of buyers`} />
           <Kpi label="Profit from acting on it" value={inr(vt.real)} tone={makesMoney ? 'good' : 'bad'} note={`ROI ${vt.roi.toFixed(2)} vs ${broadRoi.toFixed(2)} offering all`} />
         </div>
         {summary && (
@@ -211,7 +212,7 @@ export function Analytics() {
           <Panel hero title="Past promotion results" what="Nothing to show for these filters."><p className="py-6 text-center text-[12px] text-[var(--ink-3)]">No campaigns match these filters in this period. Try All time or reset the filters.</p></Panel>
         ) : (
           <>
-            <div className="grid gap-4 lg:grid-cols-3">
+            <div className={`grid gap-4 lg:grid-cols-3 ${summary ? "items-start" : ""}`}>
               <Panel hero className="lg:col-span-2" title="Campaign performance" what="Each past campaign: the discount it cost against the profit it made."
                 right={<ViewToggle value={perfView} onChange={setPerfView} />}
                 legend={[
@@ -224,7 +225,7 @@ export function Analytics() {
                   <div className="-mx-4 max-h-[280px] overflow-auto">
                     <table className="w-full min-w-[720px] text-[11.5px]">
                       <thead className="sticky top-0 bg-white"><tr className="border-y border-[var(--line)] text-left text-[9.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">
-                        {['Campaign', 'Offer', 'Window', 'Response', 'Discount', 'Net profit', 'ROI', ''].map((h) => <th key={h} className="px-3 py-2">{h}</th>)}
+                        {['Campaign', 'Offer', 'Window', 'Response', 'Discount', 'Net profit', 'ROI', ''].map((h) => <th key={h} className="px-3 py-2"><Lbl t={h} /></th>)}
                       </tr></thead>
                       <tbody>
                         {rows.map(({ campaign: c, agg }) => {
@@ -246,7 +247,7 @@ export function Analytics() {
                   </div>
                 )}
               </Panel>
-              <Panel title="Incrementality" what="Estimated incremental response: promoted units that were extra, against each customer's own baseline."
+              <Panel title={<>Incrementality<Help term="incrementality" /></>} what="Estimated incremental response: promoted units that were extra, against each customer's own baseline."
                 legend={[{ label: 'Sold', text: 'all units sold on promotion' }, { label: 'Bought anyway', color: 'var(--red)', text: "customers' own full-price baseline" }, { label: 'Estimated extra', text: 'estimated to be caused by the promotion' }]}>
                 <Waterfall height={230} format={(v) => int(v)} steps={[
                   { label: 'Sold on\npromotion', value: A.units, kind: 'total' },
@@ -346,7 +347,7 @@ export function Analytics() {
                 tip={(r, c) => <>{pred.gs[r].name} · {pred.options[c].label}<br />{pct(pred.val(pred.gs[r], pred.options[c].key))} chance of buying ({pred.gs[r].ids.length} customers)</>} />
             </Panel>
 
-            <Panel title="Is the prediction accurate, and does acting on it make money?"
+            <Panel title={<>Is the prediction accurate, and does acting on it make money?<Help term="auc" /></>}
               what={`Tested on ${V.length} campaigns held back from training: the model chose who to target using only earlier data.`}
               right={<FilterSelect value={valView} onChange={(v) => setValView(v as ValView)} options={[
                 { value: 'profit', label: 'Does acting on it make money?' }, { value: 'predicted', label: 'Predicted vs actual profit' },
@@ -379,7 +380,7 @@ export function Analytics() {
               )}
               {valView === 'accuracy' && (
                 <div className="grid gap-4 lg:grid-cols-2">
-                  <div><p className="mb-1 text-[10.5px] font-semibold">Predicted vs actual chance of buying</p>
+                  <div><p className="mb-1 text-[10.5px] font-semibold">Predicted vs actual chance of buying<Help term="calibration" /></p>
                     <GroupedBars height={200} format={(v) => pct(v)} series={[{ label: 'Predicted', color: '#94a3b8' }, { label: 'Actual', color: '#0b1c2f' }]}
                       groups={e.model.calibration.map((c, i) => ({ label: i === 0 ? 'Most likely' : i === e.model.calibration.length - 1 ? 'Least likely' : `Group ${i + 1}`, values: [c.predicted, c.actual] }))} /></div>
                   <div><p className="mb-1 text-[10.5px] font-semibold">Buyers captured, best-ranked first</p>

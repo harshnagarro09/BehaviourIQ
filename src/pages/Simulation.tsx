@@ -11,6 +11,7 @@ import { expect, type Expectation } from '@/engine/economics';
 import { activeAt, buildCtxs, CANDIDATES } from '@/engine/planner';
 import { promoOptions, shortOffer } from '@/engine/options';
 import { inr, int, pct, shortDate } from '@/lib/fmt';
+import { Lbl } from '@/components/Help';
 import { Takeaway } from '@/components/Takeaway';
 import { simulationTakeaway } from '@/lib/takeaways';
 
@@ -122,7 +123,7 @@ export function Simulation() {
   const status = (id: string) => decisions[id]?.status === 'accepted' ? <Chip tone="navy">Accepted</Chip> : decisions[id]?.status === 'rejected' ? <Chip tone="red">Rejected</Chip> : e.recommendations.find((r) => r.candidate.id === id)!.flag === 'attention' ? <Chip tone="amber">Needs attention</Chip> : <Chip tone="green">Recommended</Chip>;
 
   const Metric = ({ l, v, tone }: { l: string; v: string; tone?: 'bad' | 'good' }) => (
-    <div><p className="text-[9px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">{l}</p><p className="num mt-0.5 text-[15px] font-bold" style={{ color: tone === 'bad' ? 'var(--red)' : tone === 'good' ? 'var(--green-dark)' : undefined }}>{v}</p></div>
+    <div><p className="text-[9px] font-semibold uppercase tracking-wider text-[var(--ink-3)]"><Lbl t={l} /></p><p className="num mt-0.5 text-[15px] font-bold" style={{ color: tone === 'bad' ? 'var(--red)' : tone === 'good' ? 'var(--green-dark)' : undefined }}>{v}</p></div>
   );
 
   return (

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Download, Search } from 'lucide-react';
 import { useEngine } from '@/state';
+import { Help, Lbl } from '@/components/Help';
 import { Btn, Card, CardTitle, Chip, FilterBar, FilterSelect, Kpi, Meter, Panel, Toggle, TypeBadge, ViewToggle } from '@/components/ui';
 import { BarChart, GroupedBars, HBars, Legend } from '@/components/charts';
 import { PageTop } from '@/pages/Analytics';
@@ -10,6 +11,7 @@ import type { Expectation } from '@/engine/economics';
 import { TYPES, TYPE_BY_ID } from '@/engine/segments';
 import { isoOf } from '@/engine/data';
 import { inr, int, pct, shortDate } from '@/lib/fmt';
+import type { GlossaryKey } from '@/lib/glossary';
 import { Takeaway } from '@/components/Takeaway';
 import { customerTakeaway } from '@/lib/takeaways';
 
@@ -109,7 +111,7 @@ function CustomerView({ S, filtered, sel, setSel, sort, setSort, limit, setLimit
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-[11.5px]">
             <thead><tr className="border-y border-[var(--line)] text-left text-[9.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">
-              {['Customer', 'Customer type', 'Best promotion', 'Response', 'Profit'].map((h) => <th key={h} className="px-3 py-2">{h}</th>)}
+              {['Customer', 'Customer type', 'Best promotion', 'Response', 'Profit'].map((h) => <th key={h} className="px-3 py-2"><Lbl t={h} /></th>)}
             </tr></thead>
             <tbody>
               {filtered.slice(0, limit).map((x) => (
@@ -163,7 +165,7 @@ function Detail({ cid, S, category }: { cid: string; S: Props['S']; category: st
     <div className="min-w-0 space-y-4 xl:sticky xl:top-4 xl:h-fit">
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-2.5"><p className="text-[16px] font-bold">{cid}</p><Chip tone="navy">Customer type</Chip><TypeBadge type={r.type} /><span className="text-[10.5px] text-[var(--ink-3)]">{TYPE_BY_ID[r.type].tagline}</span></div>
+          <div className="flex flex-wrap items-center gap-2.5"><p className="text-[16px] font-bold">{cid}</p><Chip tone="navy">Customer type</Chip><TypeBadge type={r.type} /><Help term={r.type as GlossaryKey} /><span className="text-[10.5px] text-[var(--ink-3)]">{TYPE_BY_ID[r.type].tagline}</span></div>
           <span className="text-[10.5px] text-[var(--ink-3)]">customer since {shortDate(isoOf(b.firstDay))} · {b.nOrders} orders</span>
         </div>
         <p className="mb-2 mt-4 text-[9.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">Behavioural features</p>
@@ -197,7 +199,7 @@ function Detail({ cid, S, category }: { cid: string; S: Props['S']; category: st
         ) : (<div className="overflow-x-auto">
           <table className="w-full min-w-[620px] text-[11.5px]">
             <thead><tr className="border-y border-[var(--line)] text-right text-[9.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">
-              <th className="px-4 py-2 text-left">Promotion</th><th className="px-3 py-2 text-left">Predicted response</th>{['Uplift', 'Revenue', 'Margin', 'Cost', 'Net profit', 'ROI'].map((h) => <th key={h} className="px-3 py-2">{h}</th>)}
+              <th className="px-4 py-2 text-left">Promotion</th><th className="px-3 py-2 text-left">Predicted response</th>{['Uplift', 'Revenue', 'Margin', 'Cost', 'Net profit', 'ROI'].map((h) => <th key={h} className="px-3 py-2"><Lbl t={h} /></th>)}
             </tr></thead>
             <tbody>
               <tr className="border-b border-[var(--line-2)] text-right"><td className="px-4 py-2 text-left font-medium">No promotion</td><td className="px-3 text-left"><Meter value={none.p1} color="#94a3b8" width={70} /> <span className="num ml-1.5 font-semibold">{pct(none.p1)}</span></td><td colSpan={6} /></tr>
@@ -308,7 +310,7 @@ function TargetView({ S, filtered, offerKey, setOfferKey, category }: Props & { 
         <Kpi label="Customers to contact" value={int(targeted.length)} note={`of ${int(filtered.length)} in view · ${pct(targeted.length / Math.max(1, filtered.length))}`} />
         <Kpi label="Extra buyers expected" value={int(inc)} note="because of the offer" />
         <Kpi label="Discount cost" value={inr(cost)} note={`vs ${inr(trad.cost)} for 20% off to all`} />
-        <Kpi label="Net profit" value={inr(net)} tone={net < 0 ? 'bad' : 'good'} note={`vs ${inr(trad.net)} for 20% off to all`} />
+        <Kpi help="netProfit" label="Net profit" value={inr(net)} tone={net < 0 ? 'bad' : 'good'} note={`vs ${inr(trad.net)} for 20% off to all`} />
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
@@ -332,7 +334,7 @@ function TargetView({ S, filtered, offerKey, setOfferKey, category }: Props & { 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-[11.5px]">
             <thead><tr className="border-y border-[var(--line)] text-left text-[9.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">
-              {['#', 'Customer', 'Customer type', 'Promotion', 'Without offer', 'With offer', 'Uplift', 'Expected profit'].map((h) => <th key={h} className="px-3 py-2">{h}</th>)}
+              {['#', 'Customer', 'Customer type', 'Promotion', 'Without offer', 'With offer', 'Uplift', 'Expected profit'].map((h) => <th key={h} className="px-3 py-2"><Lbl t={h} /></th>)}
             </tr></thead>
             <tbody>
               {list.slice(0, 30).map((r, i) => (

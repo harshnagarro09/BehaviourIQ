@@ -3,6 +3,8 @@ import { ArrowDown, ArrowUp, ChevronDown } from 'lucide-react';
 import type { TypeId } from '@/engine/behaviour';
 import { TYPE_BY_ID } from '@/engine/segments';
 import { useViewMode } from '@/lib/viewMode';
+import { Help } from '@/components/Help';
+import type { GlossaryKey } from '@/lib/glossary';
 
 export function Card({ children, className = '', pad = true }: { children: ReactNode; className?: string; pad?: boolean }) {
   return <section className={`card ${pad ? 'p-4' : ''} ${className}`}>{children}</section>;
@@ -32,11 +34,11 @@ export function Delta({ value, good }: { value: string; good: boolean | null }) 
 }
 
 export function Kpi({
-  label, value, delta, note, tone,
-}: { label: string; value: ReactNode; delta?: { text: string; good: boolean | null } | null; note?: string; tone?: 'bad' | 'good' }) {
+  label, value, delta, note, tone, help,
+}: { help?: GlossaryKey; label: string; value: ReactNode; delta?: { text: string; good: boolean | null } | null; note?: string; tone?: 'bad' | 'good' }) {
   return (
     <div className="card p-3.5">
-      <p className="text-[9.5px] font-semibold uppercase tracking-[0.08em] text-[var(--ink-3)]">{label}</p>
+      <p className="text-[9.5px] font-semibold uppercase tracking-[0.08em] text-[var(--ink-3)]">{label}{help && <Help term={help} />}</p>
       <p className="num mt-1.5 text-[22px] font-bold leading-none tracking-tight" style={{ color: tone === 'bad' ? 'var(--red)' : tone === 'good' ? 'var(--green-dark)' : 'var(--ink)' }}>{value}</p>
       <div className="mt-2 flex items-center gap-1.5 text-[10.5px] text-[var(--ink-3)]">
         {delta && <Delta value={delta.text} good={delta.good} />}

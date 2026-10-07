@@ -109,3 +109,10 @@ test('past-results, behaviour, planning and simulation takeaways', () => {
   assert.ok(planningTakeaway({ campaigns: e.recommendations.length, net, flagged: att }).startsWith(`${e.recommendations.length} campaigns planned`));
   assert.ok(simulationTakeaway({ targeted: 0, total: 10, net: 0, roi: 0 }).startsWith('No customer meets'));
 });
+
+test('glossary covers the jargon terms and every customer type', async () => {
+  const { GLOSSARY } = await import('../src/lib/glossary.ts');
+  for (const k of ['auc', 'uplift', 'leakage', 'incrementality', 'roi', 'calibration', 'netProfit', 'pullForward', 'customerType']) assert.ok(GLOSSARY[k], `missing ${k}`);
+  for (const t of new Set(e.records.map((r) => r.type))) assert.ok(GLOSSARY[t], `missing customer type ${t}`);
+  for (const [k, g] of Object.entries(GLOSSARY)) assert.ok(g.text.split(/(?<=\.)\s/).length <= 2 && g.text.length < 230, `${k} help text too long`);
+});

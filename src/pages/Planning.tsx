@@ -10,6 +10,7 @@ import { buildCtxs, activeAt, type Recommendation, type Scenario } from '@/engin
 import { TYPES, TYPE_BY_ID } from '@/engine/segments';
 import { TYPE_IDS } from '@/engine/insights';
 import { inr, int, pct, shortDate } from '@/lib/fmt';
+import { Lbl } from '@/components/Help';
 import { Takeaway } from '@/components/Takeaway';
 import { planningTakeaway } from '@/lib/takeaways';
 
@@ -256,7 +257,7 @@ function Detail({ r, onSimulate }: { r: Recommendation; onSimulate: () => void }
           {TYPES.map((t) => <span key={t.id} className="flex items-center gap-1.5 rounded-full bg-white px-2 py-0.5 text-[10.5px] font-medium ring-1 ring-[var(--line)]"><span className="h-2 w-2 rounded-full" style={{ background: t.color }} />{t.short} {sc.audience.byType[t.id].targeted}/{sc.audience.byType[t.id].total}</span>)}
         </div>
         <dl className="mb-3 grid grid-cols-3 gap-2 text-[10.5px]">
-          {[['Customers', int(sc.audience.targeted)], ['Net profit', inr(sc.net)], ['ROI', sc.roi.toFixed(2)], ['Discount', inr(sc.discountCost)], ['Leakage', inr(sc.leakage)], ['If sent to all', inr(sc.blanket.net)]].map(([l, v]) => <div key={l}><dt className="text-[var(--ink-3)]">{l}</dt><dd className="num text-[12px] font-semibold">{v}</dd></div>)}
+          {[['Customers', int(sc.audience.targeted)], ['Net profit', inr(sc.net)], ['ROI', sc.roi.toFixed(2)], ['Discount', inr(sc.discountCost)], ['Leakage', inr(sc.leakage)], ['If sent to all', inr(sc.blanket.net)]].map(([l, v]) => <div key={l}><dt className="text-[var(--ink-3)]"><Lbl t={l} /></dt><dd className="num text-[12px] font-semibold">{v}</dd></div>)}
         </dl>
         <div className="flex gap-2">
           <Btn variant="navy" disabled={!sc.audience.targeted} onClick={() => decide(r.candidate.id, { status: 'accepted', optionKey: key })}>Accept this version</Btn>
