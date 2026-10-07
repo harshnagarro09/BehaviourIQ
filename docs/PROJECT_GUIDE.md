@@ -935,10 +935,10 @@ About 10 minutes:
 1. **Open Behaviour Analytics** (1 min): "Here is what promotions have done so far." Point at the six cards; note the net profit and ROI.
 2. **Past results** (1.5 min): bubble chart (some campaigns lose money), incrementality (a lot of sales would have happened anyway), promotion types (BOGO and bundles lose).
 3. **Customer behaviour** (1.5 min): the five types and the ROI view (some types cost money); the response map.
-4. **Customer Prediction, model section** (3 min): open "How the model predicts, and does it work"; which behaviours predict (brand and promotion history); who responds to what; then the validation panel: accuracy view, then the profit view, then "what the model avoided".
-5. **Business impact** (1 min, end of the Simulation page): traditional versus behaviour-based.
-6. **Customer Prediction** (1.5 min): open one customer, show features, the six promotions, the recommendation and the "why". Point out that the promotion with the highest response is not always the most profitable (prediction versus decision, 6.14). Switch to Target list and export.
-7. **Planning and Simulation** (1.5 min): accept a campaign; in Simulation raise the discount and show the guardrail banner, the profit peak and the "Prediction vs decision" note.
+4. **Customer Prediction** (1.5 min): open one customer, show features, the six promotions, the recommendation and the "why". Point out that the promotion with the highest response is not always the most profitable (prediction versus decision, 6.14). Switch to Target list and export.
+5. **Customer Prediction, model section** (3 min): open "How the model predicts, and does it work"; which behaviours predict (brand and promotion history); who responds to what; then the validation panel: accuracy view, then the profit view, then "what the model avoided".
+6. **Planning and Simulation** (1.5 min): accept a campaign; in Simulation raise the discount and show the guardrail banner, the profit peak and the "Prediction vs decision" note.
+7. **Business impact** (1 min, end of the Simulation page): traditional versus behaviour-based.
 8. **AI Advisor** (30 sec): ask "Is the prediction accurate and does it make money?"
 
 **Closing line:** *"Customer behaviour is not only useful for understanding what Reliance Fresh customers have done in the past. It can also help predict what promotions they are most likely to respond to in the future, and we tested that on campaigns the model had never seen."*
