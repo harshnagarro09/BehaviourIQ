@@ -240,8 +240,8 @@ export function Analytics() {
 
         {/* ------------------------------------------------------------ CUSTOMER BEHAVIOUR */}
         {tab === 'behaviour' && (
-          <>
-            <Panel title="How each customer type behaves and responds" what="The five customer types, grouped by how they react to promotions. Behaviours are the model's inputs; results show what each type earned."
+          <div className="grid items-start gap-4 xl:grid-cols-2">
+            <Panel className="min-w-0" title="How each customer type behaves and responds" what="The five customer types, grouped by how they react to promotions. Behaviours are the model's inputs; results show what each type earned."
               right={<>
                 {featView === 'chart' && <FilterSelect value={featMetric} onChange={setFeatMetric} options={FEAT_METRICS.map((m) => ({ value: m.key, label: m.label }))} />}
                 <ViewToggle value={featView} onChange={setFeatView} />
@@ -273,15 +273,15 @@ export function Analytics() {
                 </div>
               )}
             </Panel>
-            <Panel title="Response map" what="Which customer types respond in which categories."
+            <Panel className="min-w-0" title="Response map" what="Which customer types respond in which categories."
               legend={[{ label: 'Rows', text: 'customer types' }, { label: 'Columns', text: 'categories' }, { label: 'Cell', text: '% of reached customers who bought on promotion; darker green is higher' }, { label: '–', text: 'no campaign in the period' }]}>
-              <Heat rows={personaRows.map((t) => t.short)} cols={cats} cell={78} rowW={110}
+              <Heat rows={personaRows.map((t) => t.short)} cols={cats} cell={66} rowW={100}
                 value={(r, c) => heat[r][c] ?? -1}
                 color={(v) => (v < 0 ? '#f1f4f8' : v < 0.25 ? '#cbd5e1' : v < 0.5 ? '#86efac' : v < 0.7 ? '#34d399' : '#059669')}
                 label={(v) => (v < 0 ? '–' : `${Math.round(v * 100)}%`)}
                 tip={(r, c) => <>{personaRows[r].name} · {cats[c]}<br />{heat[r][c] === null ? 'no campaign' : pct(heat[r][c]!) + ' responded'}</>} />
             </Panel>
-          </>
+          </div>
         )}
 
       </div>
