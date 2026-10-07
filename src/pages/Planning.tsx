@@ -107,7 +107,7 @@ export function Planning() {
             <BarChart height={210} posColor="var(--navy)" negColor="var(--red)" format={(v) => inr(v, 0)} showValues
               data={e.recommendations.map((r) => { const sc = chosen(r); return { label: r.candidate.name.split(' ')[0].slice(0, 8), sub: sc ? shortOffer(sc.option.label) : 'none', value: sc?.net ?? 0, color: decisions[r.candidate.id]?.status === 'accepted' ? 'var(--green)' : undefined, tip: <><b>{r.candidate.name}</b><br />{sc ? sc.option.label : 'No profitable offer'} · {sc ? inr(sc.net) : '–'}</> }; })} />
           </Panel>
-          <Panel title="Who each campaign targets" what="Mix of customer customer types that receive the offer. Shows the targeting logic at a glance." defaultOpen={false}
+          <Panel title="Who each campaign targets" what="Mix of customer types that receive the offer. Shows the targeting logic at a glance." defaultOpen={false}
             legend={TYPES.map((t) => ({ label: t.short, color: t.color, text: 'Share of the audience in this customer type.' }))}>
             <div className="space-y-3">
               {e.recommendations.map((r) => {

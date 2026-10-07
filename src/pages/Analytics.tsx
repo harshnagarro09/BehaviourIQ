@@ -184,7 +184,7 @@ export function Analytics() {
         {/* the three numbers that carry the story */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Kpi label="Response rate" value={pct(respOf(A))} delta={dAbs(respOf(A), respOf(P), pp)} note={sub || 'of reached customers bought on a promotion'} />
-          <Kpi label="Prediction accuracy" value={`AUC ${e.model.aucTest.toFixed(2)}`} note={`top 20% of customers hold ${pct(top20?.pctResponders ?? 0)} of buyers`} />
+          <Kpi label="Prediction quality" value={`AUC ${e.model.aucTest.toFixed(2)}`} note={`top 20% of customers hold ${pct(top20?.pctResponders ?? 0)} of buyers`} />
           <Kpi label="Profit from acting on it" value={inr(vt.real)} tone={makesMoney ? 'good' : 'bad'} note={`ROI ${vt.roi.toFixed(2)} vs ${broadRoi.toFixed(2)} for blanket promotion`} />
         </div>
 
@@ -337,14 +337,14 @@ export function Analytics() {
                         </div>
                       )}
                     </Panel>
-                    <Panel title="Incrementality" what="How many promoted units were truly extra."
+                    <Panel title="Incrementality" what="Estimated incremental response: how many promoted units were extra, against each customer's own baseline."
                       legend={[{ label: 'Sold', text: 'all units sold on promotion' }, { label: 'Bought anyway', color: 'var(--red)', text: "customers' own full-price baseline" }, { label: 'Extra', text: 'caused by the promotion' }]}>
                       <Waterfall height={230} format={(v) => int(v)} steps={[
                         { label: 'Sold on\npromotion', value: A.units, kind: 'total' },
                         { label: 'Bought\nanyway', value: -A.base, kind: 'delta', note: "Each customer's own baseline for the same days" },
-                        { label: 'Truly\nextra', value: A.units - A.base, kind: 'total' },
+                        { label: 'Estimated\nextra', value: A.units - A.base, kind: 'total' },
                       ]} />
-                      <p className="mt-1 text-[10.5px] text-[var(--ink-3)]">{pct(incShareOf(A))} of promoted units were extra; {pct(leakOf(A))} of the discount went to sales that would have happened anyway.</p>
+                      <p className="mt-1 text-[10.5px] text-[var(--ink-3)]">An estimated {pct(incShareOf(A))} of promoted units were extra; {pct(leakOf(A))} of the discount went to sales that would have happened anyway. Estimated from each customer's own baseline, not a randomised test.</p>
                     </Panel>
                   </div>
                   <Panel title="Promotion type performance" what="Which kinds of promotion earned their discount back."

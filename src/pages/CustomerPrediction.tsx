@@ -88,7 +88,7 @@ export function CustomerPrediction() {
     <div className="flex flex-wrap items-center gap-2.5 border-b border-[var(--line)] bg-white px-6 py-2.5">
       <span className="text-[9.5px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-3)]">Filters</span>
       <FilterSelect value={category} onChange={(v) => { setCategory(v); setOfferKey('best'); }} options={cats.map((c) => ({ value: c, label: `Category: ${c}` }))} />
-      <FilterSelect value={persona} onChange={setPersona} options={[{ value: 'all', label: 'All Response Types' }, ...TYPES.map((t) => ({ value: t.id, label: t.name }))]} />
+      <FilterSelect value={persona} onChange={setPersona} options={[{ value: 'all', label: 'All Customer Types' }, ...TYPES.map((t) => ({ value: t.id, label: t.name }))]} />
       <FilterSelect value={channel} onChange={setChannel} options={[{ value: 'all', label: 'All Channels' }, ...channels.map((c) => ({ value: c, label: c }))]} />
       <div className="flex h-8 items-center gap-1.5 rounded-md border border-[var(--line)] bg-white px-2.5"><Search className="h-3 w-3 text-[var(--ink-3)]" /><input value={query} onChange={(ev) => setQuery(ev.target.value)} placeholder="Customer ID" className="w-24 bg-transparent text-[11.5px] outline-none" /></div>
       <span className="ml-auto text-[11px] text-[var(--ink-3)]">{filtered.length} of {rowsAll.length} recently active customers</span>

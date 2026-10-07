@@ -4,11 +4,11 @@ import type { Campaign } from '@/engine/data';
 
 export interface Filters {
   category: string;
-  persona: string; // response type
+  persona: string; // customer type id
   channel: string;
   promo: string; // all | pct10 | pct20 | flat | bogo | bundle
   period: '3m' | '6m' | 'all';
-  segment: string; // value / activity segment id
+  segment: string; // internal activity grouping (not shown in the UI)
   loyalty: string; // all | ours | mixed | rival
   frequency: string; // all | high | mid | low
 }

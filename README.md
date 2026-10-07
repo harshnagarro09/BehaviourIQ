@@ -1,6 +1,6 @@
 # BehaviourIQ – customer behaviour → promotion prediction
 
-Five pages following the flow: historical data → behaviour → features → segmentation → response prediction → target → simulate → compare → recommend → impact.
+Five pages following the flow: historical data → behaviour → customer types → predicted response → target → simulate → compare → recommend → impact.
 **Behaviour Analytics** (stages 1-5, 11) · **Customer Prediction** (5-7) · **Planning** (10) · **Simulation** (8-9) · **AI Advisor**.
 brand loyalty/switching, basket, timing) predicts who responds to a promotion, and what to do about it.
 
@@ -19,7 +19,7 @@ the type labels are never shipped.
 
 ## Pipeline (`src/engine`)
 1. `behaviour.ts` – per-customer profile, using only data before a given date.
-2. `groups.ts` – behavioural segments (Loyal, High-Value, Deal Hunters, New, At-Risk, Occasional); `segments.ts` – five response personas via explicit rules.
+2. `segments.ts` – the five Customer Types via explicit rules (the one grouping shown in the UI); `groups.ts` – an internal spend-based grouping, hidden in the UI.
    `options.ts` – the six promotion options, comparison, recommendation score and per-customer explanation.
 3. `model.ts` – logistic regression: P(buy our brand in 14 days | offer depth). Asked with and without the offer, the
    difference is the uplift. Time-split validation.

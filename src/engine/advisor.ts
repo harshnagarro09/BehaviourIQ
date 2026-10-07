@@ -243,7 +243,7 @@ export function answer(e: Engine, raw: string): Answer {
     return {
       text: [
         `**${t.customers} customers**, ${t.orders.toLocaleString()} orders, ${inr(t.revenue)} revenue over 15 months.`,
-        `- Promotions gave away ${inr(t.discountCost)} in discount. Only ${pct(t.incShare)} of promoted units were truly incremental.`,
+        `- Promotions gave away ${inr(t.discountCost)} in discount. Only ${pct(t.incShare)} of promoted units are estimated to be incremental (estimated from each customer's own baseline, not a randomised test).`,
         `- Net promotion profit: **${inr(t.netProfit)}** (ROI ${t.roi.toFixed(2)}). ${e.results.filter((r) => r.roi < 0).length} of ${e.results.length} campaigns lost money.`,
         `- The prediction model scores AUC ${e.model.aucTest.toFixed(2)} on unseen campaigns.`,
         `- The planner expects ${inr(e.recommendations.reduce((s, r) => s + (r.best?.net ?? 0), 0))} from the next ${e.recommendations.length} campaigns.`,
