@@ -536,6 +536,17 @@ Colour rules: navy for the main series, grey for the baseline or comparison, gre
 
 ---
 
+### 7.5 The clarity layer (story strip, takeaways, Summary / Detailed, help)
+
+These additions help a first-time viewer follow **Behaviour → Prediction → Decision → Proof**. They add no analytics and change no number.
+
+* **Story strip** (`StoryStrip.tsx`, under every page header). Four steps; the ones the current page or Behaviour Analytics tab covers are highlighted. Clicking a step jumps to its page (Behaviour: Customer behaviour tab; Prediction: Customer Prediction; Decision: Planning; Proof: Prediction tab, validation panel). The small × hides it and the choice is remembered. Mapping lives in `stepsFor()`. Tabs can be opened directly with `#/analytics?tab=prediction` (`results`, `behaviour`, `prediction`, `impact`).
+* **One-sentence takeaway** (`Takeaway.tsx`, sentences built in `src/lib/takeaways.ts`). One line per Behaviour Analytics tab and under the header of Customer Prediction (selected customer), Planning and Simulation. Every number is passed in from engine output, wording says "estimated" for uplift and incrementality, and a too-small slice shows a neutral fallback. Unit tests check the numbers against the engine.
+* **Summary | Detailed** (`src/lib/viewMode.tsx`, switch in every page header, remembered). **Detailed is the full UI.** **Summary** keeps the same pages and tabs but opens only the hero panel of each view (marked with `hero` on `Panel`), collapses the others (one click opens them), shows 3 Behaviour Analytics number cards (Net promo profit, Prediction quality, Profit from acting on it) with the rest behind "More metrics", and folds the filter bar into one "Filters (n active)" button. The default is the constant `DEFAULT_VIEW_MODE` (currently `summary`). Switching modes reloads the page's panels.
+* **Help tooltips** (`Help.tsx`, text in `src/lib/glossary.ts`). A small "?" (hover or keyboard focus) next to AUC, uplift, leakage, incrementality, ROI, calibration, net profit and the customer types wherever they appear as labels. The glossary file is the single place to edit wording.
+
+---
+
 ## 8. Page 1: Behaviour Analytics
 
 **Purpose:** show how customer behaviour relates to promotion results, which behaviours predict response, and whether acting on the prediction pays. It answers "what has happened, and does the idea work?".
@@ -842,11 +853,18 @@ project/
     ├── App.tsx                    sidebar, routing between pages
     ├── state.tsx                  data loading, page, decisions
     ├── index.css                  colours and base styles
-    ├── components/ui.tsx          Panel, Kpi, Toggle, Chip, Btn, ...
+    ├── components/ui.tsx          Panel, Kpi, Toggle, Chip, Btn, FilterBar, ModeToggle, ...
+    ├── components/StoryStrip.tsx  Behaviour > Prediction > Decision > Proof strip
+    ├── components/Takeaway.tsx    one-line takeaway box
+    ├── components/Help.tsx        "?" tooltips
     ├── components/charts.tsx      all chart types
     ├── lib/analytics.ts           filters and per-campaign totals
     ├── lib/fmt.ts                 ₹ and number formatting
     ├── lib/validation.ts          totals of the held-out backtest (ROI vs blanket promotion)
+    ├── lib/brand.ts               retailer and brand names (single source of truth)
+    ├── lib/takeaways.ts           one-sentence takeaway per view
+    ├── lib/glossary.ts            plain-English help text for jargon
+    ├── lib/viewMode.tsx           Summary / Detailed mode
     ├── engine/
     │   ├── data.ts                parse CSV, detect campaigns
     │   ├── behaviour.ts           behaviour profile, baseline buying
