@@ -7,6 +7,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// Names (keep in sync with src/lib/brand.ts). Names only: nothing numeric depends on them.
+const RETAILER_NAME = 'Reliance Fresh';
+const OUR_BRAND_NAME = 'Reliance Fresh';
+
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, '..');
 
@@ -34,33 +38,33 @@ const wpick = (items, weights) => {
 };
 
 // ---------------------------------------------------------------- catalogue
-// Aurora = the brand being promoted ("our brand"). Others are competitor brands on the same shelf.
+// OUR_BRAND_NAME = the retailer's own-label products being promoted ("our brand"). Others are fictional competitor brands on the same shelf.
 const PRODUCTS = [
-  ['BEV01', 'Aurora Cola 1.25L', 'Beverages', 'Aurora', 70, 46],
-  ['BEV02', 'Aurora Iced Tea 1L', 'Beverages', 'Aurora', 45, 29],
+  ['BEV01', `${OUR_BRAND_NAME} Cola 1.25L`, 'Beverages', OUR_BRAND_NAME, 70, 46],
+  ['BEV02', `${OUR_BRAND_NAME} Iced Tea 1L`, 'Beverages', OUR_BRAND_NAME, 45, 29],
   ['BEV03', 'Fizzo Cola 1.25L', 'Beverages', 'Fizzo', 68, 45],
   ['BEV04', 'Zing Energy Drink', 'Beverages', 'Zing', 110, 72],
-  ['SNK01', 'Aurora Potato Chips', 'Snacks', 'Aurora', 40, 24],
-  ['SNK02', 'Aurora Nacho Crunch', 'Snacks', 'Aurora', 55, 33],
+  ['SNK01', `${OUR_BRAND_NAME} Potato Chips`, 'Snacks', OUR_BRAND_NAME, 40, 24],
+  ['SNK02', `${OUR_BRAND_NAME} Nacho Crunch`, 'Snacks', OUR_BRAND_NAME, 55, 33],
   ['SNK03', 'Crispo Salted Chips', 'Snacks', 'Crispo', 38, 23],
   ['SNK04', 'Munchies Namkeen', 'Snacks', 'Munchies', 60, 37],
-  ['BRK01', 'Aurora Corn Flakes', 'Breakfast', 'Aurora', 210, 138],
-  ['BRK02', 'Aurora Muesli', 'Breakfast', 'Aurora', 320, 205],
+  ['BRK01', `${OUR_BRAND_NAME} Corn Flakes`, 'Breakfast', OUR_BRAND_NAME, 210, 138],
+  ['BRK02', `${OUR_BRAND_NAME} Muesli`, 'Breakfast', OUR_BRAND_NAME, 320, 205],
   ['BRK03', 'GoldenGrain Oats', 'Breakfast', 'GoldenGrain', 180, 118],
   ['BRK04', 'Wholesome Muesli', 'Breakfast', 'Wholesome', 290, 190],
-  ['DAI01', 'Aurora Full Cream Milk 1L', 'Dairy', 'Aurora', 68, 55],
-  ['DAI02', 'Aurora Butter 100g', 'Dairy', 'Aurora', 58, 42],
+  ['DAI01', `${OUR_BRAND_NAME} Full Cream Milk 1L`, 'Dairy', OUR_BRAND_NAME, 68, 55],
+  ['DAI02', `${OUR_BRAND_NAME} Butter 100g`, 'Dairy', OUR_BRAND_NAME, 58, 42],
   ['DAI03', 'FarmFresh Milk 1L', 'Dairy', 'FarmFresh', 66, 53],
   ['DAI04', 'FarmFresh Cheese Slices', 'Dairy', 'FarmFresh', 120, 85],
-  ['HSH01', 'Aurora Detergent 1kg', 'Household', 'Aurora', 180, 118],
-  ['HSH02', 'Aurora Dishwash 500ml', 'Household', 'Aurora', 110, 68],
+  ['HSH01', `${OUR_BRAND_NAME} Detergent 1kg`, 'Household', OUR_BRAND_NAME, 180, 118],
+  ['HSH02', `${OUR_BRAND_NAME} Dishwash 500ml`, 'Household', OUR_BRAND_NAME, 110, 68],
   ['HSH03', 'Sparkle Detergent 1kg', 'Household', 'Sparkle', 175, 116],
   ['HSH04', 'Sparkle Dishwash 500ml', 'Household', 'Sparkle', 105, 66],
-  ['PCR01', 'Aurora Shampoo 340ml', 'Personal Care', 'Aurora', 250, 150],
-  ['PCR02', 'Aurora Soap 4-pack', 'Personal Care', 'Aurora', 140, 82],
+  ['PCR01', `${OUR_BRAND_NAME} Shampoo 340ml`, 'Personal Care', OUR_BRAND_NAME, 250, 150],
+  ['PCR02', `${OUR_BRAND_NAME} Soap 4-pack`, 'Personal Care', OUR_BRAND_NAME, 140, 82],
   ['PCR03', 'Silkora Shampoo 340ml', 'Personal Care', 'Silkora', 240, 146],
   ['PCR04', 'Silkora Soap 4-pack', 'Personal Care', 'Silkora', 135, 80],
-].map(([id, name, category, brand, price, cost]) => ({ id, name, category, brand, price, cost, ours: brand === 'Aurora' }));
+].map(([id, name, category, brand, price, cost]) => ({ id, name, category, brand, price, cost, ours: brand === OUR_BRAND_NAME }));
 const CATS = ['Beverages', 'Snacks', 'Breakfast', 'Dairy', 'Household', 'Personal Care'];
 const byCat = (c, ours) => PRODUCTS.filter((p) => p.category === c && p.ours === ours);
 
