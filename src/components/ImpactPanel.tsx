@@ -31,16 +31,16 @@ export function ImpactPanel() {
                   { label: 'Net profit', values: [Math.max(0, impact.trad.net), Math.max(0, impact.beh.net)] },
                 ]} />
               <div className="mt-1"><Legend items={[{ label: 'Traditional (20% Discount to all)', color: '#94a3b8' }, { label: 'Behaviour-based', color: '#0b1c2f' }]} /></div>
-              <div className="mt-4 grid gap-3 text-[11.5px] sm:grid-cols-3">
+              <div className="mt-4 grid gap-3 text-[12.5px] sm:grid-cols-3">
                 {([
                   ['Customers contacted', int(impact.trad.contacts), int(impact.beh.contacts)],
                   ['ROI', (impact.trad.net / impact.trad.cost).toFixed(2), (impact.beh.net / impact.beh.cost).toFixed(2)],
                   ['Extra buyers caused', int(impact.trad.inc), int(impact.beh.inc)],
                 ] as [string, string, string][]).map(([l, a, b]) => (
-                  <div key={l} className="rounded-lg bg-[var(--page)] p-3"><p className="text-[10px] text-[var(--ink-3)]">{l}</p><p className="num mt-0.5"><span className="text-[var(--ink-3)]">{a}</span> → <b className="text-[14px]">{b}</b></p></div>
+                  <div key={l} className="rounded-lg bg-[var(--page)] p-3"><p className="text-[11px] text-[var(--ink-3)]">{l}</p><p className="num mt-0.5"><span className="text-[var(--ink-3)]">{a}</span> → <b className="text-[14px]">{b}</b></p></div>
                 ))}
               </div>
-              <p className="mt-3 text-[11px] text-[var(--ink-2)]">
+              <p className="mt-3 text-[12px] text-[var(--ink-2)]">
                 Also proven on past campaigns: replaying the last {e.model.testCampaigns.length} with the model choosing who to contact returned ROI <b>{smart.roi.toFixed(2)}</b> vs <b>{broad.roi.toFixed(2)}</b> for discounting everyone, with {pct(1 - smart.discountCost / broad.discountCost)} less discount.
               </p>
             </Panel>

@@ -40,16 +40,16 @@ export function Help({ term }: { term: GlossaryKey }) {
         onFocus={show}
         onBlur={hide}
         onKeyDown={(e) => { if (e.key === 'Escape') hide(); }}
-        className="flex h-3.5 w-3.5 cursor-help items-center justify-center rounded-full border border-[var(--line)] bg-white text-[8.5px] font-bold normal-case tracking-normal text-[var(--ink-3)] hover:border-[var(--navy)] hover:text-[var(--ink)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--navy)]"
+        className="flex h-3.5 w-3.5 cursor-help items-center justify-center rounded-full border border-[var(--line)] bg-white text-[9.5px] font-bold normal-case tracking-normal text-[var(--ink-3)] hover:border-[var(--navy)] hover:text-[var(--ink)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--navy)]"
       >?</span>
       {pos && (
         <span
           id={id}
           role="tooltip"
           style={{ position: 'fixed', left: pos.left, top: pos.top, transform: pos.below ? undefined : 'translateY(-100%)', width: 260, zIndex: 60 }}
-          className="pointer-events-none rounded-md bg-[var(--navy)] px-3 py-2 text-left text-[11px] font-normal normal-case leading-snug tracking-normal text-white shadow-lg"
+          className="pointer-events-none rounded-md bg-[var(--navy)] px-3 py-2 text-left text-[12px] font-normal normal-case leading-snug tracking-normal text-white shadow-lg"
         >
-          <b className="block text-[11px]">{g.term}</b>{g.text}
+          <b className="block text-[12px]">{g.term}</b>{g.text}
         </span>
       )}
     </span>

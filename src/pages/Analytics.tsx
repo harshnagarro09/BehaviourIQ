@@ -150,14 +150,14 @@ export function Analytics() {
         ]} />
         <FilterSelect value={f.persona} onChange={set('persona')} options={[{ value: 'all', label: 'All Customer Types' }, ...TYPES.map((t) => ({ value: t.id, label: t.name }))]} />
         <FilterSelect value={f.channel} onChange={set('channel')} options={[{ value: 'all', label: 'All Channels' }, ...channels.map((c) => ({ value: c, label: c }))]} />
-        <button onClick={() => setMore(!more)} className={`flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[11.5px] font-medium ${more ? 'border-[var(--navy)] bg-[var(--navy)] text-white' : 'border-[var(--line)] text-[var(--ink-2)] hover:bg-[var(--page)]'}`}><SlidersHorizontal className="h-3 w-3" />More filters</button>
+        <button onClick={() => setMore(!more)} className={`flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[12.5px] font-medium ${more ? 'border-[var(--navy)] bg-[var(--navy)] text-white' : 'border-[var(--line)] text-[var(--ink-2)] hover:bg-[var(--page)]'}`}><SlidersHorizontal className="h-3 w-3" />More filters</button>
         {more && (
           <>
             <FilterSelect value={f.loyalty} onChange={set('loyalty')} options={[{ value: 'all', label: 'All Brand Loyalty' }, { value: 'ours', label: 'Mostly our brand' }, { value: 'mixed', label: 'Mixed brands' }, { value: 'rival', label: 'Mostly competitors' }]} />
             <FilterSelect value={f.frequency} onChange={set('frequency')} options={[{ value: 'all', label: 'All Frequencies' }, { value: 'high', label: 'Frequent (3+/mo)' }, { value: 'mid', label: 'Regular (1.5-3)' }, { value: 'low', label: 'Occasional (<1.5)' }]} />
           </>
         )}
-        {filtered && <button onClick={() => setF({ ...DEFAULT_FILTERS, period: f.period })} className="flex items-center gap-1 text-[11px] font-medium text-[var(--ink-2)] hover:text-[var(--ink)]"><RotateCcw className="h-3 w-3" />Reset</button>}
+        {filtered && <button onClick={() => setF({ ...DEFAULT_FILTERS, period: f.period })} className="flex items-center gap-1 text-[12px] font-medium text-[var(--ink-2)] hover:text-[var(--ink)]"><RotateCcw className="h-3 w-3" />Reset</button>}
       </div>
 
       <div className="space-y-4 p-6">
@@ -177,7 +177,7 @@ export function Analytics() {
 
         {/* ------------------------------------------------------------ PAST RESULTS */}
         {tab === 'results' && (A.campaigns === 0 ? (
-          <Panel title="Past promotion results" what="Nothing to show for these filters."><p className="py-6 text-center text-[12px] text-[var(--ink-3)]">No campaigns match these filters in this period. Try All time or reset the filters.</p></Panel>
+          <Panel title="Past promotion results" what="Nothing to show for these filters."><p className="py-6 text-center text-[13px] text-[var(--ink-3)]">No campaigns match these filters in this period. Try All time or reset the filters.</p></Panel>
         ) : (
           <>
             <div className="grid gap-4 lg:grid-cols-3">
@@ -191,8 +191,8 @@ export function Analytics() {
                   <Scatter height={240} dots={dots} xLabel="Discount invested" yLabel="Net profit" xFormat={(v) => inr(v, 0)} yFormat={(v) => inr(v, 0)} />
                 ) : (
                   <div className="-mx-4 max-h-[280px] overflow-auto">
-                    <table className="w-full min-w-[720px] text-[11.5px]">
-                      <thead className="sticky top-0 bg-white"><tr className="border-y border-[var(--line)] text-left text-[9.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">
+                    <table className="w-full min-w-[720px] text-[12.5px]">
+                      <thead className="sticky top-0 bg-white"><tr className="border-y border-[var(--line)] text-left text-[10.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">
                         {['Campaign', 'Offer', 'Window', 'Response', 'Discount', 'Net profit', 'ROI', ''].map((h) => <th key={h} className="px-3 py-2"><Lbl t={h} /></th>)}
                       </tr></thead>
                       <tbody>
@@ -200,7 +200,7 @@ export function Analytics() {
                           const v = verdictOf(roiOf(agg));
                           return (
                             <tr key={c.id} className="border-b border-[var(--line-2)] last:border-0">
-                              <td className="px-3 py-2"><p className="font-semibold">{c.name}</p><p className="text-[10px] text-[var(--ink-3)]">{c.category}</p></td>
+                              <td className="px-3 py-2"><p className="font-semibold">{c.name}</p><p className="text-[11px] text-[var(--ink-3)]">{c.category}</p></td>
                               <td className="px-3">{offerOfCampaign(c)}</td>
                               <td className="num px-3 text-[var(--ink-2)]">{shortDate(isoOf(c.start))} – {shortDate(isoOf(c.end))}</td>
                               <td className="num px-3">{pct(respOf(agg))}</td><td className="num px-3">{inr(agg.cost)}</td>
@@ -222,7 +222,7 @@ export function Analytics() {
                   { label: 'Bought\nanyway', value: -A.base, kind: 'delta', note: "Each customer's own baseline for the same days" },
                   { label: 'Estimated\nextra', value: A.units - A.base, kind: 'total' },
                 ]} />
-                <p className="mt-1 text-[10.5px] text-[var(--ink-3)]">An estimated {pct(incShareOf(A))} of promoted units were extra; {pct(leakOf(A))} of the discount went to sales that would have happened anyway. Estimated from each customer's own baseline, not a randomised test.</p>
+                <p className="mt-1 text-[11.5px] text-[var(--ink-3)]">An estimated {pct(incShareOf(A))} of promoted units were extra; {pct(leakOf(A))} of the discount went to sales that would have happened anyway. Estimated from each customer's own baseline, not a randomised test.</p>
               </Panel>
             </div>
             <Panel title="Promotion type performance" what="Which kinds of promotion earned their discount back."
@@ -232,12 +232,12 @@ export function Analytics() {
                   const roi = roiOf(g.a);
                   return (
                     <div key={g.key}>
-                      <div className="flex items-baseline justify-between text-[11.5px]">
+                      <div className="flex items-baseline justify-between text-[12.5px]">
                         <span className="font-semibold">{g.label}</span>
-                        <span className="num text-[11px]"><b style={{ color: roi < 0 ? 'var(--red)' : roi < 0.3 ? 'var(--amber)' : 'var(--green-dark)' }}>{roi.toFixed(2)} ROI</b> <span className="text-[var(--ink-3)]">· {pct(respOf(g.a))} response</span></span>
+                        <span className="num text-[12px]"><b style={{ color: roi < 0 ? 'var(--red)' : roi < 0.3 ? 'var(--amber)' : 'var(--green-dark)' }}>{roi.toFixed(2)} ROI</b> <span className="text-[var(--ink-3)]">· {pct(respOf(g.a))} response</span></span>
                       </div>
                       <div className="mt-1.5"><Meter value={g.share} color={roi < 0 ? 'var(--red)' : 'var(--navy)'} width={300} /></div>
-                      <p className="mt-0.5 text-[10px] text-[var(--ink-3)]">{pct(g.share)} of spend · {g.camps} campaign{g.camps > 1 ? 's' : ''}</p>
+                      <p className="mt-0.5 text-[11px] text-[var(--ink-3)]">{pct(g.share)} of spend · {g.camps} campaign{g.camps > 1 ? 's' : ''}</p>
                     </div>
                   );
                 })}
@@ -260,8 +260,8 @@ export function Analytics() {
                   data={feat.map((g) => { const m = FEAT_METRICS.find((x) => x.key === featMetric)!; const t = TYPES.find((x) => x.id === g.id)!; return { label: shortName(g.name), value: m.get(g), color: t.color, tip: <><b>{g.name}</b><br />{m.label}: {m.fmt(m.get(g))} · {g.n} customers</> }; })} />
               ) : (
                 <div className="-mx-4 overflow-x-auto">
-                  <table className="w-full min-w-[900px] text-[11.5px]">
-                    <thead><tr className="border-y border-[var(--line)] text-right text-[9.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">
+                  <table className="w-full min-w-[900px] text-[12.5px]">
+                    <thead><tr className="border-y border-[var(--line)] text-right text-[10.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">
                       <th className="px-4 py-2 text-left">Customer type</th>
                       {['Customers', 'Orders / mo', 'Days since order', 'Avg spend', 'Order value', 'Items / order', 'On promo', 'Our-brand share', 'Promo response', 'Discount', 'Net profit', 'ROI'].map((h) => <th key={h} className="px-3 py-2">{h}</th>)}
                     </tr></thead>
@@ -288,10 +288,10 @@ export function Analytics() {
                   color={(v) => (v < 0 ? '#f1f4f8' : v < 0.25 ? '#cbd5e1' : v < 0.5 ? '#86efac' : v < 0.7 ? '#34d399' : '#059669')}
                   label={(v) => (v < 0 ? '–' : `${Math.round(v * 100)}%`)}
                   tip={(r, c) => <>{personaRows[r].name} · {cats[c]}<br />{heat[r][c] === null ? 'no campaign' : pct(heat[r][c]!) + ' responded'}</>} />
-              <p className="mb-1.5 mt-4 text-[9.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">Strongest and weakest category for each customer type</p>
+              <p className="mb-1.5 mt-4 text-[10.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">Strongest and weakest category for each customer type</p>
               <div className="space-y-1.5">
                 {bestWorst.map((b) => (
-                  <div key={b.id} className="flex items-center gap-2 text-[11.5px]">
+                  <div key={b.id} className="flex items-center gap-2 text-[12.5px]">
                     <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: b.color }} />
                     <span className="w-28 shrink-0 font-semibold">{b.name}</span>
                     <span className="text-[var(--ink-2)]">strongest in <b>{b.best.cat}</b> ({pct(b.best.v)}), weakest in <b>{b.worst.cat}</b> ({pct(b.worst.v)})</span>
@@ -321,7 +321,7 @@ export function PageTop({ title, sub, right }: { title: string; sub: string; rig
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-[16px] font-bold tracking-tight">{title}</h1>
-          <p className="mt-0.5 text-[11px] text-[var(--ink-3)]">{sub}</p>
+          <p className="mt-0.5 text-[12px] text-[var(--ink-3)]">{sub}</p>
         </div>
         {right}
       </div>

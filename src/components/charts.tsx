@@ -36,7 +36,7 @@ function useTip() {
   const hide = () => setTip(null);
   const el = tip && (
     <div
-      className="pointer-events-none absolute z-30 rounded-lg bg-[#0b1c2f] px-2.5 py-1.5 text-[11px] leading-snug text-white shadow-lg"
+      className="pointer-events-none absolute z-30 rounded-lg bg-[#0b1c2f] px-2.5 py-1.5 text-[12px] leading-snug text-white shadow-lg"
       style={{ left: Math.min(tip.x + 12, (box.current?.clientWidth ?? 300) - 190), top: Math.max(0, tip.y - 8), transform: 'translateY(-100%)', maxWidth: 220 }}
     >
       {tip.node}
@@ -64,7 +64,7 @@ export function Legend({ items }: { items: { label: string; color: string }[] })
   return (
     <div className="flex flex-wrap gap-x-4 gap-y-1">
       {items.map((i) => (
-        <span key={i.label} className="flex items-center gap-1.5 text-[11px] text-[var(--ink-2)]">
+        <span key={i.label} className="flex items-center gap-1.5 text-[12px] text-[var(--ink-2)]">
           <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: i.color }} />
           {i.label}
         </span>
@@ -124,7 +124,7 @@ export function BarChart({
                     </text>
                   )}
                   <text x={cx} y={height - m.b + 14} textAnchor="middle" className="chart-text">{d.label}</text>
-                  {d.sub && <text x={cx} y={height - m.b + 26} textAnchor="middle" className="chart-text" style={{ fontSize: 10 }}>{d.sub}</text>}
+                  {d.sub && <text x={cx} y={height - m.b + 26} textAnchor="middle" className="chart-text" style={{ fontSize: 11 }}>{d.sub}</text>}
                 </g>
               );
             })}
@@ -334,20 +334,20 @@ export function Heat({
           <tr>
             <th style={{ width: rowW }} />
             {cols.map((c, ci) => (
-              <th key={c} className="px-1 pb-1 text-center text-[10.5px] font-medium text-[var(--ink-3)]" style={{ minWidth: cell }}>{colLabel ? colLabel(ci) : c}</th>
+              <th key={c} className="px-1 pb-1 text-center text-[11.5px] font-medium text-[var(--ink-3)]" style={{ minWidth: cell }}>{colLabel ? colLabel(ci) : c}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {rows.map((r, ri) => (
             <tr key={r}>
-              <td className="pr-2 text-right text-[11.5px] font-medium text-[var(--ink-2)]">{rowLabel ? rowLabel(ri) : r}</td>
+              <td className="pr-2 text-right text-[12.5px] font-medium text-[var(--ink-2)]">{rowLabel ? rowLabel(ri) : r}</td>
               {cols.map((c, ci) => {
                 const v = value(ri, ci);
                 const bg = color(v);
                 return (
                   <td
-                    key={c} className="num rounded-md text-center text-[10.5px] font-semibold"
+                    key={c} className="num rounded-md text-center text-[11.5px] font-semibold"
                     style={{ background: bg, height: 30, color: textOn(bg) }}
                     onMouseMove={(e) => show(e, tip ? tip(ri, ci) : <>{r} · {c}<br />{label ? label(v) : v.toFixed(2)}</>)}
                     onMouseLeave={hide}
@@ -398,12 +398,12 @@ export function HBars({
     <div className="space-y-2">
       {rows.map((r, i) => (
         <div key={i} className="flex items-center gap-3">
-          <div className="shrink-0 truncate text-[12px] text-[var(--ink-2)]" style={{ width: labelW }}>{r.label}</div>
+          <div className="shrink-0 truncate text-[13px] text-[var(--ink-2)]" style={{ width: labelW }}>{r.label}</div>
           <div className="relative h-5 flex-1 rounded-md bg-[var(--line-2)]">
             <div className="absolute inset-y-0 left-0 rounded-md" style={{ width: `${Math.max(1.5, (Math.abs(r.value) / m) * 100)}%`, background: r.color }} />
           </div>
-          <div className="num w-14 shrink-0 text-right text-[12px] font-semibold">{format(r.value)}</div>
-          {r.note && <div className="w-20 shrink-0 text-[11px] text-[var(--ink-3)]">{r.note}</div>}
+          <div className="num w-14 shrink-0 text-right text-[13px] font-semibold">{format(r.value)}</div>
+          {r.note && <div className="w-20 shrink-0 text-[12px] text-[var(--ink-3)]">{r.note}</div>}
         </div>
       ))}
     </div>
@@ -432,13 +432,13 @@ export function DivergingBars({
         const width = Math.max(0.8, (Math.abs(r.value) / span) * 100);
         return (
           <div key={i} className="flex items-center gap-3">
-            <div className="shrink-0 truncate text-[12px] text-[var(--ink-2)]" style={{ width: labelW }}>{r.label}</div>
+            <div className="shrink-0 truncate text-[13px] text-[var(--ink-2)]" style={{ width: labelW }}>{r.label}</div>
             <div className="relative h-5 flex-1">
               <div className="absolute inset-y-0 w-px bg-[var(--ink-3)]" style={{ left: `${zero}%` }} />
               <div className="absolute inset-y-0.5 rounded-[4px]" style={{ left: `${left}%`, width: `${width}%`, background: r.color }} />
             </div>
-            <div className="num w-16 shrink-0 text-right text-[12px] font-semibold" style={{ color: r.value < 0 ? 'var(--bad)' : 'var(--ink)' }}>{format(r.value)}</div>
-            {r.note && <div className="w-16 shrink-0 text-[11px] text-[var(--ink-3)]">{r.note}</div>}
+            <div className="num w-16 shrink-0 text-right text-[13px] font-semibold" style={{ color: r.value < 0 ? 'var(--bad)' : 'var(--ink)' }}>{format(r.value)}</div>
+            {r.note && <div className="w-16 shrink-0 text-[12px] text-[var(--ink-3)]">{r.note}</div>}
           </div>
         );
       })}

@@ -11,7 +11,7 @@
   --card: #ffffff;
   --ink: #0f1b2d;
   --ink-2: #475569;
-  --ink-3: #8592a6;
+  --ink-3: #64748b;
   --line: #e4e8ef;
   --line-2: #eef1f6;
   --green: #10b981;
@@ -47,7 +47,7 @@ body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background: var(--page);
   color: var(--ink);
-  font-size: 12px;
+  font-size: 13px;
 }
 .num {
   font-variant-numeric: tabular-nums;
@@ -89,7 +89,7 @@ input[type='range'] {
 .chart-text {
   font-family: 'Inter', sans-serif;
   fill: var(--ink-3);
-  font-size: 10px;
+  font-size: 11px;
 }
 .chart-grid {
   stroke: var(--line-2);

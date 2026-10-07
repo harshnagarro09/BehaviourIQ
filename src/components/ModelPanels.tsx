@@ -54,7 +54,7 @@ export function ModelSection() {
               legend={drvView === 'group'
                 ? [{ label: 'Bar', text: "share of the model's weight" }, { label: 'Purchasing', text: 'frequency, recency, quantity' }, { label: 'Price', text: 'discount taken' }, { label: 'Promotion', text: 'past response' }, { label: 'Brand', text: 'loyalty vs competitors' }, { label: 'Basket', text: 'items, category mix' }, { label: 'Timing', text: 'purchase rhythm' }]
                 : [{ label: 'Green', color: 'var(--green)', text: 'raises the chance of responding' }, { label: 'Orange', color: 'var(--amber)', text: 'lowers it' }, { label: 'Length', text: 'strength of the effect' }]}>
-              <p className="mb-3 text-[11.5px] font-medium text-[var(--ink)]">{signalsTakeaway(e.model.importance)}</p>
+              <p className="mb-3 text-[12.5px] font-medium text-[var(--ink)]">{signalsTakeaway(e.model.importance)}</p>
               {drvView === 'group'
                 ? <HBars labelW={100} max={Math.max(...e.model.groupImportance.map((g) => g.share))} format={(v) => pct(v)} rows={e.model.groupImportance.map((g) => ({ label: g.group, value: g.share, color: 'var(--navy)' }))} />
                 : <DivergingBars labelW={360} format={(v) => (v > 0 ? '+' : '') + v.toFixed(2)} rows={e.model.importance.map((i) => ({ label: signalLabel(i.key, i.label), value: i.weight, color: i.weight >= 0 ? 'var(--green)' : 'var(--amber)' }))} />}
@@ -95,18 +95,18 @@ export function ModelSection() {
               )}
               {valView === 'predicted' && (
                 <div className="grid gap-4 lg:grid-cols-2">
-                  <div><p className="mb-1 text-[10.5px] font-semibold">Net profit of the targeted customers</p>
+                  <div><p className="mb-1 text-[11.5px] font-semibold">Net profit of the targeted customers</p>
                     <GroupedBars height={200} format={(v) => inr(v, 0)} series={[{ label: 'Predicted', color: '#94a3b8' }, { label: 'Actual', color: '#0b1c2f' }]} groups={V.filter((v) => v.targeted > 0).map((v) => ({ label: vLabel(v), values: [v.predNet, v.realNet] }))} /></div>
-                  <div><p className="mb-1 text-[10.5px] font-semibold">Customers who bought</p>
+                  <div><p className="mb-1 text-[11.5px] font-semibold">Customers who bought</p>
                     <GroupedBars height={200} format={(v) => int(v)} series={[{ label: 'Predicted', color: '#94a3b8' }, { label: 'Actual', color: '#0b1c2f' }]} groups={V.filter((v) => v.targeted > 0).map((v) => ({ label: vLabel(v), values: [v.predBuyers, v.realBuyers] }))} /></div>
                 </div>
               )}
               {valView === 'accuracy' && (
                 <div className="grid gap-4 lg:grid-cols-2">
-                  <div><p className="mb-1 text-[10.5px] font-semibold">Predicted vs actual chance of buying<Help term="calibration" /></p>
+                  <div><p className="mb-1 text-[11.5px] font-semibold">Predicted vs actual chance of buying<Help term="calibration" /></p>
                     <GroupedBars height={200} format={(v) => pct(v)} series={[{ label: 'Predicted', color: '#94a3b8' }, { label: 'Actual', color: '#0b1c2f' }]}
                       groups={e.model.calibration.map((c, i) => ({ label: i === 0 ? 'Most likely' : i === e.model.calibration.length - 1 ? 'Least likely' : `Group ${i + 1}`, values: [c.predicted, c.actual] }))} /></div>
-                  <div><p className="mb-1 text-[10.5px] font-semibold">Buyers captured, best-ranked first</p>
+                  <div><p className="mb-1 text-[11.5px] font-semibold">Buyers captured, best-ranked first</p>
                     <LineChart height={200} markers={false} yMax={1} xFormat={(v) => pct(v)} yFormat={(v) => pct(v)} xTicks={[0, 0.25, 0.5, 0.75, 1]} xLabel="Share of customers contacted"
                       series={[{ name: 'Model', color: '#0b1c2f', points: e.model.gains.map((g) => ({ x: g.pctCustomers, y: g.pctResponders })) }, { name: 'Random', color: '#94a3b8', dashed: true, points: [{ x: 0, y: 0 }, { x: 1, y: 1 }] }]} /></div>
                 </div>

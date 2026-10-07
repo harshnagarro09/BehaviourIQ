@@ -73,12 +73,12 @@ export function CustomerPrediction() {
 
   const filters = (
     <div className="flex flex-wrap items-center gap-2.5 border-b border-[var(--line)] bg-white px-6 py-2.5">
-      <span className="text-[9.5px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-3)]">Filters</span>
+      <span className="text-[10.5px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-3)]">Filters</span>
       <FilterSelect value={category} onChange={(v) => { setCategory(v); }} options={cats.map((c) => ({ value: c, label: `Category: ${c}` }))} />
       <FilterSelect value={persona} onChange={setPersona} options={[{ value: 'all', label: 'All Customer Types' }, ...TYPES.map((t) => ({ value: t.id, label: t.name }))]} />
       <FilterSelect value={channel} onChange={setChannel} options={[{ value: 'all', label: 'All Channels' }, ...channels.map((c) => ({ value: c, label: c }))]} />
-      <div className="flex h-8 items-center gap-1.5 rounded-md border border-[var(--line)] bg-white px-2.5"><Search className="h-3 w-3 text-[var(--ink-3)]" /><input value={query} onChange={(ev) => setQuery(ev.target.value)} placeholder="Customer ID" className="w-24 bg-transparent text-[11.5px] outline-none" /></div>
-      <span className="ml-auto text-[11px] text-[var(--ink-3)]">{filtered.length} of {rowsAll.length} recently active customers</span>
+      <div className="flex h-8 items-center gap-1.5 rounded-md border border-[var(--line)] bg-white px-2.5"><Search className="h-3 w-3 text-[var(--ink-3)]" /><input value={query} onChange={(ev) => setQuery(ev.target.value)} placeholder="Customer ID" className="w-24 bg-transparent text-[12.5px] outline-none" /></div>
+      <span className="ml-auto text-[12px] text-[var(--ink-3)]">{filtered.length} of {rowsAll.length} recently active customers</span>
     </div>
   );
 
@@ -116,8 +116,8 @@ function CustomerView({ S, filtered, sel, setSel, sort, setSort, limit, setLimit
           <FilterSelect value={sort} onChange={setSort} options={[{ value: 'net', label: 'Sort: expected profit' }, { value: 'resp', label: 'Sort: predicted response' }, { value: 'uplift', label: 'Sort: uplift' }, { value: 'recency', label: 'Sort: longest silent' }, { value: 'id', label: 'Sort: ID' }]} />
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[470px] text-[11.5px]">
-            <thead><tr className="border-y border-[var(--line)] text-left text-[9.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">
+          <table className="w-full min-w-[470px] text-[12.5px]">
+            <thead><tr className="border-y border-[var(--line)] text-left text-[10.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">
               {['Customer', 'Customer type', 'Best promotion', 'Response', `Profit (${PREDICTION_WINDOW_DAYS}d)`].map((h, i, a) => <th key={h} className={`whitespace-nowrap py-2 ${i === 0 ? 'pl-4 pr-2.5' : i === a.length - 1 ? 'pl-2.5 pr-4' : 'px-2.5'}`}><Lbl t={h} /></th>)}
             </tr></thead>
             <tbody>
@@ -133,7 +133,7 @@ function CustomerView({ S, filtered, sel, setSel, sort, setSort, limit, setLimit
             </tbody>
           </table>
         </div>
-        <div className="flex items-center justify-between px-4 py-3 text-[11px] text-[var(--ink-3)]">
+        <div className="flex items-center justify-between px-4 py-3 text-[12px] text-[var(--ink-3)]">
           <span>Showing {Math.min(limit, filtered.length)} of {filtered.length}</span>
           {limit < filtered.length && <button className="font-semibold text-[var(--ink)] hover:underline" onClick={() => setLimit(limit + 12)}>Show more</button>}
         </div>
@@ -141,7 +141,7 @@ function CustomerView({ S, filtered, sel, setSel, sort, setSort, limit, setLimit
       <TargetSummary S={S} filtered={filtered} category={category} />
       <Insights S={S} filtered={filtered} category={category} />
       </div>
-      {cid ? <Detail key={cid + category} cid={cid} S={S} category={category} /> : <Card><p className="py-10 text-center text-[12px] text-[var(--ink-3)]">No customers match these filters.</p></Card>}
+      {cid ? <Detail key={cid + category} cid={cid} S={S} category={category} /> : <Card><p className="py-10 text-center text-[13px] text-[var(--ink-3)]">No customers match these filters.</p></Card>}
     </div>
     </>
   );
@@ -173,14 +173,14 @@ function Detail({ cid, S, category }: { cid: string; S: Props['S']; category: st
     <div className="min-w-0 space-y-4 xl:sticky xl:top-4 xl:h-fit">
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-2.5"><p className="text-[16px] font-bold">{cid}</p><Chip tone="navy">Customer type</Chip><TypeBadge type={r.type} /><Help term={r.type as GlossaryKey} /><span className="text-[10.5px] text-[var(--ink-3)]">{TYPE_BY_ID[r.type].tagline}</span></div>
-          <span className="text-[10.5px] text-[var(--ink-3)]">customer since {shortDate(isoOf(b.firstDay))} · {b.nOrders} orders</span>
+          <div className="flex flex-wrap items-center gap-2.5"><p className="text-[16px] font-bold">{cid}</p><Chip tone="navy">Customer type</Chip><TypeBadge type={r.type} /><Help term={r.type as GlossaryKey} /><span className="text-[11.5px] text-[var(--ink-3)]">{TYPE_BY_ID[r.type].tagline}</span></div>
+          <span className="text-[11.5px] text-[var(--ink-3)]">customer since {shortDate(isoOf(b.firstDay))} · {b.nOrders} orders</span>
         </div>
-        <p className="mb-2 mt-4 text-[9.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">Behavioural features</p>
+        <p className="mb-2 mt-4 text-[10.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">Behavioural features</p>
         <dl className="grid grid-cols-2 gap-x-6 gap-y-2.5 sm:grid-cols-3">
-          {feats.map(([l, v]) => <div key={l}><dt className="text-[10px] text-[var(--ink-3)]">{l}</dt><dd className="num text-[12px] font-semibold">{v}</dd></div>)}
+          {feats.map(([l, v]) => <div key={l}><dt className="text-[11px] text-[var(--ink-3)]">{l}</dt><dd className="num text-[13px] font-semibold">{v}</dd></div>)}
         </dl>
-        <p className="mt-3 border-t border-[var(--line)] pt-2.5 text-[10.5px] text-[var(--ink-2)]"><b>Why this type:</b> {r.reasons.join('. ')}.</p>
+        <p className="mt-3 border-t border-[var(--line)] pt-2.5 text-[11.5px] text-[var(--ink-2)]"><b>Why this type:</b> {r.reasons.join('. ')}.</p>
       </Card>
 
       <Panel flush title={`What will ${cid} respond to?`} what={`Predicted chance of buying ${category} in the next ${PREDICTION_WINDOW_DAYS} days and what each promotion would earn from this customer over the same ${PREDICTION_WINDOW_DAYS} days.`}
@@ -194,19 +194,19 @@ function Detail({ cid, S, category }: { cid: string; S: Props['S']; category: st
         {pView === 'chart' ? (
           <div className="grid gap-4 px-4 pb-3 pt-1 sm:grid-cols-2">
             <div>
-              <p className="mb-1 text-[10.5px] font-semibold">Predicted chance of buying</p>
+              <p className="mb-1 text-[11.5px] font-semibold">Predicted chance of buying</p>
               <BarChart height={190} format={(v) => pct(v)} showValues color="var(--navy)"
                 data={[{ label: 'None', value: none.p1, color: '#94a3b8' }, ...S.promos.map((o) => ({ label: shortOffer(o.label), value: S.x(cid, o.key).p1, color: best?.o.key === o.key ? 'var(--green)' : 'var(--navy)' }))]} />
             </div>
             <div>
-              <p className="mb-1 text-[10.5px] font-semibold">{`Expected profit over ${PREDICTION_WINDOW_DAYS} days`}</p>
+              <p className="mb-1 text-[11.5px] font-semibold">{`Expected profit over ${PREDICTION_WINDOW_DAYS} days`}</p>
               <BarChart height={190} format={(v) => inr(v, 0)} showValues posColor="var(--navy)" negColor="var(--red)"
                 data={S.promos.map((o) => ({ label: shortOffer(o.label), value: S.x(cid, o.key).net, color: best?.o.key === o.key ? 'var(--green)' : undefined }))} />
             </div>
           </div>
         ) : (<div className="overflow-x-auto">
-          <table className="w-full min-w-[620px] text-[11.5px]">
-            <thead><tr className="border-y border-[var(--line)] text-right text-[9.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">
+          <table className="w-full min-w-[620px] text-[12.5px]">
+            <thead><tr className="border-y border-[var(--line)] text-right text-[10.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">
               <th className="px-4 py-2 text-left">Promotion</th><th className="px-3 py-2 text-left">Predicted response</th>{['Uplift', 'Revenue', 'Margin', 'Cost', 'Net profit', 'ROI'].map((h) => <th key={h} className="px-3 py-2"><Lbl t={h} /></th>)}
             </tr></thead>
             <tbody>
@@ -228,7 +228,7 @@ function Detail({ cid, S, category }: { cid: string; S: Props['S']; category: st
             </tbody>
           </table>
         </div>)}
-        <p className="px-4 py-3 text-[11.5px] leading-relaxed text-[var(--ink-2)]">
+        <p className="px-4 py-3 text-[12.5px] leading-relaxed text-[var(--ink-2)]">
           {best
             ? <>Recommended: <b>{best.o.label}</b>. It lifts the chance of buying from {pct(none.p1)} to <b>{pct(best.e.p1)}</b> and earns about <b>{inr(best.e.net)}</b> after the discount given and any stock borrowed from future purchases.</>
             : <>Recommended: <b>no discount</b>. {none.p1 >= 0.35 ? 'This customer is already likely to buy without any offer, so a discount would mostly give margin away.' : 'No promotion earns more from this customer than it costs.'}</>}
@@ -243,17 +243,17 @@ function Detail({ cid, S, category }: { cid: string; S: Props['S']; category: st
         ]}>
         <div className="space-y-1.5">
           {fx.map((f) => (
-            <div key={f.factor} className="flex items-center gap-2.5 text-[11px]">
+            <div key={f.factor} className="flex items-center gap-2.5 text-[12px]">
               <span className="w-[170px] shrink-0 truncate font-medium">{f.factor}</span>
               <div className="relative h-3.5 flex-1">
                 <div className="absolute inset-y-0 left-1/2 w-px bg-[var(--line)]" />
                 <div className="absolute inset-y-0.5 rounded-sm" style={{ left: f.effect >= 0 ? '50%' : `${50 - (Math.abs(f.effect) / maxAbs) * 50}%`, width: `${(Math.abs(f.effect) / maxAbs) * 50}%`, background: f.effect >= 0 ? 'var(--green)' : 'var(--amber)' }} />
               </div>
-              <span className="num w-10 text-right text-[10.5px] text-[var(--ink-3)]">{f.effect >= 0 ? '+' : ''}{f.effect.toFixed(2)}</span>
+              <span className="num w-10 text-right text-[11.5px] text-[var(--ink-3)]">{f.effect >= 0 ? '+' : ''}{f.effect.toFixed(2)}</span>
             </div>
           ))}
         </div>
-        <ul className="mt-3 space-y-1 border-t border-[var(--line)] pt-3 text-[11px] leading-snug text-[var(--ink-2)]">
+        <ul className="mt-3 space-y-1 border-t border-[var(--line)] pt-3 text-[12px] leading-snug text-[var(--ink-2)]">
           {ups.map((f) => <li key={f.factor}>• <b>{f.factor}</b> raises the response: {f.reading}.</li>)}
           {downs.map((f) => <li key={f.factor}>• <b>{f.factor}</b> holds it back: {f.reading}.</li>)}
         </ul>
@@ -264,7 +264,7 @@ function Detail({ cid, S, category }: { cid: string; S: Props['S']; category: st
         <div className="flex flex-wrap gap-1.5">
           {e.results.map((res) => {
             const h = hist.find((x) => x.campaignId === res.campaign.id);
-            return <span key={res.campaign.id} title={`${res.campaign.name}: ${!h ? 'not active' : h.bought ? 'bought on promo' : 'no response'}`} className="flex h-6 items-center rounded px-2 text-[10px] font-medium" style={{ background: !h ? '#eef1f6' : h.bought ? 'var(--green)' : '#e2e8f0', color: h?.bought ? '#fff' : 'var(--ink-3)' }}>{res.campaign.name.split(' ')[0]}</span>;
+            return <span key={res.campaign.id} title={`${res.campaign.name}: ${!h ? 'not active' : h.bought ? 'bought on promo' : 'no response'}`} className="flex h-6 items-center rounded px-2 text-[11px] font-medium" style={{ background: !h ? '#eef1f6' : h.bought ? 'var(--green)' : '#e2e8f0', color: h?.bought ? '#fff' : 'var(--ink-3)' }}>{res.campaign.name.split(' ')[0]}</span>;
           })}
         </div>
       </Panel>
@@ -324,9 +324,9 @@ function TargetSummary({ S, filtered, category }: Props) {
       <div className="grid grid-cols-2 gap-3">
         {stats.map(([l, v, note, help]) => (
           <div key={l} className="rounded-lg bg-[var(--page)] p-3">
-            <p className="text-[9.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">{l}{help}</p>
+            <p className="text-[10.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">{l}{help}</p>
             <p className="num mt-1 text-[18px] font-bold leading-none" style={{ color: l === 'Net profit' ? (net < 0 ? 'var(--red)' : 'var(--green-dark)') : undefined }}>{v}</p>
-            <p className="mt-1 text-[10.5px] text-[var(--ink-3)]">{note}</p>
+            <p className="mt-1 text-[11.5px] text-[var(--ink-3)]">{note}</p>
           </div>
         ))}
       </div>
