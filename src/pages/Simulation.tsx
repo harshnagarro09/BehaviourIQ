@@ -125,7 +125,7 @@ export function Simulation() {
 
   return (
     <>
-      <PageTop title="Simulation" sub="Once we can predict response, we use it to optimise the promotion decision: model a scenario and see response, cost and profit before spending" />
+      <PageTop title="Simulation" sub="Model campaign scenarios and see the predicted customer response before spending" />
       <div className="grid gap-4 p-6 lg:grid-cols-[250px_1fr]">
         <aside className="card h-fit overflow-hidden">
           <p className="border-b border-[var(--line)] px-3.5 py-2.5 text-[9.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">Campaigns ({CANDIDATES.length})</p>

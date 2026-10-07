@@ -37,7 +37,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [source, setSource] = useState('promo_behaviour_data.csv');
   const [page, setPage] = useState<PageId>(() => {
     const h = window.location.hash.replace('#/', '').split('?')[0] as PageId;
-    return PAGES.includes(h) ? h : 'customers';
+    return PAGES.includes(h) ? h : 'analytics';
   });
   const [params, setParams] = useState<Record<string, string>>({});
   const [decisions, setDecisions] = useState<Record<string, Decision>>(() => {

@@ -7,17 +7,17 @@ import { Planning } from '@/pages/Planning';
 import { Simulation } from '@/pages/Simulation';
 import { Advisor } from '@/pages/Advisor';
 
-const NAV: { group: string; items: { id: PageId; label: string; icon: React.ReactNode; minor?: boolean }[] }[] = [
-  { group: 'Prediction', items: [{ id: 'customers', label: 'Customer Prediction', icon: <UserSearch className="h-3.5 w-3.5" /> }] },
+const NAV: { group: string; items: { id: PageId; label: string; icon: React.ReactNode }[] }[] = [
   { group: 'Analytics', items: [{ id: 'analytics', label: 'Behaviour Analytics', icon: <BarChart3 className="h-3.5 w-3.5" /> }] },
+  { group: 'Prediction', items: [{ id: 'customers', label: 'Customer Prediction', icon: <UserSearch className="h-3.5 w-3.5" /> }] },
   {
-    group: 'Optimise the decision',
+    group: 'Planning',
     items: [
       { id: 'planning', label: 'Planning', icon: <CalendarRange className="h-3.5 w-3.5" /> },
       { id: 'simulation', label: 'Simulation', icon: <SlidersHorizontal className="h-3.5 w-3.5" /> },
     ],
   },
-  { group: 'More', items: [{ id: 'advisor', label: 'AI Advisor', icon: <MessageSquareText className="h-3.5 w-3.5" />, minor: true }] },
+  { group: 'Intelligence', items: [{ id: 'advisor', label: 'AI Advisor', icon: <MessageSquareText className="h-3.5 w-3.5" /> }] },
 ];
 
 function Shell() {
@@ -40,7 +40,7 @@ function Shell() {
                 <button
                   key={i.id}
                   onClick={() => go(i.id)}
-                  className={`relative mb-0.5 flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left ${i.minor ? 'text-[11px]' : 'text-[12px]'} transition-colors ${page === i.id ? 'bg-white/10 font-semibold text-white' : 'text-white/60 hover:bg-white/5 hover:text-white'}`}
+                  className={`relative mb-0.5 flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-[12px] transition-colors ${page === i.id ? 'bg-white/10 font-semibold text-white' : 'text-white/60 hover:bg-white/5 hover:text-white'}`}
                 >
                   {page === i.id && <span className="absolute left-0 top-1.5 h-[calc(100%-12px)] w-[3px] rounded-r bg-[var(--green)]" />}
                   {i.icon}
