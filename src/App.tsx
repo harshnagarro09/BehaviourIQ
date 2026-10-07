@@ -8,8 +8,8 @@ import { Simulation } from '@/pages/Simulation';
 import { Advisor } from '@/pages/Advisor';
 
 const NAV: { group: string; items: { id: PageId; label: string; icon: React.ReactNode }[] }[] = [
-  { group: 'Analytics', items: [{ id: 'analytics', label: 'Behaviour Analytics', icon: <BarChart3 className="h-3.5 w-3.5" /> }] },
   { group: 'Prediction', items: [{ id: 'customers', label: 'Customer Prediction', icon: <UserSearch className="h-3.5 w-3.5" /> }] },
+  { group: 'Analytics', items: [{ id: 'analytics', label: 'Behaviour Analytics', icon: <BarChart3 className="h-3.5 w-3.5" /> }] },
   {
     group: 'Planning',
     items: [

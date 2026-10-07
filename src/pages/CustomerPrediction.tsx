@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Download, Search } from 'lucide-react';
 import { useEngine } from '@/state';
-import { Btn, Card, CardTitle, Chip, FilterSelect, Kpi, Meter, Panel, Toggle, TypeBadge, ViewToggle } from '@/components/ui';
-import { BarChart, GroupedBars, HBars, Legend } from '@/components/charts';
+import { Btn, Card, CardTitle, Chip, FilterSelect, Kpi, Meter, Panel, Toggle, TypeBadge } from '@/components/ui';
+import { BarChart, DivergingBars, GroupedBars, HBars, Legend } from '@/components/charts';
 import { PageTop } from '@/pages/Analytics';
 import { compareOptions, explain, promoOptions, shortOffer, type PromoOption } from '@/engine/options';
 import { activeAt, buildCtxs } from '@/engine/planner';
@@ -20,6 +20,24 @@ const GROUPS: { id: Group; title: string; body: string; tone: 'green' | 'neutral
   { id: 'none', title: 'Do not need a discount', body: 'Already 35%+ likely to buy with no offer', tone: 'neutral' },
   { id: 'skip', title: 'Not worth a discount', body: 'Low response and no offer earns money', tone: 'red' },
 ];
+
+/** The story in one line: what the question is and how every number on this page is produced. */
+function FlowStrip() {
+  const steps = ['Customer Behaviour', 'Predicted Response', 'Estimated Uplift', 'Targeting', 'Business Decision', 'Validation'];
+  return (
+    <div className="border-b border-[var(--line)] bg-[#f8fafc] px-6 py-2.5">
+      <p className="text-[11.5px] text-[var(--ink-2)]"><b className="text-[var(--ink)]">The question:</b> can past customer behaviour predict who will respond to which promotion, and is it worth offering?</p>
+      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+        {steps.map((t, i) => (
+          <span key={t} className="flex items-center gap-1.5">
+            <span className="rounded-full border border-[var(--line)] bg-white px-2 py-0.5 text-[10px] font-semibold text-[var(--ink-2)]">{t}</span>
+            {i < steps.length - 1 && <span className="text-[10px] text-[var(--ink-3)]">→</span>}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function CustomerPrediction() {
   const e = useEngine();
@@ -81,6 +99,7 @@ export function CustomerPrediction() {
     <>
       <PageTop title="Customer Prediction" sub="What promotion will this customer respond to? Behaviour in, predicted response out, one customer at a time or as a target list"
         right={<Toggle value={view} onChange={setView} options={[{ id: 'customer', label: 'Customer view' }, { id: 'target', label: 'Target list' }]} />} />
+      <FlowStrip />
       {filters}
       {view === 'customer'
         ? <CustomerView S={S} filtered={filtered} sel={sel} setSel={setSel} sort={sort} setSort={setSort} limit={limit} setLimit={setLimit} category={category} />
@@ -94,7 +113,7 @@ type Props = { S: { ctxs: ReturnType<typeof buildCtxs>; options: PromoOption[]; 
 function CustomerView({ S, filtered, sel, setSel, sort, setSort, limit, setLimit, category }: Props & { sel: string | null; setSel: (s: string) => void; sort: string; setSort: (s: string) => void; limit: number; setLimit: (n: number) => void }) {
   const cid = sel && filtered.some((x) => x.cid === sel) ? sel : filtered[0]?.cid;
   return (
-    <div className="grid gap-4 p-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
+    <div className="grid gap-4 p-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
       <div className="min-w-0 space-y-4">
       <Card pad={false} className="h-fit">
         <div className="flex items-center justify-between px-4 pt-4">
@@ -102,9 +121,9 @@ function CustomerView({ S, filtered, sel, setSel, sort, setSort, limit, setLimit
           <FilterSelect value={sort} onChange={setSort} options={[{ value: 'net', label: 'Sort: expected profit' }, { value: 'resp', label: 'Sort: predicted response' }, { value: 'uplift', label: 'Sort: uplift' }, { value: 'recency', label: 'Sort: longest silent' }, { value: 'id', label: 'Sort: ID' }]} />
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] text-[11.5px]">
+          <table className="w-full min-w-[500px] text-[11.5px]">
             <thead><tr className="border-y border-[var(--line)] text-left text-[9.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">
-              {['Customer', 'Customer type', 'Best promotion', 'Response', 'Profit'].map((h) => <th key={h} className="px-3 py-2">{h}</th>)}
+              {['Customer', 'Customer type', 'Best promotion', 'Predicted Response', 'Profit'].map((h) => <th key={h} className="px-3 py-2">{h}</th>)}
             </tr></thead>
             <tbody>
               {filtered.slice(0, limit).map((x) => (
@@ -131,54 +150,122 @@ function CustomerView({ S, filtered, sel, setSel, sort, setSort, limit, setLimit
   );
 }
 
+const priceSensitivity = (p: number) => (p >= 0.4 ? 'High' : p >= 0.15 ? 'Medium' : 'Low');
+
+function StepTag({ n, text }: { n: number; text: string }) {
+  return (
+    <p className="mb-2 flex items-center gap-2 text-[9.5px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-3)]">
+      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[var(--navy)] text-[9px] text-white">{n}</span>{text}
+    </p>
+  );
+}
+
 function Detail({ cid, S, category }: { cid: string; S: Props['S']; category: string }) {
   const e = useEngine();
   const r = e.recById.get(cid)!;
   const b = r.b;
   const best = S.best.get(cid);
   const ctx = S.ctxs.find((c) => c.cid === cid)!;
+  const none = S.x(cid, 'none');
+  // promotion with the highest predicted response, which is not always the one worth offering
+  const hr = S.promos.reduce((acc, o) => (S.x(cid, o.key).p1 > S.x(cid, acc.key).p1 ? o : acc), S.promos[0]);
   const [optKey, setOptKey] = useState<string | null>(null);
-  const [pView, setPView] = useState<'chart' | 'table'>('chart');
-  const shown = S.promos.find((o) => o.key === (optKey ?? best?.o.key)) ?? S.promos[1];
+  const [pView, setPView] = useState<'table' | 'chart' | 'money'>('table');
+  const shown = S.promos.find((o) => o.key === (optKey ?? best?.o.key ?? hr.key)) ?? hr;
+  const xs = S.x(cid, shown.key);
+  const upts = Math.round(xs.uplift * 100);
   const fx = useMemo(() => explain(e.model, ctx, shown.depth, shown.mechanic, category).sort((a, c) => Math.abs(c.effect) - Math.abs(a.effect)), [e, ctx, shown, category]);
   const maxAbs = Math.max(...fx.map((f) => Math.abs(f.effect)), 0.01);
-  const none = S.x(cid, 'none');
   const hist = e.perCustomer.get(cid) ?? [];
-  const topCats = Object.entries(b.catShare).sort((a, c) => c[1] - a[1]).slice(0, 2).map(([c, s]) => `${c} ${pct(s)}`).join(', ');
-  const feats: [string, string][] = [
-    ['Orders / month', b.ordersPerMonth.toFixed(1)], ['Last order', `${b.recencyDays}d ago`], ['Total spend', inr(b.totalSpend)], ['Order value', inr(b.avgOrderValue, 0)],
-    ['Items / order', b.linesPerOrder.toFixed(1)], ['Top categories', topCats], ['On promotion', pct(b.promoReliance)], ['Avg discount taken', b.avgDiscAccepted ? `${b.avgDiscAccepted.toFixed(0)}%` : 'none yet'],
-    ['Promo response', `${b.respondedCampaigns} of ${b.activeCampaigns}`], ['Our-brand share', pct(b.ourShareFull)], ['Weekend orders', pct(b.weekendShare)], ['Preferred channel', `${b.topChannel} ${pct(b.channelShare[b.topChannel] ?? 0)}`],
+  const ups = fx.filter((f) => f.effect > 0.05).slice(0, 3);
+  const downs = fx.filter((f) => f.effect < -0.05).slice(0, 2);
+  const hrx = S.x(cid, hr.key);
+  const topCats = Object.entries(b.catShare).sort((a, c) => c[1] - a[1]).slice(0, 2).map(([c, sh]) => `${c} ${pct(sh)}`).join(', ');
+
+  const summary: [string, string, string?][] = [
+    ['Orders / month', b.ordersPerMonth.toFixed(1)],
+    ['Order value', inr(b.avgOrderValue, 0)],
+    ['Promo usage', pct(b.promoReliance), 'of purchases made on promotion'],
+    ['Price sensitivity', priceSensitivity(b.promoReliance), b.avgDiscAccepted ? `takes ${b.avgDiscAccepted.toFixed(0)}% off on average` : 'no discounts taken yet'],
+    [`${category} affinity`, pct(b.catShare[category] ?? 0), 'of their basket'],
+    ['Brand affinity', pct(b.ourShareFull), 'of full-price buys are our brand'],
+    ['Basket size', `${b.linesPerOrder.toFixed(1)} items`, 'per order'],
+    ['Recency', `${b.recencyDays}d ago`, 'last order'],
   ];
-  const ups = fx.filter((f) => f.effect > 0.05).slice(0, 2);
-  const downs = fx.filter((f) => f.effect < -0.05).slice(0, 1);
+  const more: [string, string][] = [
+    ['Total spend', inr(b.totalSpend)], ['Top categories', topCats], ['Promo response', `${b.respondedCampaigns} of ${b.activeCampaigns} campaigns`],
+    ['Weekend orders', pct(b.weekendShare)], ['Preferred channel', `${b.topChannel} ${pct(b.channelShare[b.topChannel] ?? 0)}`], ['Customer since', shortDate(isoOf(b.firstDay))],
+  ];
+  const skipReason = none.p1 >= 0.35
+    ? 'This customer is already likely to buy without any offer, so a discount would mostly give margin away.'
+    : 'No promotion earns more from this customer than it costs, or the lift is too small (under 3 points) to rely on.';
 
   return (
     <div className="min-w-0 space-y-4 xl:sticky xl:top-4 xl:h-fit">
+      {/* 1 · behaviour */}
       <Card>
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <StepTag n={1} text="Behaviour summary" />
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2.5"><p className="text-[16px] font-bold">{cid}</p><Chip tone="navy">Customer type</Chip><TypeBadge type={r.type} /><span className="text-[10.5px] text-[var(--ink-3)]">{TYPE_BY_ID[r.type].tagline}</span></div>
-          <span className="text-[10.5px] text-[var(--ink-3)]">customer since {shortDate(isoOf(b.firstDay))} · {b.nOrders} orders</span>
+          <span className="text-[10.5px] text-[var(--ink-3)]">{b.nOrders} orders</span>
         </div>
-        <p className="mb-2 mt-4 text-[9.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">Behavioural features</p>
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-2.5 sm:grid-cols-3">
-          {feats.map(([l, v]) => <div key={l}><dt className="text-[10px] text-[var(--ink-3)]">{l}</dt><dd className="num text-[12px] font-semibold">{v}</dd></div>)}
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
+          {summary.map(([l, v, n]) => (
+            <div key={l}><dt className="text-[10px] text-[var(--ink-3)]">{l}</dt><dd className="num text-[13px] font-semibold">{v}</dd>{n && <dd className="text-[9.5px] leading-tight text-[var(--ink-3)]">{n}</dd>}</div>
+          ))}
         </dl>
-        <p className="mt-3 border-t border-[var(--line)] pt-2.5 text-[10.5px] text-[var(--ink-2)]"><b>Why this type:</b> {r.reasons.join('. ')}.</p>
+        <details className="mt-3 border-t border-[var(--line)] pt-2.5 text-[10.5px] text-[var(--ink-2)]">
+          <summary className="cursor-pointer font-semibold">More behaviour details and why this customer type</summary>
+          <dl className="mt-2 grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-3">{more.map(([l, v]) => <div key={l}><dt className="text-[9.5px] text-[var(--ink-3)]">{l}</dt><dd className="num font-semibold">{v}</dd></div>)}</dl>
+          <p className="mt-2"><b>Why this type:</b> {r.reasons.join('. ')}.</p>
+        </details>
       </Card>
 
-      <Panel flush title={`What will ${cid} respond to?`} what={`Predicted chance of buying ${category} in the next 14 days and what each promotion would earn from this customer.`}
-        right={<ViewToggle value={pView} onChange={setPView} />}
+      {/* 2 + 3 · predicted response and uplift */}
+      <Panel flush title="2 · Predicted Response and estimated uplift: with vs without a promotion"
+        what={`Chance this customer buys ${category} in the next 14 days. The model is asked twice: without a promotion (P0) and with each promotion (P1). Estimated uplift = P1 − P0.`}
+        right={<Toggle value={pView} onChange={setPView} options={[{ id: 'table', label: 'Response' }, { id: 'chart', label: 'Charts' }, { id: 'money', label: 'Financial detail' }]} />}
         legend={[
-          { label: 'Grey bar / None', color: '#94a3b8', text: 'Chance of buying with no promotion at all.' },
-          { label: 'Green bar', color: 'var(--green)', text: 'The promotion that earns the most from this customer.' },
-          { label: 'Navy bars', color: 'var(--navy)', text: 'Other promotions.' },
-          { label: 'Profit chart', text: 'Expected net profit per customer for each promotion. Red means the discount costs more than it earns. Click a row in the table to see why in the next card.' },
+          { label: 'P0', text: 'predicted chance with no promotion' }, { label: 'P1', text: 'predicted chance with the promotion' },
+          { label: 'Uplift', text: 'P1 − P0 in percentage points (an estimate from behaviour, not a randomised test)' },
+          { label: 'Highest response', color: '#f59e0b', text: 'promotion with the highest P1' }, { label: 'Best decision', color: 'var(--green)', text: 'promotion with the highest expected profit that clears the targeting rule' },
         ]}>
-        {pView === 'chart' ? (
+        <div className="mx-4 mb-3 rounded-xl bg-[var(--navy)] px-4 py-3 text-white">
+          <p className="text-[10px] uppercase tracking-wider text-white/55">Customer {cid} · {shown.label}{shown.key === best?.o.key ? ' (best decision)' : shown.key === hr.key ? ' (highest response)' : ''}</p>
+          <p className="num mt-1 text-[18px] font-bold leading-tight">
+            {pct(none.p1)} <span className="text-[12px] font-medium text-white/60">without promotion</span> → {pct(xs.p1)} <span className="text-[12px] font-medium text-white/60">with {shown.label}</span>
+            <span className="ml-3 rounded-md px-2 py-0.5 text-[14px]" style={{ background: upts >= 0 ? 'var(--green)' : 'var(--red)' }}>{upts >= 0 ? '+' : ''}{upts} pts</span>
+          </p>
+        </div>
+        {pView === 'table' && (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[520px] text-[11.5px]">
+              <thead><tr className="border-y border-[var(--line)] text-right text-[9.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">
+                <th className="px-4 py-2 text-left">Promotion</th><th className="px-3 py-2">Without (P0)</th><th className="px-3 py-2 text-left">With promotion (P1)</th><th className="px-3 py-2">Estimated uplift</th>
+              </tr></thead>
+              <tbody>
+                <tr className="border-b border-[var(--line-2)] text-right text-[var(--ink-2)]"><td className="px-4 py-2 text-left font-medium">No Promotion</td><td className="num px-3 font-semibold">{pct(none.p1)}</td><td className="px-3 text-left text-[10.5px] text-[var(--ink-3)]">baseline</td><td className="px-3">–</td></tr>
+                {S.promos.map((o) => {
+                  const x = S.x(cid, o.key);
+                  const isBest = best?.o.key === o.key;
+                  const isHr = hr.key === o.key;
+                  return (
+                    <tr key={o.key} onClick={() => setOptKey(o.key)} className={`cursor-pointer border-b border-[var(--line-2)] text-right last:border-0 ${isBest ? 'bg-[#f0fdf7]' : 'hover:bg-[var(--page)]'} ${shown.key === o.key ? 'ring-1 ring-inset ring-[var(--navy)]' : ''}`}>
+                      <td className="px-4 py-2 text-left"><span className="font-semibold">{o.label}</span> <span className="ml-1 inline-flex gap-1">{isBest && <Chip tone="green">Best decision</Chip>}{isHr && <Chip tone="amber">Highest response</Chip>}</span></td>
+                      <td className="num px-3 text-[var(--ink-2)]">{pct(none.p1)}</td>
+                      <td className="px-3 text-left"><Meter value={x.p1} color={isBest ? 'var(--green)' : 'var(--navy)'} width={90} /> <span className="num ml-1.5 font-semibold">{pct(x.p1)}</span></td>
+                      <td className="num px-3 font-semibold">{x.uplift >= 0 ? '+' : ''}{Math.round(x.uplift * 100)} pts</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {pView === 'chart' && (
           <div className="grid gap-4 px-4 pb-3 pt-1 sm:grid-cols-2">
             <div>
-              <p className="mb-1 text-[10.5px] font-semibold">Predicted chance of buying</p>
+              <p className="mb-1 text-[10.5px] font-semibold">Predicted Response</p>
               <BarChart height={190} format={(v) => pct(v)} showValues color="var(--navy)"
                 data={[{ label: 'None', value: none.p1, color: '#94a3b8' }, ...S.promos.map((o) => ({ label: shortOffer(o.label), value: S.x(cid, o.key).p1, color: best?.o.key === o.key ? 'var(--green)' : 'var(--navy)' }))]} />
             </div>
@@ -188,60 +275,79 @@ function Detail({ cid, S, category }: { cid: string; S: Props['S']; category: st
                 data={S.promos.map((o) => ({ label: shortOffer(o.label), value: S.x(cid, o.key).net, color: best?.o.key === o.key ? 'var(--green)' : undefined }))} />
             </div>
           </div>
-        ) : (<div className="overflow-x-auto">
-          <table className="w-full min-w-[620px] text-[11.5px]">
-            <thead><tr className="border-y border-[var(--line)] text-right text-[9.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">
-              <th className="px-4 py-2 text-left">Promotion</th><th className="px-3 py-2 text-left">Predicted response</th>{['Uplift', 'Revenue', 'Margin', 'Cost', 'Net profit', 'ROI'].map((h) => <th key={h} className="px-3 py-2">{h}</th>)}
-            </tr></thead>
-            <tbody>
-              <tr className="border-b border-[var(--line-2)] text-right"><td className="px-4 py-2 text-left font-medium">No promotion</td><td className="px-3 text-left"><Meter value={none.p1} color="#94a3b8" width={70} /> <span className="num ml-1.5 font-semibold">{pct(none.p1)}</span></td><td colSpan={6} /></tr>
-              {S.promos.map((o) => {
-                const x = S.x(cid, o.key);
-                const isBest = best?.o.key === o.key;
-                return (
-                  <tr key={o.key} onClick={() => setOptKey(o.key)} className={`cursor-pointer border-b border-[var(--line-2)] text-right last:border-0 ${isBest ? 'bg-[#f0fdf7]' : 'hover:bg-[var(--page)]'} ${shown.key === o.key ? 'ring-1 ring-inset ring-[var(--navy)]' : ''}`}>
-                    <td className="px-4 py-2 text-left"><span className="font-semibold">{o.label}</span> {isBest && <Chip tone="green">Best</Chip>}</td>
-                    <td className="px-3 text-left"><Meter value={x.p1} color={x.net > 0 ? 'var(--navy)' : '#cbd5e1'} width={70} /> <span className="num ml-1.5 font-semibold">{pct(x.p1)}</span></td>
-                    <td className="num px-3">+{Math.round(x.uplift * 100)} pts</td><td className="num px-3">{inr(x.revenue, 0)}</td>
-                    <td className="num px-3" style={{ color: x.profitOffer < 0 ? 'var(--red)' : undefined }}>{inr(x.profitOffer, 0)}</td><td className="num px-3">{inr(x.discountCost, 0)}</td>
-                    <td className="num px-3 font-semibold" style={{ color: x.net < 0 ? 'var(--red)' : 'var(--green-dark)' }}>{inr(x.net, 0)}</td>
-                    <td className="num px-3">{x.discountCost > 0 ? (x.net / x.discountCost).toFixed(2) : '–'}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>)}
-        <p className="px-4 py-3 text-[11.5px] leading-relaxed text-[var(--ink-2)]">
-          {best
-            ? <>Recommended: <b>{best.o.label}</b>. It lifts the chance of buying from {pct(none.p1)} to <b>{pct(best.e.p1)}</b> and earns about <b>{inr(best.e.net)}</b> after the discount given and any stock borrowed from future purchases.</>
-            : <>Recommended: <b>no discount</b>. {none.p1 >= 0.35 ? 'This customer is already likely to buy without any offer, so a discount would mostly give margin away.' : 'No promotion earns more from this customer than it costs.'}</>}
-        </p>
+        )}
+        {pView === 'money' && (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[620px] text-[11.5px]">
+              <thead><tr className="border-y border-[var(--line)] text-right text-[9.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">
+                <th className="px-4 py-2 text-left">Promotion</th>{['Predicted Response', 'Uplift', 'Revenue', 'Margin', 'Cost', 'Net profit', 'ROI'].map((h) => <th key={h} className="px-3 py-2">{h}</th>)}
+              </tr></thead>
+              <tbody>
+                {S.promos.map((o) => {
+                  const x = S.x(cid, o.key);
+                  return (
+                    <tr key={o.key} onClick={() => setOptKey(o.key)} className={`cursor-pointer border-b border-[var(--line-2)] text-right last:border-0 ${best?.o.key === o.key ? 'bg-[#f0fdf7]' : 'hover:bg-[var(--page)]'}`}>
+                      <td className="px-4 py-2 text-left font-semibold">{o.label}</td><td className="num px-3">{pct(x.p1)}</td><td className="num px-3">{x.uplift >= 0 ? '+' : ''}{Math.round(x.uplift * 100)} pts</td>
+                      <td className="num px-3">{inr(x.revenue, 0)}</td><td className="num px-3" style={{ color: x.profitOffer < 0 ? 'var(--red)' : undefined }}>{inr(x.profitOffer, 0)}</td>
+                      <td className="num px-3">{inr(x.discountCost, 0)}</td><td className="num px-3 font-semibold" style={{ color: x.net < 0 ? 'var(--red)' : 'var(--green-dark)' }}>{inr(x.net, 0)}</td>
+                      <td className="num px-3">{x.discountCost > 0 ? (x.net / x.discountCost).toFixed(2) : '–'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="px-4 pb-3 pt-2 text-[10px] text-[var(--ink-3)]">Click a promotion to see why it is predicted. Estimated from observed behaviour and each customer's own baseline, not from a randomised test.</p>
       </Panel>
 
-      <Panel title="Why the model predicts this" what={`Behaviour factors behind the response to ${shown.label}.`} defaultOpen={false}
-        legend={[
-          { label: 'Right (green)', color: 'var(--green)', text: 'This behaviour raises the predicted response compared with an average customer.' },
-          { label: 'Left (orange)', color: 'var(--amber)', text: 'This behaviour holds the response back.' },
-          { label: 'Length', text: 'Strength of the effect. The sentences below put the top factors in the customer’s own numbers.' },
-        ]}>
-        <div className="space-y-1.5">
-          {fx.map((f) => (
-            <div key={f.factor} className="flex items-center gap-2.5 text-[11px]">
-              <span className="w-[170px] shrink-0 truncate font-medium">{f.factor}</span>
-              <div className="relative h-3.5 flex-1">
-                <div className="absolute inset-y-0 left-1/2 w-px bg-[var(--line)]" />
-                <div className="absolute inset-y-0.5 rounded-sm" style={{ left: f.effect >= 0 ? '50%' : `${50 - (Math.abs(f.effect) / maxAbs) * 50}%`, width: `${(Math.abs(f.effect) / maxAbs) * 50}%`, background: f.effect >= 0 ? 'var(--green)' : 'var(--amber)' }} />
-              </div>
-              <span className="num w-10 text-right text-[10.5px] text-[var(--ink-3)]">{f.effect >= 0 ? '+' : ''}{f.effect.toFixed(2)}</span>
-            </div>
-          ))}
-        </div>
-        <ul className="mt-3 space-y-1 border-t border-[var(--line)] pt-3 text-[11px] leading-snug text-[var(--ink-2)]">
-          {ups.map((f) => <li key={f.factor}>• <b>{f.factor}</b> raises the response: {f.reading}.</li>)}
-          {downs.map((f) => <li key={f.factor}>• <b>{f.factor}</b> holds it back: {f.reading}.</li>)}
+      {/* 4 · why */}
+      <Card>
+        <StepTag n={3} text={`Why: ${shown.label}`} />
+        <p className="text-[12px] leading-relaxed text-[var(--ink-2)]">
+          The model predicts <b className="text-[var(--ink)]">{pct(xs.p1)}</b> with {shown.label} (against {pct(none.p1)} without) mainly because:
+        </p>
+        <ul className="mt-2 space-y-1.5 text-[11.5px] leading-snug text-[var(--ink-2)]">
+          {ups.map((x) => <li key={x.factor} className="flex gap-2"><span className="font-bold text-[var(--green)]">▲</span><span><b className="text-[var(--ink)]">{x.factor}</b> raises it: {x.reading}.</span></li>)}
+          {downs.map((x) => <li key={x.factor} className="flex gap-2"><span className="font-bold text-[var(--amber)]">▼</span><span><b className="text-[var(--ink)]">{x.factor}</b> holds it back: {x.reading}.</span></li>)}
+          {!ups.length && !downs.length && <li className="text-[var(--ink-3)]">No single behaviour stands out; this customer is close to average.</li>}
         </ul>
-      </Panel>
+        <details className="mt-3 border-t border-[var(--line)] pt-2.5 text-[10.5px] text-[var(--ink-2)]">
+          <summary className="cursor-pointer font-semibold">All behaviour factors</summary>
+          <p className="mb-2 mt-1.5 text-[10px] text-[var(--ink-3)]">Green to the right raises the predicted response compared with an average customer; orange to the left holds it back. Longer means stronger.</p>
+          <div className="space-y-1.5">
+            {fx.map((x) => (
+              <div key={x.factor} className="flex items-center gap-2.5 text-[11px]">
+                <span className="w-[170px] shrink-0 truncate font-medium">{x.factor}</span>
+                <div className="relative h-3.5 flex-1">
+                  <div className="absolute inset-y-0 left-1/2 w-px bg-[var(--line)]" />
+                  <div className="absolute inset-y-0.5 rounded-sm" style={{ left: x.effect >= 0 ? '50%' : `${50 - (Math.abs(x.effect) / maxAbs) * 50}%`, width: `${(Math.abs(x.effect) / maxAbs) * 50}%`, background: x.effect >= 0 ? 'var(--green)' : 'var(--amber)' }} />
+                </div>
+                <span className="num w-10 text-right text-[10.5px] text-[var(--ink-3)]">{x.effect >= 0 ? '+' : ''}{x.effect.toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
+        </details>
+      </Card>
+
+      {/* 5 · business decision */}
+      <Card className={best ? 'border-[#a7e8c8]' : 'border-[#e5c4c4]'}>
+        <StepTag n={4} text="Business decision" />
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="rounded-md px-3 py-1.5 text-[13px] font-bold tracking-wide text-white" style={{ background: best ? 'var(--green-dark)' : '#b91c1c' }}>{best ? 'TARGET' : "DON'T TARGET"}</span>
+          {best
+            ? <p className="text-[12px] leading-snug text-[var(--ink-2)]">Offer <b className="text-[var(--ink)]">{best.o.label}</b>. Expected profit <b className="text-[var(--ink)]">{inr(best.e.net)}</b> per customer over 14 days (discount cost {inr(best.e.discountCost)}, ROI {(best.e.discountCost ? best.e.net / best.e.discountCost : 0).toFixed(2)}), after the margin they would have earned anyway and stock borrowed from later weeks.</p>
+            : <p className="text-[12px] leading-snug text-[var(--ink-2)]">{skipReason}</p>}
+        </div>
+        {hr.key !== best?.o.key && (
+          <div className="mt-3 rounded-lg border border-[#f1d9a0] bg-[#fdf8e8] px-3 py-2.5 text-[11.5px] leading-snug text-[#7a5200]">
+            <b>Highest response is not the most profitable.</b> {hr.label} has the highest predicted response ({pct(hrx.p1)}, {hrx.uplift >= 0 ? '+' : ''}{Math.round(hrx.uplift * 100)} pts) but {hrx.net < 0 ? 'loses' : 'earns only'} {inr(Math.abs(hrx.net))} per customer
+            {best ? <>, while {best.o.label} earns {inr(best.e.net)}.</> : <>, and no promotion is worth offering to this customer.</>}
+          </div>
+        )}
+        <p className="mb-1 mt-3 text-[10px] font-semibold text-[var(--ink-2)]">Expected profit per customer, by promotion</p>
+        <DivergingBars labelW={120} format={(v) => inr(v, 0)} rows={S.promos.map((o) => ({ label: shortOffer(o.label), value: S.x(cid, o.key).net, color: best?.o.key === o.key ? 'var(--green)' : 'var(--navy)' }))} />
+      </Card>
 
       <Panel title="Past promotions" what="Which previous campaigns this customer bought on." defaultOpen={false}
         legend={[{ label: 'Green chip', color: 'var(--green)', text: 'Bought on that promotion.' }, { label: 'Grey chip', color: '#e2e8f0', text: 'Active but did not respond.' }, { label: 'Pale chip', color: '#eef1f6', text: 'Not yet a customer or not active then.' }]}>
