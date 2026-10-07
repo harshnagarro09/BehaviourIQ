@@ -232,7 +232,7 @@ export function Analytics() {
                 <Waterfall height={230} format={(v) => int(v)} steps={[
                   { label: 'Sold on\npromotion', value: A.units, kind: 'total' },
                   { label: 'Bought\nanyway', value: -A.base, kind: 'delta', note: "Each customer's own baseline for the same days" },
-                  { label: 'Truly\nextra', value: A.units - A.base, kind: 'total' },
+                  { label: 'Estimated\nextra', value: A.units - A.base, kind: 'total' },
                 ]} />
                 <p className="mt-1 text-[10.5px] text-[var(--ink-3)]">An estimated {pct(incShareOf(A))} of promoted units were extra; {pct(leakOf(A))} of the discount went to sales that would have happened anyway. Estimated from each customer's own baseline, not a randomised test.</p>
               </Panel>
