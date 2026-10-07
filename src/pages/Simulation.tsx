@@ -125,7 +125,7 @@ export function Simulation() {
 
   return (
     <>
-      <PageTop title="Simulation" sub="Model campaign scenarios and see the predicted customer response before spending" />
+      <PageTop title="Simulation" sub="Once we can predict response, we use it to optimise the promotion decision: model a scenario and see response, cost and profit before spending" />
       <div className="grid gap-4 p-6 lg:grid-cols-[250px_1fr]">
         <aside className="card h-fit overflow-hidden">
           <p className="border-b border-[var(--line)] px-3.5 py-2.5 text-[9.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">Campaigns ({CANDIDATES.length})</p>
@@ -235,6 +235,16 @@ export function Simulation() {
               { label: 'Incremental revenue', text: 'Revenue above what would have sold anyway.' },
               { label: 'Net profit', text: 'After discount cost and stock borrowed from later weeks. Red is a loss.' },
             ]}>
+            {(() => {
+              const rs = table.filter((r) => !r.none && r.s);
+              const hrRow = rs.reduce<(typeof rs)[number] | null>((a, r) => (!a || r.resp > a.resp ? r : a), null);
+              if (!hrRow || !bestRow || hrRow.o.key === bestRow.o.key) return null;
+              return (
+                <p className="mx-4 mb-2 rounded-md border border-[#f3d9b4] bg-[#fff8ee] px-3 py-2 text-[11px] text-[var(--ink-2)]">
+                  <b>Prediction vs decision.</b> Highest predicted response: {shortOffer(hrRow.o.label)} ({pct(hrRow.resp)}), but it earns {inr(hrRow.s!.net, 0)}. Most profitable: {shortOffer(bestRow.o.label)} ({pct(bestRow.resp)}), earning {inr(bestRow.s!.net, 0)}.
+                </p>
+              );
+            })()}
             {cmpView === 'chart' ? (
               <div className="grid gap-4 px-4 pb-4 pt-1 md:grid-cols-3">
                 <div><p className="mb-1 text-[10.5px] font-semibold">Predicted response</p>

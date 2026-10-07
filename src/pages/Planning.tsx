@@ -92,7 +92,7 @@ export function Planning() {
 
   return (
     <>
-      <PageTop title="Planning" sub="AI-recommended promotion calendar for the next quarter, built from predicted customer response" />
+      <PageTop title="Planning" sub="Once we can predict response, we use it to optimise the promotion decision: AI-recommended calendar for the next quarter" />
       <div className="space-y-4 p-6">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Kpi label="Total upcoming" value={`${e.recommendations.length} campaigns`} note={`${accepted.length} accepted`} />
