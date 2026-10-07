@@ -2,7 +2,12 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 're
 
 /* ---------------------------------------------------------------- plumbing */
 
-export function useWidth<T extends HTMLElement>(): [React.RefObject<T>, number] {
+/**
+ * Measures the container and returns the width to draw at, never more than `maxW`.
+ * Charts render their SVG at that width, centred in the container, so a wide panel does not stretch a
+ * chart with few bars or points. Below `maxW` (narrow panels, mobile) the chart fills the container.
+ */
+export function useWidth<T extends HTMLElement>(maxW = Infinity): [React.RefObject<T>, number] {
   const ref = useRef<T>(null);
   const [w, setW] = useState(0);
   useLayoutEffect(() => {
@@ -12,8 +17,11 @@ export function useWidth<T extends HTMLElement>(): [React.RefObject<T>, number] 
     ro.observe(ref.current);
     return () => ro.disconnect();
   }, []);
-  return [ref as React.RefObject<T>, w];
+  return [ref as React.RefObject<T>, Math.min(w, maxW)];
 }
+
+/** a sensible maximum chart width for `n` bars / groups, `slot` px each, plus axis margins */
+const capFor = (n: number, slot: number, lo = 380, hi = 1100) => Math.min(hi, Math.max(lo, 60 + n * slot));
 
 interface Tip { x: number; y: number; node: ReactNode }
 
@@ -74,7 +82,7 @@ export function BarChart({
 }: {
   data: BarDatum[]; height?: number; format: (v: number) => string; color?: string; posColor?: string; negColor?: string; showValues?: boolean; yLabel?: string;
 }) {
-  const [ref, w] = useWidth<HTMLDivElement>();
+  const [ref, w] = useWidth<HTMLDivElement>(capFor(data.length, 120, 380, 1000));
   const { box, show, hide, el } = useTip();
   const m = { t: 14, r: 8, b: 34, l: 52 };
   const min = Math.min(0, ...data.map((d) => d.value));
@@ -84,10 +92,10 @@ export function BarChart({
   const ih = height - m.t - m.b;
   const y = (v: number) => m.t + ih - ((v - lo) / (hi - lo)) * ih;
   const bw = iw / data.length;
-  const barW = Math.min(34, bw * 0.62);
+  const barW = Math.min(44, bw * 0.6);
   return (
     <div ref={box} className="relative">
-      <div ref={ref} className="w-full">
+      <div ref={ref} className="flex w-full justify-center">
         {w > 0 && (
           <svg width={w} height={height} role="img" aria-label={yLabel ?? 'Bar chart'}>
             {vals.map((t) => (
@@ -132,7 +140,7 @@ export function GroupedBars({
 }: {
   groups: { label: string; values: number[] }[]; series: { label: string; color: string }[]; height?: number; format: (v: number) => string;
 }) {
-  const [ref, w] = useWidth<HTMLDivElement>();
+  const [ref, w] = useWidth<HTMLDivElement>(capFor(groups.length, 110));
   const { box, show, hide, el } = useTip();
   const m = { t: 12, r: 8, b: 30, l: 44 };
   const max = Math.max(...groups.flatMap((g) => g.values));
@@ -141,10 +149,10 @@ export function GroupedBars({
   const ih = height - m.t - m.b;
   const y = (v: number) => m.t + ih - (v / hi) * ih;
   const gw = iw / groups.length;
-  const bw = Math.min(26, (gw * 0.7) / series.length);
+  const bw = Math.min(30, (gw * 0.7) / series.length);
   return (
     <div ref={box} className="relative">
-      <div ref={ref} className="w-full">
+      <div ref={ref} className="flex w-full justify-center">
         {w > 0 && (
           <svg width={w} height={height}>
             {vals.map((t) => (
@@ -182,7 +190,7 @@ export function LineChart({
   series: LineSeries[]; height?: number; xFormat: (v: number) => string; yFormat: (v: number) => string; xTicks?: number[]; yMax?: number; markers?: boolean; xLabel?: string;
   band?: { a: LineSeries; b: LineSeries; color: string };
 }) {
-  const [ref, w] = useWidth<HTMLDivElement>();
+  const [ref, w] = useWidth<HTMLDivElement>(1000);
   const { box, show, hide, el } = useTip();
   const [hx, setHx] = useState<number | null>(null);
   const m = { t: 14, r: 14, b: xLabel ? 40 : 28, l: 46 };
@@ -199,7 +207,7 @@ export function LineChart({
   const path = (pts: { x: number; y: number }[]) => pts.map((p, i) => `${i ? 'L' : 'M'}${X(p.x).toFixed(1)},${Y(p.y).toFixed(1)}`).join('');
   return (
     <div ref={box} className="relative">
-      <div ref={ref} className="w-full">
+      <div ref={ref} className="flex w-full justify-center">
         {w > 0 && (
           <svg
             width={w}
@@ -267,7 +275,7 @@ export function Scatter({
 }: {
   dots: Dot[]; height?: number; xFormat: (v: number) => string; yFormat: (v: number) => string; xLabel: string; yLabel: string; xMax?: number; yMax?: number; r?: number;
 }) {
-  const [ref, w] = useWidth<HTMLDivElement>();
+  const [ref, w] = useWidth<HTMLDivElement>(1000);
   const { box, show, hide, el } = useTip();
   const m = { t: 12, r: 12, b: 40, l: 54 };
   const xm = xMax ?? Math.max(...dots.map((d) => d.x), 1);
@@ -280,7 +288,7 @@ export function Scatter({
   const Y = (v: number) => m.t + ih - ((v - yt.lo) / (yt.hi - yt.lo)) * ih;
   return (
     <div ref={box} className="relative">
-      <div ref={ref} className="w-full">
+      <div ref={ref} className="flex w-full justify-center">
         {w > 0 && (
           <svg width={w} height={height}>
             {yt.vals.map((t) => (
@@ -454,7 +462,7 @@ export function Waterfall({
 }: {
   steps: { label: string; value: number; kind: 'total' | 'delta'; note?: string }[]; height?: number; format: (v: number) => string;
 }) {
-  const [ref, w] = useWidth<HTMLDivElement>();
+  const [ref, w] = useWidth<HTMLDivElement>(capFor(steps.length, 150, 340, 700));
   const { box, show, hide, el } = useTip();
   const m = { t: 22, r: 8, b: 44, l: 52 };
   let run = 0;
@@ -473,7 +481,7 @@ export function Waterfall({
   const bw = iw / bars.length;
   return (
     <div ref={box} className="relative">
-      <div ref={ref} className="w-full">
+      <div ref={ref} className="flex w-full justify-center">
         {w > 0 && (
           <svg width={w} height={height}>
             {t.vals.map((v) => (
