@@ -1,6 +1,9 @@
 // Plain-English help text for jargon. Edit the wording here; every "?" tooltip in the app reads from this file.
 // Sources: the glossary in docs/PROJECT_GUIDE.md.
+import { PREDICTION_WINDOW_DAYS } from '../engine/model.ts';
+
 export const GLOSSARY = {
+  predictionWindow: { term: 'Prediction window', text: `Chance this customer buys our brand within ${PREDICTION_WINDOW_DAYS} days of the promotion starting. Profit is for the same ${PREDICTION_WINDOW_DAYS} days, not a yearly value.` },
   auc: { term: 'AUC', text: 'How well the model ranks customers, from 0.5 (no better than guessing) to 1.0 (perfect). Higher means the customers it puts first really are the ones who buy.' },
   uplift: { term: 'Uplift', text: 'The chance of buying with the promotion minus the chance without it, in percentage points. It is an estimate from observed behaviour, not a measured experiment.' },
   leakage: { term: 'Leakage', text: 'Discount given on purchases that would have happened anyway, so it earned nothing extra.' },

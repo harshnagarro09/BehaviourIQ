@@ -4,6 +4,7 @@
 import type { TypeId } from './behaviour.ts';
 import type { Engine } from './index.ts';
 import { TYPES, TYPE_BY_ID } from './segments.ts';
+import { PREDICTION_WINDOW_DAYS } from './model.ts';
 import type { Scenario } from './planner.ts';
 
 export interface Answer {
@@ -164,7 +165,7 @@ export function answer(e: Engine, raw: string): Answer {
     const groups = m.groupImportance.slice(0, 3).map((g) => g.group.toLowerCase() + ' (' + pct(g.share) + ')').join(', ');
     return {
       text: [
-        `The model estimates each customer's chance of buying in 14 days, with and without a promotion. It was checked on **${V.length} campaigns it never saw**.`,
+        `The model estimates each customer's chance of buying in ${PREDICTION_WINDOW_DAYS} days, with and without a promotion. It was checked on **${V.length} campaigns it never saw**.`,
         `- **Accurate?** AUC **${m.aucTest.toFixed(2)}** (0.5 = guessing). The 20% of customers it ranks highest hold **${pct(top20?.pctResponders ?? 0)}** of all buyers.`,
         `- **Profitable?** Targeting by behaviour earned **${inr(real)}** (ROI ${(cost ? real / cost : 0).toFixed(2)}), versus **${inr(broad)}** (ROI ${(broadCost ? broad / broadCost : 0).toFixed(2)}) for offering everyone. ${real > 0 ? 'It is profit-making.' : 'It is loss-making.'}`,
         `- Customers it chose to skip would have lost a further ${inr(-skipped)} if offered.`,

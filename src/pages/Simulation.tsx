@@ -12,6 +12,7 @@ import { activeAt, buildCtxs, CANDIDATES } from '@/engine/planner';
 import { promoOptions, shortOffer } from '@/engine/options';
 import { inr, int, pct, shortDate } from '@/lib/fmt';
 import { Lbl } from '@/components/Help';
+import { WindowChip } from '@/components/ui';
 import { Takeaway } from '@/components/Takeaway';
 import { simulationTakeaway } from '@/lib/takeaways';
 
@@ -205,7 +206,7 @@ export function Simulation() {
           )}
 
           <Card>
-            <CardTitle title="Scenario Comparison" sub="AI recommended baseline vs your adjusted simulation" />
+            <div className="flex flex-wrap items-start justify-between gap-2"><CardTitle title="Scenario Comparison" sub="AI recommended baseline vs your adjusted simulation" /><WindowChip /></div>
             <div className="grid gap-4 lg:grid-cols-2">
               <div className="rounded-lg border border-[#a7e8c8] bg-[#f0fdf7] p-4">
                 <Chip tone="green"><Sparkles className="h-3 w-3" />AI Recommended</Chip>

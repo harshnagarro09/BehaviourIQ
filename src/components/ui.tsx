@@ -4,6 +4,7 @@ import type { TypeId } from '@/engine/behaviour';
 import { TYPE_BY_ID } from '@/engine/segments';
 import { Help } from '@/components/Help';
 import type { GlossaryKey } from '@/lib/glossary';
+import { PREDICTION_WINDOW_DAYS } from '@/engine/model';
 
 export function Card({ children, className = '', pad = true }: { children: ReactNode; className?: string; pad?: boolean }) {
   return <section className={`card ${pad ? 'p-4' : ''} ${className}`}>{children}</section>;
@@ -119,6 +120,15 @@ export function Meter({ value, color = 'var(--green)', width = 90 }: { value: nu
 
 
 /** Chart / Table switch for cards that can show either */
+/** "Prediction window: next 14 days" with a "?"; the number comes from the model's own constant */
+export function WindowChip() {
+  return (
+    <span className="inline-flex items-center rounded-full bg-[var(--page)] px-2 py-0.5 text-[10px] font-medium text-[var(--ink-2)]">
+      Prediction window: next {PREDICTION_WINDOW_DAYS} days<Help term="predictionWindow" />
+    </span>
+  );
+}
+
 export function ViewToggle({ value, onChange }: { value: 'chart' | 'table'; onChange: (v: 'chart' | 'table') => void }) {
   return <Toggle value={value} onChange={onChange} options={[{ id: 'chart', label: 'Chart' }, { id: 'table', label: 'Table' }]} />;
 }

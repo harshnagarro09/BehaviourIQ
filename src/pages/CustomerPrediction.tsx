@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Download, Search } from 'lucide-react';
 import { useEngine } from '@/state';
 import { Help, Lbl } from '@/components/Help';
-import { Btn, Card, CardTitle, Chip, FilterSelect, Kpi, Meter, Panel, Toggle, TypeBadge, ViewToggle } from '@/components/ui';
+import { Btn, Card, CardTitle, Chip, FilterSelect, Kpi, Meter, Panel, Toggle, TypeBadge, ViewToggle, WindowChip } from '@/components/ui';
 import { BarChart, GroupedBars, HBars, Legend } from '@/components/charts';
 import { PageTop } from '@/pages/Analytics';
 import { compareOptions, explain, promoOptions, shortOffer, type PromoOption } from '@/engine/options';
@@ -12,6 +12,7 @@ import { TYPES, TYPE_BY_ID } from '@/engine/segments';
 import { isoOf } from '@/engine/data';
 import { inr, int, pct, shortDate } from '@/lib/fmt';
 import type { GlossaryKey } from '@/lib/glossary';
+import { PREDICTION_WINDOW_DAYS } from '@/engine/model';
 import { Takeaway } from '@/components/Takeaway';
 import { customerTakeaway } from '@/lib/takeaways';
 
@@ -105,13 +106,13 @@ function CustomerView({ S, filtered, sel, setSel, sort, setSort, limit, setLimit
       <div className="min-w-0 space-y-4">
       <Card pad={false} className="h-fit">
         <div className="flex items-center justify-between px-4 pt-4">
-          <CardTitle title="Customers" sub={`Best promotion for ${category}, ranked`} />
+          <div><CardTitle title="Customers" sub={`Best promotion for ${category}, ranked`} /><div className="mt-1"><WindowChip /></div></div>
           <FilterSelect value={sort} onChange={setSort} options={[{ value: 'net', label: 'Sort: expected profit' }, { value: 'resp', label: 'Sort: predicted response' }, { value: 'uplift', label: 'Sort: uplift' }, { value: 'recency', label: 'Sort: longest silent' }, { value: 'id', label: 'Sort: ID' }]} />
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-[11.5px]">
             <thead><tr className="border-y border-[var(--line)] text-left text-[9.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">
-              {['Customer', 'Customer type', 'Best promotion', 'Response', 'Profit'].map((h) => <th key={h} className="px-3 py-2"><Lbl t={h} /></th>)}
+              {['Customer', 'Customer type', 'Best promotion', 'Response', `Profit (${PREDICTION_WINDOW_DAYS}d)`].map((h) => <th key={h} className="px-3 py-2"><Lbl t={h} /></th>)}
             </tr></thead>
             <tbody>
               {filtered.slice(0, limit).map((x) => (
@@ -175,8 +176,8 @@ function Detail({ cid, S, category }: { cid: string; S: Props['S']; category: st
         <p className="mt-3 border-t border-[var(--line)] pt-2.5 text-[10.5px] text-[var(--ink-2)]"><b>Why this type:</b> {r.reasons.join('. ')}.</p>
       </Card>
 
-      <Panel flush title={`What will ${cid} respond to?`} what={`Predicted chance of buying ${category} in the next 14 days and what each promotion would earn from this customer.`}
-        right={<ViewToggle value={pView} onChange={setPView} />}
+      <Panel flush title={`What will ${cid} respond to?`} what={`Predicted chance of buying ${category} in the next ${PREDICTION_WINDOW_DAYS} days and what each promotion would earn from this customer over the same ${PREDICTION_WINDOW_DAYS} days.`}
+        right={<><WindowChip /><ViewToggle value={pView} onChange={setPView} /></>}
         legend={[
           { label: 'Grey bar / None', color: '#94a3b8', text: 'Chance of buying with no promotion at all.' },
           { label: 'Green bar', color: 'var(--green)', text: 'The promotion that earns the most from this customer.' },
@@ -191,7 +192,7 @@ function Detail({ cid, S, category }: { cid: string; S: Props['S']; category: st
                 data={[{ label: 'None', value: none.p1, color: '#94a3b8' }, ...S.promos.map((o) => ({ label: shortOffer(o.label), value: S.x(cid, o.key).p1, color: best?.o.key === o.key ? 'var(--green)' : 'var(--navy)' }))]} />
             </div>
             <div>
-              <p className="mb-1 text-[10.5px] font-semibold">Expected net profit</p>
+              <p className="mb-1 text-[10.5px] font-semibold">{`Expected profit over ${PREDICTION_WINDOW_DAYS} days`}</p>
               <BarChart height={190} format={(v) => inr(v, 0)} showValues posColor="var(--navy)" negColor="var(--red)"
                 data={S.promos.map((o) => ({ label: shortOffer(o.label), value: S.x(cid, o.key).net, color: best?.o.key === o.key ? 'var(--green)' : undefined }))} />
             </div>
@@ -330,11 +331,11 @@ function TargetView({ S, filtered, offerKey, setOfferKey, category }: Props & { 
       </div>
 
       <Card pad={false}>
-        <div className="px-4 pt-4"><CardTitle title="Target list" sub={`Ranked by expected profit for ${category}. Export includes every contacted customer.`} /></div>
+        <div className="px-4 pt-4"><div className="mb-1"><WindowChip /></div><CardTitle title="Target list" sub={`Ranked by expected profit for ${category}. Export includes every contacted customer.`} /></div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-[11.5px]">
             <thead><tr className="border-y border-[var(--line)] text-left text-[9.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">
-              {['#', 'Customer', 'Customer type', 'Promotion', 'Without offer', 'With offer', 'Uplift', 'Expected profit'].map((h) => <th key={h} className="px-3 py-2"><Lbl t={h} /></th>)}
+              {['#', 'Customer', 'Customer type', 'Promotion', 'Without offer', 'With offer', 'Uplift', `Expected profit (${PREDICTION_WINDOW_DAYS} days)`].map((h) => <th key={h} className="px-3 py-2"><Lbl t={h} /></th>)}
             </tr></thead>
             <tbody>
               {list.slice(0, 30).map((r, i) => (

@@ -11,6 +11,7 @@ import { TYPES, TYPE_BY_ID } from '@/engine/segments';
 import { TYPE_IDS } from '@/engine/insights';
 import { inr, int, pct, shortDate } from '@/lib/fmt';
 import { Lbl } from '@/components/Help';
+import { WindowChip } from '@/components/ui';
 import { Takeaway } from '@/components/Takeaway';
 import { planningTakeaway } from '@/lib/takeaways';
 
@@ -130,7 +131,7 @@ export function Planning() {
         <Card pad={false}>
           <div className="flex items-center justify-between px-4 pt-4">
             <CardTitle title="AI Recommended Campaigns" sub={`${ready.length} campaigns recommended for the next 3 months`} />
-            <Chip tone="green"><Sparkles className="h-3 w-3" />AI Generated</Chip>
+            <div className="flex items-center gap-2"><WindowChip /><Chip tone="green"><Sparkles className="h-3 w-3" />AI Generated</Chip></div>
           </div>
           {header}
           {ready.map(row)}

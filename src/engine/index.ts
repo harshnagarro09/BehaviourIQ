@@ -4,7 +4,7 @@ import {
   basketPairs, brandBehaviour, campaignTypeMatrix, monthlyTrend, priceLadder, responseCurves, switchingFunnel,
   timingBehaviour, typeStats, TYPE_IDS, type CustomerRecord, type TypeStat,
 } from './insights.ts';
-import { cachedProfile, trainModel, type TrainedModel } from './model.ts';
+import { PREDICTION_WINDOW_DAYS, cachedProfile, trainModel, type TrainedModel } from './model.ts';
 import { recommend, watchdog, type Alert, type Recommendation } from './planner.ts';
 import { classify } from './segments.ts';
 import { assignSegments, SEGMENTS, type SegId } from './groups.ts';
@@ -149,7 +149,7 @@ export function buildEngine(csvText: string): Engine {
       id: 'predictor', name: 'Response Predictor', role: 'Learns who responds to which discount depth',
       ms: t3 - t2,
       steps: [
-        `Built ${(model.nTrain + model.nTest).toLocaleString()} customer x 14-day window examples (campaign and non-campaign)`,
+        `Built ${(model.nTrain + model.nTest).toLocaleString()} customer x ${PREDICTION_WINDOW_DAYS}-day window examples (campaign and non-campaign)`,
         'Used only information available before each window started',
         `Trained on ${model.nTrain.toLocaleString()} examples, validated on the last ${model.testCampaigns.length} campaigns`,
         `Held-out AUC ${model.aucTest.toFixed(2)} (train ${model.aucTrain.toFixed(2)})`,

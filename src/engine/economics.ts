@@ -1,6 +1,6 @@
 // Expected profit of offering customer X a discount, from the model's counterfactual.
 import type { Dataset } from './data.ts';
-import { predictWith, vector, type Ctx, type TrainedModel } from './model.ts';
+import { PREDICTION_WINDOW_DAYS, predictWith, vector, type Ctx, type TrainedModel } from './model.ts';
 
 /** Extra stock-up units can only borrow from purchases the customer would have made in the next ~3 weeks. */
 export const PULL_FORWARD_HORIZON_DAYS = 21;
@@ -51,7 +51,7 @@ export function expect(
   const leakage = Math.min(units, baseUnits) * L * d;
   const profitOffer = units * (L * (1 - d) - K);
   const profitBase = baseUnits * m;
-  const borrowable = (ctx.baselineUnits14 / 14) * PULL_FORWARD_HORIZON_DAYS;
+  const borrowable = (ctx.baselineUnits14 / PREDICTION_WINDOW_DAYS) * PULL_FORWARD_HORIZON_DAYS;
   const pullForward = Math.min(Math.max(0, qOffer - ctx.qFull), borrowable) * p1 * m;
   return {
     cid: ctx.cid, p1, p0, uplift: p1 - p0, units, baseUnits, revenue, discountCost, leakage,

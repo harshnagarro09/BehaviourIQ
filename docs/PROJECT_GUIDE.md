@@ -536,14 +536,15 @@ Colour rules: navy for the main series, grey for the baseline or comparison, gre
 
 ---
 
-### 7.5 The clarity layer (story strip, takeaways, Summary / Detailed, help)
+### 7.5 Clarity aids (takeaways, help tooltips, prediction window, chart width)
 
-These additions help a first-time viewer follow **Behaviour → Prediction → Decision → Proof**. They add no analytics and change no number.
+These additions help a first-time viewer. They add no analytics and change no number. (A story strip and a Summary / Detailed switch were tried and then removed; the app always shows the full interface.)
 
-* **Story strip** (`StoryStrip.tsx`, under every page header). Four steps; the ones the current page or Behaviour Analytics tab covers are highlighted. Clicking a step jumps to its page (Behaviour: Customer behaviour tab; Prediction: Customer Prediction; Decision: Planning; Proof: Prediction tab, validation panel). The small × hides it and the choice is remembered. Mapping lives in `stepsFor()`. Tabs can be opened directly with `#/analytics?tab=prediction` (`results`, `behaviour`, `prediction`, `impact`).
 * **One-sentence takeaway** (`Takeaway.tsx`, sentences built in `src/lib/takeaways.ts`). One line per Behaviour Analytics tab and under the header of Customer Prediction (selected customer), Planning and Simulation. Every number is passed in from engine output, wording says "estimated" for uplift and incrementality, and a too-small slice shows a neutral fallback. Unit tests check the numbers against the engine.
-* **Summary | Detailed** (`src/lib/viewMode.tsx`, switch in every page header, remembered). **Detailed is the full UI.** **Summary** keeps the same pages and tabs but opens only the hero panel of each view (marked with `hero` on `Panel`), collapses the others (one click opens them), shows 3 Behaviour Analytics number cards (Net promo profit, Prediction quality, Profit from acting on it) with the rest behind "More metrics", and folds the filter bar into one "Filters (n active)" button. The default is the constant `DEFAULT_VIEW_MODE` (currently `summary`). Switching modes reloads the page's panels.
-* **Help tooltips** (`Help.tsx`, text in `src/lib/glossary.ts`). A small "?" (hover or keyboard focus) next to AUC, uplift, leakage, incrementality, ROI, calibration, net profit and the customer types wherever they appear as labels. The glossary file is the single place to edit wording.
+* **Help tooltips** (`Help.tsx`, text in `src/lib/glossary.ts`). A small "?" (hover or keyboard focus) next to AUC, uplift, leakage, incrementality, ROI, calibration, net profit, the prediction window and the customer types wherever they appear as labels. The glossary file is the single place to edit wording.
+* **Prediction window.** The model predicts the chance of buying within `PREDICTION_WINDOW_DAYS` (14, in `src/engine/model.ts`) days of the offer starting, and profit uses the same window. A "Prediction window: next 14 days" chip with a "?" appears on the Prediction tab panels, Customer Prediction, Planning and Simulation, and per-customer profit is labelled "(14 days)". The number is read from the constant, not typed into the screens.
+* **Plain-English signals.** On the Prediction tab the driver chart toggles between "Behaviour themes (6)" and "Individual signals (19)". Signal names come from `src/lib/signalLabels.ts` (original technical name if a mapping is missing), and a sentence names the top three signals and their share of the model's weight.
+* **Chart width cap.** `useWidth` in `charts.tsx` accepts a maximum width, so charts with few bars stay readable on wide screens (the SVG is centred, height is fixed). Below the cap, charts fill the panel as before.
 
 ---
 
@@ -853,8 +854,7 @@ project/
     ├── App.tsx                    sidebar, routing between pages
     ├── state.tsx                  data loading, page, decisions
     ├── index.css                  colours and base styles
-    ├── components/ui.tsx          Panel, Kpi, Toggle, Chip, Btn, FilterBar, ModeToggle, ...
-    ├── components/StoryStrip.tsx  Behaviour > Prediction > Decision > Proof strip
+    ├── components/ui.tsx          Panel, Kpi, Toggle, Chip, Btn, WindowChip, ...
     ├── components/Takeaway.tsx    one-line takeaway box
     ├── components/Help.tsx        "?" tooltips
     ├── components/charts.tsx      all chart types
@@ -864,7 +864,7 @@ project/
     ├── lib/brand.ts               retailer and brand names (single source of truth)
     ├── lib/takeaways.ts           one-sentence takeaway per view
     ├── lib/glossary.ts            plain-English help text for jargon
-    ├── lib/viewMode.tsx           Summary / Detailed mode
+    ├── lib/signalLabels.ts        plain-English names for the 19 model signals
     ├── engine/
     │   ├── data.ts                parse CSV, detect campaigns
     │   ├── behaviour.ts           behaviour profile, baseline buying

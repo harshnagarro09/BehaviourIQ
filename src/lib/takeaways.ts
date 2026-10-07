@@ -1,6 +1,7 @@
 // One plain-English "so what" sentence per view. Pure functions: every number is passed in from engine output,
 // nothing is hardcoded. Wording says "estimated" for uplift and incrementality (no control group in the data).
 import { inr, pct } from './fmt.ts';
+import { signalLabel } from './signalLabels.ts';
 
 const list = (xs: string[]) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
 export const NOT_ENOUGH = 'Not enough data in this view to summarise. Widen the filters or the period.';
@@ -51,4 +52,11 @@ export function planningTakeaway(o: { campaigns: number; net: number; flagged: n
 export function simulationTakeaway(o: { targeted: number; total: number; net: number; roi: number }): string {
   if (!o.targeted) return 'No customer meets the chosen objective and audience. Loosen the objective or add customer types.';
   return `This scenario contacts ${o.targeted} of ${o.total} customers for an expected net profit of ${inr(o.net)} (ROI ${o.roi.toFixed(2)}).`;
+}
+
+export function signalsTakeaway(importance: { key: string; label: string; share: number }[]): string {
+  const top = [...importance].sort((a, b) => b.share - a.share).slice(0, 3);
+  if (top.length < 3) return NOT_ENOUGH;
+  const t = top.map((i) => `${signalLabel(i.key, i.label)} (${pct(i.share)})`);
+  return `Top 3 signals by weight: ${t.join('; ')}.`;
 }

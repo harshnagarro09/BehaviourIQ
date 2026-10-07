@@ -8,6 +8,9 @@
 import { baselineRate, cutIndex, profile, type Behaviour } from './behaviour.ts';
 import type { Campaign, Dataset, Line } from './data.ts';
 
+/** the model predicts the chance of buying within this many days of the offer starting (profit uses the same window) */
+export const PREDICTION_WINDOW_DAYS = 14;
+
 export type FeatureGroup = 'Purchasing' | 'Price' | 'Promotion' | 'Brand' | 'Basket' | 'Timing';
 
 export const FEATURES: { key: string; label: string; group: FeatureGroup }[] = [
@@ -72,7 +75,7 @@ export function makeCtx(ds: Dataset, cid: string, cat: string, asOf: number): Ct
     } else comp++;
   }
   const ourShareCat = (ourFull + 0.3) / (ourFull + comp + 1);
-  const base14 = baselineRate(ds, lines, cat, asOf) * 14;
+  const base14 = baselineRate(ds, lines, cat, asOf) * PREDICTION_WINDOW_DAYS;
   const qFull = ourFull ? ourFullQty / ourFull : b.avgQty || 1.3;
   const qPromo = promoN ? promoQty / promoN : qFull * Math.max(1, b.qtyRatio);
   const due = b.avgInterval > 0 ? Math.min(4, Math.max(0, b.recencyDays) / b.avgInterval) : 1;
@@ -219,7 +222,7 @@ function buildRows(ds: Dataset): Row[] {
   // non-campaign windows (depth = 0): rotate categories so each is represented
   const firstSlot = ds.minDay + 60;
   let slot = 0;
-  for (let s = firstSlot; s + 13 <= ds.maxDay; s += 14, slot++) {
+  for (let s = firstSlot; s + PREDICTION_WINDOW_DAYS - 1 <= ds.maxDay; s += PREDICTION_WINDOW_DAYS, slot++) {
     ds.customers.forEach((cid, ci) => {
       const cat = cats[(slot + ci) % cats.length];
       if (ds.campaigns.some((c) => c.category === cat && c.start <= s + 13 && c.end >= s - 21)) return;
@@ -235,7 +238,7 @@ function buildRows(ds: Dataset): Row[] {
 export function trainModel(ds: Dataset): TrainedModel {
   const rows = buildRows(ds);
   const testFrom = ds.campaigns[Math.max(0, ds.campaigns.length - 8)].start;
-  const train = rows.filter((r) => r.day < testFrom - 14);
+  const train = rows.filter((r) => r.day < testFrom - PREDICTION_WINDOW_DAYS);
   const test = rows.filter((r) => r.day >= testFrom);
   const f1 = fit(train);
   const sc = test.map((r) => predictWith(f1, r.x));

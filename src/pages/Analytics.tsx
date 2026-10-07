@@ -1,10 +1,12 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Takeaway } from '@/components/Takeaway';
-import { behaviourTakeaway, pastResultsTakeaway, predictionTakeaway, proofTakeaway } from '@/lib/takeaways';
+import { PREDICTION_WINDOW_DAYS } from '@/engine/model';
+import { signalLabel } from '@/lib/signalLabels';
+import { behaviourTakeaway, signalsTakeaway, pastResultsTakeaway, predictionTakeaway, proofTakeaway } from '@/lib/takeaways';
 import { RotateCcw, SlidersHorizontal } from 'lucide-react';
 import { useEngine } from '@/state';
 import { Help, Lbl } from '@/components/Help';
-import { Chip, FilterSelect, Kpi, Meter, Panel, Toggle, ViewToggle } from '@/components/ui';
+import { Chip, FilterSelect, Kpi, Meter, Panel, Toggle, ViewToggle, WindowChip } from '@/components/ui';
 import { BarChart, DivergingBars, GroupedBars, Heat, HBars, Legend, LineChart, Scatter, Waterfall } from '@/components/charts';
 import { TYPES } from '@/engine/segments';
 import { activeAt, buildCtxs } from '@/engine/planner';
@@ -316,18 +318,19 @@ export function Analytics() {
         {/* ------------------------------------------------------------ PREDICTION */}
         {tab === 'prediction' && (
           <>
-            <Panel title="Which behaviours predict promotion response" what="How much each kind of behaviour contributes to the prediction."
-              right={<Toggle value={drvView} onChange={setDrvView} options={[{ id: 'group', label: 'By group' }, { id: 'signal', label: 'By signal' }]} />}
+            <Panel title="Which behaviours predict promotion response" what={`Behaviour themes group the ${e.model.importance.length} signals the model reads into ${e.model.groupImportance.length} kinds; individual signals show each one. In the signals view, green raises the chance of responding and orange lowers it.`}
+              right={<><WindowChip /><Toggle value={drvView} onChange={setDrvView} options={[{ id: 'group', label: `Behaviour themes (${e.model.groupImportance.length})` }, { id: 'signal', label: `Individual signals (${e.model.importance.length})` }]} /></>}
               legend={drvView === 'group'
                 ? [{ label: 'Bar', text: "share of the model's weight" }, { label: 'Purchasing', text: 'frequency, recency, quantity' }, { label: 'Price', text: 'discount taken' }, { label: 'Promotion', text: 'past response' }, { label: 'Brand', text: 'loyalty vs competitors' }, { label: 'Basket', text: 'items, category mix' }, { label: 'Timing', text: 'purchase rhythm' }]
                 : [{ label: 'Green', color: 'var(--green)', text: 'raises the chance of responding' }, { label: 'Orange', color: 'var(--amber)', text: 'lowers it' }, { label: 'Length', text: 'strength of the effect' }]}>
+              <p className="mb-3 text-[11.5px] font-medium text-[var(--ink)]">{signalsTakeaway(e.model.importance)}</p>
               {drvView === 'group'
                 ? <HBars labelW={100} max={Math.max(...e.model.groupImportance.map((g) => g.share))} format={(v) => pct(v)} rows={e.model.groupImportance.map((g) => ({ label: g.group, value: g.share, color: 'var(--navy)' }))} />
-                : <DivergingBars labelW={230} format={(v) => (v > 0 ? '+' : '') + v.toFixed(2)} rows={e.model.importance.slice(0, 9).map((i) => ({ label: i.label, value: i.weight, color: i.weight >= 0 ? 'var(--green)' : 'var(--amber)' }))} />}
+                : <DivergingBars labelW={360} format={(v) => (v > 0 ? '+' : '') + v.toFixed(2)} rows={e.model.importance.map((i) => ({ label: signalLabel(i.key, i.label), value: i.weight, color: i.weight >= 0 ? 'var(--green)' : 'var(--amber)' }))} />}
             </Panel>
 
-            <Panel title="Who responds to what" what={`Predicted chance of buying in the next 14 days, ${int(pred.n)} recently active customers.`}
-              right={<FilterSelect value={predCat} onChange={setPredCat} options={cats.map((c) => ({ value: c, label: c }))} />}
+            <Panel title="Who responds to what" what={`Predicted chance of buying in the next ${PREDICTION_WINDOW_DAYS} days, ${int(pred.n)} recently active customers.`}
+              right={<><WindowChip /><FilterSelect value={predCat} onChange={setPredCat} options={cats.map((c) => ({ value: c, label: c }))} /></>}
               legend={[{ label: 'Rows', text: 'customer types' }, { label: 'Columns', text: 'promotion types; No Promotion is what they do anyway' }, { label: 'Cell', text: 'average chance of buying; darker green is higher. The gap to No Promotion is the lift.' }]}>
               <Heat rows={pred.gs.map((g) => g.name)} cols={pred.options.map((o) => shortOffer(o.label))} cell={96} rowW={150}
                 value={(r, c) => pred.val(pred.gs[r], pred.options[c].key)}
@@ -338,10 +341,10 @@ export function Analytics() {
 
             <Panel title={<>Is the prediction accurate, and does acting on it make money?<Help term="auc" /></>}
               what={`Tested on ${V.length} campaigns held back from training: the model chose who to target using only earlier data.`}
-              right={<FilterSelect value={valView} onChange={(v) => setValView(v as ValView)} options={[
+              right={<><WindowChip /><FilterSelect value={valView} onChange={(v) => setValView(v as ValView)} options={[
                 { value: 'profit', label: 'Does acting on it make money?' }, { value: 'predicted', label: 'Predicted vs actual profit' },
                 { value: 'accuracy', label: 'Is the prediction accurate?' }, { value: 'skipped', label: 'What the model avoided' },
-              ]} />}
+              ]} /></>}
               legend={valView === 'profit' ? [
                 { label: 'Grey', color: '#94a3b8', text: 'profit if everyone is offered' }, { label: 'Navy', color: '#0b1c2f', text: 'profit offering only the customers the model picked' },
               ] : valView === 'predicted' ? [

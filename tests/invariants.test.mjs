@@ -116,3 +116,16 @@ test('glossary covers the jargon terms and every customer type', async () => {
   for (const t of new Set(e.records.map((r) => r.type))) assert.ok(GLOSSARY[t], `missing customer type ${t}`);
   for (const [k, g] of Object.entries(GLOSSARY)) assert.ok(g.text.split(/(?<=\.)\s/).length <= 2 && g.text.length < 230, `${k} help text too long`);
 });
+
+test('signal labels cover all model inputs; top-3 sentence uses real weights', async () => {
+  const { SIGNAL_LABELS, signalLabel } = await import('../src/lib/signalLabels.ts');
+  const { signalsTakeaway } = await import('../src/lib/takeaways.ts');
+  const { PREDICTION_WINDOW_DAYS, FEATURES } = await import('../src/engine/model.ts');
+  for (const f of FEATURES) assert.ok(SIGNAL_LABELS[f.key], `no plain-English label for ${f.key}`);
+  assert.equal(signalLabel('nope', 'Original name'), 'Original name');
+  assert.equal(e.model.importance.length, 19);
+  const top = [...e.model.importance].sort((a, b) => b.share - a.share).slice(0, 3);
+  const t = signalsTakeaway(e.model.importance);
+  for (const i of top) assert.ok(t.includes(`(${Math.round(i.share * 100)}%)`), `missing share of ${i.key}`);
+  assert.equal(PREDICTION_WINDOW_DAYS, 14);
+});
