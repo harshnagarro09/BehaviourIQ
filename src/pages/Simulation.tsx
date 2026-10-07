@@ -11,6 +11,8 @@ import { expect, type Expectation } from '@/engine/economics';
 import { activeAt, buildCtxs, CANDIDATES } from '@/engine/planner';
 import { promoOptions, shortOffer } from '@/engine/options';
 import { inr, int, pct, shortDate } from '@/lib/fmt';
+import { Takeaway } from '@/components/Takeaway';
+import { simulationTakeaway } from '@/lib/takeaways';
 
 type Objective = 'profit' | 'volume' | 'conquest' | 'reactivate';
 const OBJECTIVES: { id: Objective; label: string; hint: string }[] = [
@@ -126,7 +128,8 @@ export function Simulation() {
   return (
     <>
       <PageTop title="Simulation" sub="Model campaign scenarios and see the predicted customer response before spending" />
-      <div className="grid gap-4 p-6 lg:grid-cols-[250px_1fr]">
+      <div className="px-6 pt-4"><Takeaway>{simulationTakeaway({ targeted: sim.targeted, total: sim.total, net: sim.net, roi: sim.roi })}</Takeaway></div>
+      <div className="grid gap-4 p-6 pt-4 lg:grid-cols-[250px_1fr]">
         <aside className="card h-fit overflow-hidden">
           <p className="border-b border-[var(--line)] px-3.5 py-2.5 text-[9.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">Campaigns ({CANDIDATES.length})</p>
           {CANDIDATES.map((c) => {

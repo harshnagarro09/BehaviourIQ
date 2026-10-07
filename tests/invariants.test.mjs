@@ -71,3 +71,41 @@ test('engine identifies our brand by the is_our_brand column', () => {
   assert.ok(n > 0 && csv.filter((l) => l.split(',')[7] === '1').every((l) => l.split(',')[6] === 'Reliance Fresh'));
   assert.ok(ours === null || ours === n);
 });
+
+// ---- takeaway sentences: every number must equal the engine value it came from
+import { predictionTakeaway, proofTakeaway, customerTakeaway, planningTakeaway, simulationTakeaway, pastResultsTakeaway, behaviourTakeaway, NOT_ENOUGH } from '../src/lib/takeaways.ts';
+const nums = (s) => (s.match(/-?\d+(\.\d+)?/g) ?? []).map(Number);
+
+test('prediction takeaway quotes the model AUC, test-campaign count and top-two share', () => {
+  const t = predictionTakeaway({ groups: e.model.groupImportance, auc: e.model.aucTest, testCampaigns: e.model.testCampaigns.length });
+  const top2 = [...e.model.groupImportance].sort((a, b) => b.share - a.share).slice(0, 2).reduce((s, g) => s + g.share, 0);
+  assert.ok(t.includes(`AUC ${e.model.aucTest.toFixed(2)}`));
+  assert.ok(t.includes(`on ${e.model.testCampaigns.length} unseen campaigns`));
+  assert.ok(t.includes(`about ${Math.round(top2 * 100)}%`));
+});
+
+test('proof takeaway quotes the backtest ROI for model and blanket promotion', () => {
+  const v = summariseValidation(e.validation);
+  const t = proofTakeaway({ roi: v.roi, broadRoi: v.broadRoi, campaigns: v.campaigns });
+  assert.ok(t.includes(`ROI ${v.roi.toFixed(2)} vs ${v.broadRoi.toFixed(2)}`));
+  const strat = (re) => e.strategies.find((s) => re.test(s.name));
+  assert.ok(Math.abs(v.roi - strat(/persuadable/i).roi) < 1e-9 && Math.abs(v.broadRoi - strat(/everyone/i).roi) < 1e-9);
+});
+
+test('customer takeaway uses P0, P1 and net of the selected customer', () => {
+  const t = customerTakeaway({ cid: 'C0001', p0: 0.33, best: { label: '10% Discount', p1: 0.47, net: 65.4 } });
+  assert.deepEqual(nums(t).slice(1), [33, 47, 10, 14, 65]);
+  assert.ok(customerTakeaway({ cid: 'C0001', p0: 0.33, best: null }).includes('no promotion earns more than it costs'));
+});
+
+test('past-results, behaviour, planning and simulation takeaways', () => {
+  assert.equal(pastResultsTakeaway({ campaigns: 30, lost: 9, incShare: 0.767, units: 18508 }), 'Across 30 campaigns, 9 lost money; an estimated 77% of promoted sales would have happened anyway.');
+  assert.equal(pastResultsTakeaway({ campaigns: 0, lost: 0, incShare: 0, units: 0 }), NOT_ENOUGH);
+  const t = behaviourTakeaway([{ name: 'A', n: 10, net: 5 }, { name: 'B', n: 10, net: -5 }, { name: 'C', n: 10, net: -1 }]);
+  assert.equal(t, 'A customers earn money from promotions; B and C cost money.');
+  assert.equal(behaviourTakeaway([{ name: 'A', n: 2, net: 5 }]), NOT_ENOUGH);
+  const net = e.recommendations.reduce((s, r) => s + (r.best?.net ?? 0), 0);
+  const att = e.recommendations.filter((r) => r.flag === 'attention').length;
+  assert.ok(planningTakeaway({ campaigns: e.recommendations.length, net, flagged: att }).startsWith(`${e.recommendations.length} campaigns planned`));
+  assert.ok(simulationTakeaway({ targeted: 0, total: 10, net: 0, roi: 0 }).startsWith('No customer meets'));
+});

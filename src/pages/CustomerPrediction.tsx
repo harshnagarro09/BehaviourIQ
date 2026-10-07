@@ -10,6 +10,8 @@ import type { Expectation } from '@/engine/economics';
 import { TYPES, TYPE_BY_ID } from '@/engine/segments';
 import { isoOf } from '@/engine/data';
 import { inr, int, pct, shortDate } from '@/lib/fmt';
+import { Takeaway } from '@/components/Takeaway';
+import { customerTakeaway } from '@/lib/takeaways';
 
 type View = 'customer' | 'target';
 type Group = 'target' | 'light' | 'none' | 'stronger' | 'skip';
@@ -93,8 +95,11 @@ type Props = { S: { ctxs: ReturnType<typeof buildCtxs>; options: PromoOption[]; 
 
 function CustomerView({ S, filtered, sel, setSel, sort, setSort, limit, setLimit, category }: Props & { sel: string | null; setSel: (s: string) => void; sort: string; setSort: (s: string) => void; limit: number; setLimit: (n: number) => void }) {
   const cid = sel && filtered.some((x) => x.cid === sel) ? sel : filtered[0]?.cid;
+  const pick = cid ? S.best.get(cid) : null;
   return (
-    <div className="grid gap-4 p-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
+    <>
+    {cid ? <div className="px-6 pt-4"><Takeaway>{customerTakeaway({ cid, p0: S.x(cid, 'none').p0, best: pick ? { label: pick.o.label, p1: pick.e.p1, net: pick.e.net } : null })}</Takeaway></div> : null}
+    <div className="grid gap-4 p-6 pt-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
       <div className="min-w-0 space-y-4">
       <Card pad={false} className="h-fit">
         <div className="flex items-center justify-between px-4 pt-4">
@@ -128,6 +133,7 @@ function CustomerView({ S, filtered, sel, setSel, sort, setSort, limit, setLimit
       </div>
       {cid ? <Detail key={cid + category} cid={cid} S={S} category={category} /> : <Card><p className="py-10 text-center text-[12px] text-[var(--ink-3)]">No customers match these filters.</p></Card>}
     </div>
+    </>
   );
 }
 

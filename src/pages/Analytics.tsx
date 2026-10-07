@@ -1,5 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { StoryStrip } from '@/components/StoryStrip';
+import { Takeaway } from '@/components/Takeaway';
+import { behaviourTakeaway, pastResultsTakeaway, predictionTakeaway, proofTakeaway } from '@/lib/takeaways';
 import { RotateCcw, SlidersHorizontal } from 'lucide-react';
 import { useApp, useEngine } from '@/state';
 import { Chip, FilterSelect, Kpi, Meter, Panel, Toggle, ViewToggle } from '@/components/ui';
@@ -146,6 +148,11 @@ export function Analytics() {
     }
     return { trad, beh };
   }, [e]);
+  const takeaway =
+    tab === 'results' ? pastResultsTakeaway({ campaigns: A.campaigns, lost: rows.filter((r) => r.agg.net < 0).length, incShare: incShareOf(A), units: A.units })
+    : tab === 'behaviour' ? behaviourTakeaway(feat.map((g) => ({ name: g.name, n: g.n, net: g.a.net })))
+    : tab === 'prediction' ? predictionTakeaway({ groups: e.model.groupImportance, auc: e.model.aucTest, testCampaigns: e.model.testCampaigns.length })
+    : proofTakeaway({ roi: vt.roi, broadRoi, campaigns: V.length });
   const smart = e.strategies.find((s) => s.name.startsWith('Target persuadable'))!;
   const broad = e.strategies[0];
 
@@ -189,6 +196,7 @@ export function Analytics() {
         <Toggle value={tab} onChange={setTab} options={[
           { id: 'results', label: 'Past results' }, { id: 'behaviour', label: 'Customer behaviour' }, { id: 'prediction', label: 'Prediction' }, { id: 'impact', label: 'Business impact' },
         ]} />
+        <Takeaway>{takeaway}</Takeaway>
 
         {/* ------------------------------------------------------------ PAST RESULTS */}
         {tab === 'results' && (A.campaigns === 0 ? (

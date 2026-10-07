@@ -10,6 +10,8 @@ import { buildCtxs, activeAt, type Recommendation, type Scenario } from '@/engin
 import { TYPES, TYPE_BY_ID } from '@/engine/segments';
 import { TYPE_IDS } from '@/engine/insights';
 import { inr, int, pct, shortDate } from '@/lib/fmt';
+import { Takeaway } from '@/components/Takeaway';
+import { planningTakeaway } from '@/lib/takeaways';
 
 const COLS = 'grid-cols-[minmax(0,2.6fr)_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,1.3fr)_minmax(0,0.7fr)_minmax(0,1.7fr)]';
 
@@ -94,6 +96,7 @@ export function Planning() {
     <>
       <PageTop title="Planning" sub="AI-recommended promotion calendar for the next quarter, built from predicted customer response" />
       <div className="space-y-4 p-6">
+        <Takeaway>{planningTakeaway({ campaigns: e.recommendations.length, net: e.recommendations.reduce((s, r) => s + (r.best?.net ?? 0), 0), flagged: attention.length })}</Takeaway>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Kpi label="Total upcoming" value={`${e.recommendations.length} campaigns`} note={`${accepted.length} accepted`} />
           <Kpi label="Budget committed" value={inr(budget)} note="discount spend on accepted campaigns" />
