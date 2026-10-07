@@ -11,6 +11,7 @@ import {
   type Agg, type Filters,
 } from '@/lib/analytics';
 import { inr, int, pct, dateLabel, shortDate } from '@/lib/fmt';
+import { summariseValidation } from '@/lib/validation';
 import { isoOf, type Campaign } from '@/engine/data';
 
 const VERDICT = { Scale: 'var(--green)', Optimise: 'var(--amber)', Stop: 'var(--red)' } as const;
@@ -264,6 +265,7 @@ export function Analytics() {
         {/* ---------------------------------------------------------- C */}
         <section className="space-y-3">
           <SectionHead letter="C" title="Does the prediction work?" sub={`Tested on ${V.length} campaigns that were not used to train the model.`} />
+          <ValidationCallout />
           <Panel title="Accuracy and profit on unseen campaigns"
             what="The model chose who to target using only earlier data. Left: are its probabilities right? Right: did targeting by behaviour beat a blanket promotion?"
             right={<div className="flex items-center gap-2"><Chip tone="navy">AUC {e.model.aucTest.toFixed(2)}</Chip><Chip tone={makesMoney ? 'green' : 'red'}>{makesMoney ? 'Profit-making' : 'Loss-making'}: ROI {vt.roi.toFixed(2)} vs {broadRoi.toFixed(2)} blanket</Chip></div>}
@@ -281,6 +283,7 @@ export function Analytics() {
               </div>
             </div>
           </Panel>
+          <p className="rounded-lg bg-[var(--navy)] px-4 py-3 text-[12px] font-medium leading-snug text-white">Customer behaviour helps predict who will respond to which promotion. Turning that prediction into a profit-aware decision, who to target and with what, beat promoting to everyone.</p>
         </section>
 
         {/* ---------------------------------------------------------- Advanced */}
@@ -443,6 +446,25 @@ function SectionHead({ letter, title, sub, right }: { letter: string; title: str
   );
 }
 
+/** Headline result of the held-out backtest: behaviour-based targeting vs blanket promotion */
+export function ValidationCallout({ className = '' }: { className?: string }) {
+  const e = useEngine();
+  const v = summariseValidation(e.validation);
+  const wins = v.roi > v.broadRoi;
+  return (
+    <div className={`flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border px-4 py-3 ${wins ? 'border-[#bfe6d0] bg-[#f1faf5]' : 'border-[#f3d9b4] bg-[#fff8ee]'} ${className}`}>
+      <div className="min-w-[260px] flex-1">
+        <p className="text-[13px] font-bold tracking-tight">Behaviour-based targeting: ROI {v.roi.toFixed(2)} vs {v.broadRoi.toFixed(2)} for blanket promotion</p>
+        <p className="mt-0.5 text-[11px] text-[var(--ink-2)]">Held-out backtest: tested on {v.campaigns} campaigns not used for model training. The model chose who to target using only earlier data.</p>
+      </div>
+      <div className="flex items-center gap-2">
+        <Chip tone="navy">AUC {e.model.aucTest.toFixed(2)}</Chip>
+        <Chip tone={wins ? 'green' : 'amber'}>{inr(v.real)} profit vs {inr(v.broad)}</Chip>
+      </div>
+    </div>
+  );
+}
+
 export function PageTop({ title, sub, right }: { title: string; sub: string; right?: ReactNode }) {
   return (
     <div className="border-b border-[var(--line)] bg-white px-6 py-3.5">
@@ -453,6 +475,7 @@ export function PageTop({ title, sub, right }: { title: string; sub: string; rig
         </div>
         {right}
       </div>
+      <p className="mt-1.5 text-[10px] text-[var(--ink-3)]">Demo uses simulated retail customer data; the same framework applies to real transaction, promotion and customer history.</p>
     </div>
   );
 }

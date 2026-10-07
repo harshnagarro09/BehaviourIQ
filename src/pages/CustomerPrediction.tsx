@@ -3,7 +3,7 @@ import { Download, Search } from 'lucide-react';
 import { useEngine } from '@/state';
 import { Btn, Card, CardTitle, Chip, FilterSelect, Kpi, Meter, Panel, Toggle, TypeBadge } from '@/components/ui';
 import { BarChart, DivergingBars, GroupedBars, HBars, Legend } from '@/components/charts';
-import { PageTop } from '@/pages/Analytics';
+import { PageTop, ValidationCallout } from '@/pages/Analytics';
 import { compareOptions, explain, promoOptions, shortOffer, type PromoOption } from '@/engine/options';
 import { activeAt, buildCtxs } from '@/engine/planner';
 import type { Expectation } from '@/engine/economics';
@@ -100,6 +100,7 @@ export function CustomerPrediction() {
       <PageTop title="Customer Prediction" sub="What promotion will this customer respond to? Behaviour in, predicted response out, one customer at a time or as a target list"
         right={<Toggle value={view} onChange={setView} options={[{ id: 'customer', label: 'Customer view' }, { id: 'target', label: 'Target list' }]} />} />
       <FlowStrip />
+      <div className="px-6 pt-3"><ValidationCallout /></div>
       {filters}
       {view === 'customer'
         ? <CustomerView S={S} filtered={filtered} sel={sel} setSel={setSel} sort={sort} setSort={setSort} limit={limit} setLimit={setLimit} category={category} />
