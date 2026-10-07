@@ -35,7 +35,7 @@ export function CustomerPrediction() {
   const [channel, setChannel] = useState('all');
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('net');
-  const [limit, setLimit] = useState(10);
+  const [limit, setLimit] = useState(12);
   const [offerKey, setOfferKey] = useState('best');
   const [sel, setSel] = useState<string | null>(null);
 
@@ -86,7 +86,7 @@ export function CustomerPrediction() {
   return (
     <>
       <PageTop title="Customer Prediction" sub="What promotion will this customer respond to? Behaviour in, predicted response out, one customer at a time" />
-      <div className="px-6 pt-4">
+      <div className="px-6 py-4">
         <Toggle value={tab} onChange={setTab} options={[{ id: 'customers', label: 'Customers' }, { id: 'model', label: 'How the model predicts, and does it work' }]} />
       </div>
       {tab === 'customers' ? (
@@ -118,23 +118,23 @@ function CustomerView({ S, filtered, sel, setSel, sort, setSort, limit, setLimit
     <div className="grid gap-4 p-6 pt-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
       <div className="min-w-0 space-y-4">
       <Card pad={false} className="h-fit">
-        <div className="flex items-center justify-between px-4 pt-4">
+        <div className="flex items-start justify-between gap-3 px-4 pt-4 pb-3">
           <div><CardTitle title="Customers" sub={`Best promotion for ${category}, ranked`} /><div className="mt-1"><WindowChip /></div></div>
           <FilterSelect value={sort} onChange={setSort} options={[{ value: 'net', label: 'Sort: expected profit' }, { value: 'resp', label: 'Sort: predicted response' }, { value: 'uplift', label: 'Sort: uplift' }, { value: 'recency', label: 'Sort: longest silent' }, { value: 'id', label: 'Sort: ID' }]} />
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] text-[11.5px]">
+          <table className="w-full min-w-[470px] text-[11.5px]">
             <thead><tr className="border-y border-[var(--line)] text-left text-[9.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">
-              {['Customer', 'Customer type', 'Best promotion', 'Response', `Profit (${PREDICTION_WINDOW_DAYS}d)`].map((h) => <th key={h} className="px-3 py-2"><Lbl t={h} /></th>)}
+              {['Customer', 'Customer type', 'Best promotion', 'Response', `Profit (${PREDICTION_WINDOW_DAYS}d)`].map((h, i, a) => <th key={h} className={`whitespace-nowrap py-2 ${i === 0 ? 'pl-4 pr-2.5' : i === a.length - 1 ? 'pl-2.5 pr-4' : 'px-2.5'}`}><Lbl t={h} /></th>)}
             </tr></thead>
             <tbody>
               {filtered.slice(0, limit).map((x) => (
                 <tr key={x.cid} onClick={() => setSel(x.cid)} className={`cursor-pointer border-b border-[var(--line-2)] last:border-0 hover:bg-[var(--page)] ${cid === x.cid ? 'bg-[#eef6f2]' : ''}`}>
-                  <td className="px-3 py-2 font-semibold">{x.cid}</td>
-                  <td className="px-3"><TypeBadge type={x.r.type} /></td>
-                  <td className="px-3">{x.b ? <b>{x.b.o.label}</b> : <span className="text-[var(--ink-3)]">No discount</span>}</td>
-                  <td className="num px-3">{x.b ? <>{pct(x.p0)} → <b>{pct(x.b.e.p1)}</b></> : pct(x.p0)}</td>
-                  <td className="num px-3 font-semibold">{x.b ? inr(x.b.e.net) : '–'}</td>
+                  <td className="py-2 pl-4 pr-2.5 font-semibold">{x.cid}</td>
+                  <td className="px-2.5"><TypeBadge type={x.r.type} /></td>
+                  <td className="px-2.5">{x.b ? <b>{x.b.o.label}</b> : <span className="text-[var(--ink-3)]">No discount</span>}</td>
+                  <td className="num whitespace-nowrap px-2.5">{x.b ? <>{pct(x.p0)} → <b>{pct(x.b.e.p1)}</b></> : pct(x.p0)}</td>
+                  <td className="num pl-2.5 pr-4 font-semibold">{x.b ? inr(x.b.e.net) : '–'}</td>
                 </tr>
               ))}
             </tbody>
@@ -142,7 +142,7 @@ function CustomerView({ S, filtered, sel, setSel, sort, setSort, limit, setLimit
         </div>
         <div className="flex items-center justify-between px-4 py-3 text-[11px] text-[var(--ink-3)]">
           <span>Showing {Math.min(limit, filtered.length)} of {filtered.length}</span>
-          {limit < filtered.length && <button className="font-semibold text-[var(--ink)] hover:underline" onClick={() => setLimit(limit + 10)}>Show more</button>}
+          {limit < filtered.length && <button className="font-semibold text-[var(--ink)] hover:underline" onClick={() => setLimit(limit + 12)}>Show more</button>}
         </div>
       </Card>
       <Insights S={S} filtered={filtered} category={category} />

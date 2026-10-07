@@ -97,7 +97,7 @@ export function BarChart({
   const barW = Math.min(44, bw * 0.6);
   return (
     <div ref={box} className="relative">
-      <div ref={ref} className="flex w-full justify-center">
+      <div ref={ref} className="flex w-full justify-center [contain:inline-size]">
         {w > 0 && (
           <svg width={w} height={height} role="img" aria-label={yLabel ?? 'Bar chart'}>
             {vals.map((t) => (
@@ -154,7 +154,7 @@ export function GroupedBars({
   const bw = Math.min(30, (gw * 0.7) / series.length);
   return (
     <div ref={box} className="relative">
-      <div ref={ref} className="flex w-full justify-center">
+      <div ref={ref} className="flex w-full justify-center [contain:inline-size]">
         {w > 0 && (
           <svg width={w} height={height}>
             {vals.map((t) => (
@@ -209,7 +209,7 @@ export function LineChart({
   const path = (pts: { x: number; y: number }[]) => pts.map((p, i) => `${i ? 'L' : 'M'}${X(p.x).toFixed(1)},${Y(p.y).toFixed(1)}`).join('');
   return (
     <div ref={box} className="relative">
-      <div ref={ref} className="flex w-full justify-center">
+      <div ref={ref} className="flex w-full justify-center [contain:inline-size]">
         {w > 0 && (
           <svg
             width={w}
@@ -290,7 +290,7 @@ export function Scatter({
   const Y = (v: number) => m.t + ih - ((v - yt.lo) / (yt.hi - yt.lo)) * ih;
   return (
     <div ref={box} className="relative">
-      <div ref={ref} className="flex w-full justify-center">
+      <div ref={ref} className="flex w-full justify-center [contain:inline-size]">
         {w > 0 && (
           <svg width={w} height={height}>
             {yt.vals.map((t) => (
@@ -483,7 +483,7 @@ export function Waterfall({
   const bw = iw / bars.length;
   return (
     <div ref={box} className="relative">
-      <div ref={ref} className="flex w-full justify-center">
+      <div ref={ref} className="flex w-full justify-center [contain:inline-size]">
         {w > 0 && (
           <svg width={w} height={height}>
             {t.vals.map((v) => (
