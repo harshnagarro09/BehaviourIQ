@@ -14,6 +14,7 @@ import { inr, int, pct, shortDate } from '@/lib/fmt';
 import { Lbl } from '@/components/Help';
 import { WindowChip } from '@/components/ui';
 import { Takeaway } from '@/components/Takeaway';
+import { ImpactPanel } from '@/components/ImpactPanel';
 import { simulationTakeaway } from '@/lib/takeaways';
 
 type Objective = 'profit' | 'volume' | 'conquest' | 'reactivate';
@@ -305,6 +306,7 @@ export function Simulation() {
             legend={[{ label: 'Bar', text: 'Expected net profit at that discount depth.' }, { label: 'Green bar', color: 'var(--green)', text: 'The depth currently selected in the controls.' }, { label: 'Red bar', color: 'var(--red)', text: 'The discount costs more than it earns.' }]}>
             <BarChart height={200} format={(v) => inr(v, 1)} posColor="var(--navy)" negColor="var(--red)" data={curve.map((c) => ({ label: `${c.d}%`, value: c.net, color: c.d === depthEff && mech === 'PCT_OFF' ? 'var(--green)' : undefined }))} />
           </Panel>
+          <ImpactPanel />
         </div>
       </div>
     </>

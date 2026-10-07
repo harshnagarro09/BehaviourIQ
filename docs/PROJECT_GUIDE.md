@@ -550,6 +550,8 @@ These additions help a first-time viewer. They add no analytics and change no nu
 
 ## 8. Page 1: Behaviour Analytics
 
+> **Where things live now.** Behaviour Analytics has two tabs, **Past results** and **Customer behaviour** (what customers did). The former *Prediction* tab (8.5) now sits on the **Customer Prediction** page as the collapsed section "How the model predicts, and does it work", and the former *Business impact* tab (8.6) is the closing panel of the **Simulation** page. The filter bar, number cards and the panels' contents are unchanged. Order of the story: Behaviour Analytics, Customer Prediction, Planning, Simulation.
+
 **Purpose:** show how customer behaviour relates to promotion results, which behaviours predict response, and whether acting on the prediction pays. It answers "what has happened, and does the idea work?".
 
 **Header.** Title and subtitle. On the right the **period** switch: *Last 3 months*, *Last 6 months* (default), *All time*. "Last 6 months" means campaigns that **started** within roughly 183 days of the end of the data; the *prior* period is the equal span before it, and it drives the change chips on the number cards.
@@ -620,7 +622,7 @@ The small chips show the change against the prior period (not shown for "All tim
 * Darker green = higher. A dash means no campaign in that category during the chosen period.
 * How to use it: shows that deal-seekers respond in almost every category, while "Ignores" hardly respond anywhere.
 
-### 8.5 Tab 3: Prediction
+### 8.5 Prediction panels (now on the Customer Prediction page)
 
 **Which behaviours predict promotion response**
 
@@ -647,7 +649,7 @@ The panel always shows two chips: a green *Profit-making* (or red *Loss-making*)
 | **Is the prediction accurate?** | Left: customers split into five equal groups from most to least likely; bars compare predicted and actual chance of buying. Right: share of all real buyers captured when contacting the best-ranked customers first. | Matching bars mean honest probabilities; a line well above the dashed "random" line means good ranking. |
 | **What the model avoided** | Three bars: profit from contacted customers, profit (a loss) the skipped customers would have produced, and total if everyone is offered. | Shows the money saved by not discounting the wrong customers. |
 
-### 8.6 Tab 4: Business impact
+### 8.6 Business impact (now at the end of the Simulation page)
 
 **Traditional vs behaviour-based** (grouped bars plus three small figures)
 
@@ -933,8 +935,8 @@ About 10 minutes:
 1. **Open Behaviour Analytics** (1 min): "Here is what promotions have done so far." Point at the six cards; note the net profit and ROI.
 2. **Past results** (1.5 min): bubble chart (some campaigns lose money), incrementality (a lot of sales would have happened anyway), promotion types (BOGO and bundles lose).
 3. **Customer behaviour** (1.5 min): the five types and the ROI view (some types cost money); the response map.
-4. **Prediction** (3 min): which behaviours predict (brand and promotion history); who responds to what; then the validation panel: accuracy view, then the profit view, then "what the model avoided".
-5. **Business impact** (1 min): traditional versus behaviour-based.
+4. **Customer Prediction, model section** (3 min): open "How the model predicts, and does it work"; which behaviours predict (brand and promotion history); who responds to what; then the validation panel: accuracy view, then the profit view, then "what the model avoided".
+5. **Business impact** (1 min, end of the Simulation page): traditional versus behaviour-based.
 6. **Customer Prediction** (1.5 min): open one customer, show features, the six promotions, the recommendation and the "why". Point out that the promotion with the highest response is not always the most profitable (prediction versus decision, 6.14). Switch to Target list and export.
 7. **Planning and Simulation** (1.5 min): accept a campaign; in Simulation raise the discount and show the guardrail banner, the profit peak and the "Prediction vs decision" note.
 8. **AI Advisor** (30 sec): ask "Is the prediction accurate and does it make money?"

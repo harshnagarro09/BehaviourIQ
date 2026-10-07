@@ -14,6 +14,7 @@ import { inr, int, pct, shortDate } from '@/lib/fmt';
 import type { GlossaryKey } from '@/lib/glossary';
 import { PREDICTION_WINDOW_DAYS } from '@/engine/model';
 import { Takeaway } from '@/components/Takeaway';
+import { ModelSection } from '@/components/ModelPanels';
 import { customerTakeaway } from '@/lib/takeaways';
 
 type View = 'customer' | 'target';
@@ -90,6 +91,7 @@ export function CustomerPrediction() {
       {view === 'customer'
         ? <CustomerView S={S} filtered={filtered} sel={sel} setSel={setSel} sort={sort} setSort={setSort} limit={limit} setLimit={setLimit} category={category} />
         : <TargetView S={S} filtered={filtered} offerKey={offerKey} setOfferKey={setOfferKey} category={category} />}
+      <div className="px-6 pb-6"><ModelSection /></div>
     </>
   );
 }

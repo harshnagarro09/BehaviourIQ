@@ -1,16 +1,13 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Takeaway } from '@/components/Takeaway';
-import { PREDICTION_WINDOW_DAYS } from '@/engine/model';
-import { signalLabel } from '@/lib/signalLabels';
-import { behaviourTakeaway, signalsTakeaway, pastResultsTakeaway, predictionTakeaway, proofTakeaway } from '@/lib/takeaways';
+import { behaviourTakeaway, pastResultsTakeaway } from '@/lib/takeaways';
 import { RotateCcw, SlidersHorizontal } from 'lucide-react';
 import { useEngine } from '@/state';
 import { Help, Lbl } from '@/components/Help';
-import { Chip, FilterSelect, Kpi, Meter, Panel, Toggle, ViewToggle, WindowChip } from '@/components/ui';
-import { BarChart, DivergingBars, GroupedBars, Heat, HBars, Legend, LineChart, Scatter, Waterfall } from '@/components/charts';
+import { Chip, FilterSelect, Kpi, Meter, Panel, Toggle, ViewToggle } from '@/components/ui';
+import { BarChart, Heat, Scatter, Waterfall } from '@/components/charts';
 import { TYPES } from '@/engine/segments';
-import { activeAt, buildCtxs } from '@/engine/planner';
-import { compareOptions, offerName, promoOptions, shortOffer } from '@/engine/options';
+import { offerName } from '@/engine/options';
 import {
   aggregate, customerFilter, DEFAULT_FILTERS, incShareOf, leakOf, mechOf, perCampaign, pctChange, respOf, roiOf, selectCampaigns, verdictOf,
   type Agg, type Filters,
@@ -38,8 +35,7 @@ const FEAT_METRICS: { key: string; label: string; get: (g: FeatRow) => number; f
 ];
 const shortName = (n: string) => n.replace(' Buyers', '').replace(' Buyer', '').replace(' Promotions', '').replace('Competitor ', '');
 
-type Tab = 'results' | 'behaviour' | 'prediction' | 'impact';
-type ValView = 'profit' | 'predicted' | 'accuracy' | 'skipped';
+type Tab = 'results' | 'behaviour';
 
 export function Analytics() {
   const e = useEngine();
@@ -49,9 +45,6 @@ export function Analytics() {
   const [featView, setFeatView] = useState<'chart' | 'table'>('chart');
   const [featMetric, setFeatMetric] = useState('roi');
   const [perfView, setPerfView] = useState<'chart' | 'table'>('chart');
-  const [predCat, setPredCat] = useState('Beverages');
-  const [valView, setValView] = useState<ValView>('profit');
-  const [drvView, setDrvView] = useState<'group' | 'signal'>('group');
   const set = (k: keyof Filters) => (v: string) => setF({ ...f, [k]: v });
 
   const { cur, prior } = useMemo(() => selectCampaigns(e, f), [e, f]);
@@ -88,7 +81,6 @@ export function Analytics() {
   const top20 = e.model.gains.find((g) => g.pctCustomers >= 0.2);
   const broadRoi = vt.broadCost ? vt.broad / vt.broadCost : 0;
   const makesMoney = vt.real > 0;
-  const vLabel = (v: (typeof V)[number]) => v.campaign.name.split(' ').slice(0, 2).join(' ').slice(0, 13);
 
   const dots = rows.map(({ campaign: c, agg }) => {
     const v = verdictOf(roiOf(agg));
@@ -129,32 +121,9 @@ export function Analytics() {
     }).filter((g) => g.camps > 0);
   }, [e, cur, ok, A.cost]);
 
-  const pred = useMemo(() => {
-    const ctxs = buildCtxs(e.ds, activeAt(e.ds, e.asOf), predCat, e.asOf).filter((c) => ok(c.cid));
-    const options = promoOptions(e.ds, predCat);
-    const cmp = compareOptions(e.ds, e.model, ctxs, predCat, options);
-    const gs = TYPES.map((t) => ({ name: t.name, ids: ctxs.filter((c) => e.recById.get(c.cid)!.type === t.id).map((c) => c.cid) })).filter((g) => g.ids.length > 0);
-    const val = (g: (typeof gs)[number], key: string) => g.ids.reduce((s, id) => s + cmp.exps.get(key)!.get(id)!.p1, 0) / g.ids.length;
-    return { options, gs, val, n: ctxs.length };
-  }, [e, predCat, ok]);
-
-  const impact = useMemo(() => {
-    const z = () => ({ contacts: 0, cost: 0, net: 0, inc: 0, leak: 0 });
-    const trad = z(); const beh = z();
-    for (const r of e.recommendations) {
-      const p20 = r.scenarios.find((s) => s.option.key === 'pct20')!;
-      trad.contacts += p20.blanket.customers; trad.cost += p20.blanket.discountCost; trad.net += p20.blanket.net; trad.inc += p20.blanket.incBuyers; trad.leak += p20.blanket.leakage;
-      if (r.best) { beh.contacts += r.best.audience.targeted; beh.cost += r.best.discountCost; beh.net += r.best.net; beh.inc += r.best.incrementalBuyers; beh.leak += r.best.leakage; }
-    }
-    return { trad, beh };
-  }, [e]);
   const takeaway =
     tab === 'results' ? pastResultsTakeaway({ campaigns: A.campaigns, lost: rows.filter((r) => r.agg.net < 0).length, incShare: incShareOf(A), units: A.units })
-    : tab === 'behaviour' ? behaviourTakeaway(feat.map((g) => ({ name: g.name, n: g.n, net: g.a.net })))
-    : tab === 'prediction' ? predictionTakeaway({ groups: e.model.groupImportance, auc: e.model.aucTest, testCampaigns: e.model.testCampaigns.length })
-    : proofTakeaway({ roi: vt.roi, broadRoi, campaigns: V.length });
-  const smart = e.strategies.find((s) => s.name.startsWith('Target persuadable'))!;
-  const broad = e.strategies[0];
+    : behaviourTakeaway(feat.map((g) => ({ name: g.name, n: g.n, net: g.a.net })));
 
   const typeKey = TYPES.map((t) => ({ label: t.name, color: t.color, text: t.tagline }));
 
@@ -194,7 +163,7 @@ export function Analytics() {
         </div>
 
         <Toggle value={tab} onChange={setTab} options={[
-          { id: 'results', label: 'Past results' }, { id: 'behaviour', label: 'Customer behaviour' }, { id: 'prediction', label: 'Prediction' }, { id: 'impact', label: 'Business impact' },
+          { id: 'results', label: 'Past results' }, { id: 'behaviour', label: 'Customer behaviour' },
         ]} />
         <Takeaway>{takeaway}</Takeaway>
 
@@ -315,111 +284,6 @@ export function Analytics() {
           </>
         )}
 
-        {/* ------------------------------------------------------------ PREDICTION */}
-        {tab === 'prediction' && (
-          <>
-            <Panel title="Which behaviours predict promotion response" what={`Behaviour themes group the ${e.model.importance.length} signals the model reads into ${e.model.groupImportance.length} kinds; individual signals show each one. In the signals view, green raises the chance of responding and orange lowers it.`}
-              right={<><WindowChip /><Toggle value={drvView} onChange={setDrvView} options={[{ id: 'group', label: `Behaviour themes (${e.model.groupImportance.length})` }, { id: 'signal', label: `Individual signals (${e.model.importance.length})` }]} /></>}
-              legend={drvView === 'group'
-                ? [{ label: 'Bar', text: "share of the model's weight" }, { label: 'Purchasing', text: 'frequency, recency, quantity' }, { label: 'Price', text: 'discount taken' }, { label: 'Promotion', text: 'past response' }, { label: 'Brand', text: 'loyalty vs competitors' }, { label: 'Basket', text: 'items, category mix' }, { label: 'Timing', text: 'purchase rhythm' }]
-                : [{ label: 'Green', color: 'var(--green)', text: 'raises the chance of responding' }, { label: 'Orange', color: 'var(--amber)', text: 'lowers it' }, { label: 'Length', text: 'strength of the effect' }]}>
-              <p className="mb-3 text-[11.5px] font-medium text-[var(--ink)]">{signalsTakeaway(e.model.importance)}</p>
-              {drvView === 'group'
-                ? <HBars labelW={100} max={Math.max(...e.model.groupImportance.map((g) => g.share))} format={(v) => pct(v)} rows={e.model.groupImportance.map((g) => ({ label: g.group, value: g.share, color: 'var(--navy)' }))} />
-                : <DivergingBars labelW={360} format={(v) => (v > 0 ? '+' : '') + v.toFixed(2)} rows={e.model.importance.map((i) => ({ label: signalLabel(i.key, i.label), value: i.weight, color: i.weight >= 0 ? 'var(--green)' : 'var(--amber)' }))} />}
-            </Panel>
-
-            <Panel title="Who responds to what" what={`Predicted chance of buying in the next ${PREDICTION_WINDOW_DAYS} days, ${int(pred.n)} recently active customers.`}
-              right={<><WindowChip /><FilterSelect value={predCat} onChange={setPredCat} options={cats.map((c) => ({ value: c, label: c }))} /></>}
-              legend={[{ label: 'Rows', text: 'customer types' }, { label: 'Columns', text: 'promotion types; No Promotion is what they do anyway' }, { label: 'Cell', text: 'average chance of buying; darker green is higher. The gap to No Promotion is the lift.' }]}>
-              <Heat rows={pred.gs.map((g) => g.name)} cols={pred.options.map((o) => shortOffer(o.label))} cell={96} rowW={150}
-                value={(r, c) => pred.val(pred.gs[r], pred.options[c].key)}
-                color={(v) => (v < 0.2 ? '#e2e8f0' : v < 0.4 ? '#a7f3d0' : v < 0.6 ? '#34d399' : v < 0.8 ? '#10b981' : '#047857')}
-                label={(v) => `${Math.round(v * 100)}%`}
-                tip={(r, c) => <>{pred.gs[r].name} · {pred.options[c].label}<br />{pct(pred.val(pred.gs[r], pred.options[c].key))} chance of buying ({pred.gs[r].ids.length} customers)</>} />
-            </Panel>
-
-            <Panel title={<>Is the prediction accurate, and does acting on it make money?<Help term="auc" /></>}
-              what={`Tested on ${V.length} campaigns held back from training: the model chose who to target using only earlier data.`}
-              right={<><WindowChip /><FilterSelect value={valView} onChange={(v) => setValView(v as ValView)} options={[
-                { value: 'profit', label: 'Does acting on it make money?' }, { value: 'predicted', label: 'Predicted vs actual profit' },
-                { value: 'accuracy', label: 'Is the prediction accurate?' }, { value: 'skipped', label: 'What the model avoided' },
-              ]} /></>}
-              legend={valView === 'profit' ? [
-                { label: 'Grey', color: '#94a3b8', text: 'profit if everyone is offered' }, { label: 'Navy', color: '#0b1c2f', text: 'profit offering only the customers the model picked' },
-              ] : valView === 'predicted' ? [
-                { label: 'Grey', color: '#94a3b8', text: 'profit / buyers the model expected' }, { label: 'Navy', color: '#0b1c2f', text: 'what actually happened' }, { label: 'Navy above grey', text: 'the model was cautious' },
-              ] : valView === 'accuracy' ? [
-                { label: 'Left', text: 'customers split into 5 equal groups, most to least likely; matching bars mean honest probabilities' }, { label: 'Right', text: 'share of real buyers captured when contacting best-ranked first; above the dashed line is better' },
-              ] : [
-                { label: 'Contacted', text: 'actual profit from customers the model chose' }, { label: 'Skipped', text: 'profit (a loss) those left out would have made if offered' }, { label: 'Offer everyone', text: 'total if the offer went to all' },
-              ]}>
-              <div className="mb-3 flex flex-wrap items-center gap-2">
-                <Chip tone={makesMoney ? 'green' : 'red'}>{makesMoney ? 'Profit-making' : 'Loss-making'}: {inr(vt.real)}, ROI {vt.roi.toFixed(2)}</Chip>
-                <Chip tone="neutral">Offering everyone: {inr(vt.broad)}, ROI {broadRoi.toFixed(2)}</Chip>
-              </div>
-              {valView === 'profit' && (
-                <GroupedBars height={220} format={(v) => inr(v, 0)} series={[{ label: 'Offer everyone', color: '#94a3b8' }, { label: 'Behaviour-targeted', color: '#0b1c2f' }]}
-                  groups={V.map((v) => ({ label: vLabel(v), values: [v.broadNet, v.realNet] }))} />
-              )}
-              {valView === 'predicted' && (
-                <div className="grid gap-4 lg:grid-cols-2">
-                  <div><p className="mb-1 text-[10.5px] font-semibold">Net profit of the targeted customers</p>
-                    <GroupedBars height={200} format={(v) => inr(v, 0)} series={[{ label: 'Predicted', color: '#94a3b8' }, { label: 'Actual', color: '#0b1c2f' }]} groups={V.filter((v) => v.targeted > 0).map((v) => ({ label: vLabel(v), values: [v.predNet, v.realNet] }))} /></div>
-                  <div><p className="mb-1 text-[10.5px] font-semibold">Customers who bought</p>
-                    <GroupedBars height={200} format={(v) => int(v)} series={[{ label: 'Predicted', color: '#94a3b8' }, { label: 'Actual', color: '#0b1c2f' }]} groups={V.filter((v) => v.targeted > 0).map((v) => ({ label: vLabel(v), values: [v.predBuyers, v.realBuyers] }))} /></div>
-                </div>
-              )}
-              {valView === 'accuracy' && (
-                <div className="grid gap-4 lg:grid-cols-2">
-                  <div><p className="mb-1 text-[10.5px] font-semibold">Predicted vs actual chance of buying<Help term="calibration" /></p>
-                    <GroupedBars height={200} format={(v) => pct(v)} series={[{ label: 'Predicted', color: '#94a3b8' }, { label: 'Actual', color: '#0b1c2f' }]}
-                      groups={e.model.calibration.map((c, i) => ({ label: i === 0 ? 'Most likely' : i === e.model.calibration.length - 1 ? 'Least likely' : `Group ${i + 1}`, values: [c.predicted, c.actual] }))} /></div>
-                  <div><p className="mb-1 text-[10.5px] font-semibold">Buyers captured, best-ranked first</p>
-                    <LineChart height={200} markers={false} yMax={1} xFormat={(v) => pct(v)} yFormat={(v) => pct(v)} xTicks={[0, 0.25, 0.5, 0.75, 1]} xLabel="Share of customers contacted"
-                      series={[{ name: 'Model', color: '#0b1c2f', points: e.model.gains.map((g) => ({ x: g.pctCustomers, y: g.pctResponders })) }, { name: 'Random', color: '#94a3b8', dashed: true, points: [{ x: 0, y: 0 }, { x: 1, y: 1 }] }]} /></div>
-                </div>
-              )}
-              {valView === 'skipped' && (
-                <BarChart height={210} posColor="var(--navy)" negColor="var(--red)" format={(v) => inr(v, 0)} showValues
-                  data={[
-                    { label: 'Contacted', sub: `${int(vt.tgt)} offers`, value: vt.real, color: 'var(--green)' },
-                    { label: 'Skipped', sub: 'if they had been offered', value: vt.skipped },
-                    { label: 'Offer everyone', sub: `${int(vt.reached)} offers`, value: vt.broad, color: '#94a3b8' },
-                  ]} />
-              )}
-            </Panel>
-          </>
-        )}
-
-        {/* ------------------------------------------------------------ BUSINESS IMPACT */}
-        {tab === 'impact' && (
-          <>
-            <Panel title="Business impact: traditional vs behaviour-based" what="Forecast for the six planned campaigns: the same offer to everyone, versus the best offer only for customers it pays off with."
-              right={<Chip tone="green">{pct(1 - impact.beh.cost / impact.trad.cost)} less discount · {inr(impact.beh.net - impact.trad.net)} more profit</Chip>}
-              legend={[{ label: 'Grey', color: '#94a3b8', text: 'traditional: 20% Discount to every recently active customer' }, { label: 'Navy', color: '#0b1c2f', text: 'behaviour-based: best promotion, only where it pays off' }, { label: 'Leakage', text: 'discount given to sales that would have happened anyway' }]}>
-              <GroupedBars height={230} format={(v) => inr(v, 0)} series={[{ label: 'Traditional', color: '#94a3b8' }, { label: 'Behaviour-based', color: '#0b1c2f' }]}
-                groups={[
-                  { label: 'Promotion cost', values: [impact.trad.cost, impact.beh.cost] },
-                  { label: 'Discount leakage', values: [impact.trad.leak, impact.beh.leak] },
-                  { label: 'Net profit', values: [Math.max(0, impact.trad.net), Math.max(0, impact.beh.net)] },
-                ]} />
-              <div className="mt-1"><Legend items={[{ label: 'Traditional (20% Discount to all)', color: '#94a3b8' }, { label: 'Behaviour-based', color: '#0b1c2f' }]} /></div>
-              <div className="mt-4 grid gap-3 text-[11.5px] sm:grid-cols-3">
-                {([
-                  ['Customers contacted', int(impact.trad.contacts), int(impact.beh.contacts)],
-                  ['ROI', (impact.trad.net / impact.trad.cost).toFixed(2), (impact.beh.net / impact.beh.cost).toFixed(2)],
-                  ['Extra buyers caused', int(impact.trad.inc), int(impact.beh.inc)],
-                ] as [string, string, string][]).map(([l, a, b]) => (
-                  <div key={l} className="rounded-lg bg-[var(--page)] p-3"><p className="text-[10px] text-[var(--ink-3)]">{l}</p><p className="num mt-0.5"><span className="text-[var(--ink-3)]">{a}</span> → <b className="text-[14px]">{b}</b></p></div>
-                ))}
-              </div>
-              <p className="mt-3 text-[11px] text-[var(--ink-2)]">
-                Also proven on past campaigns: replaying the last {e.model.testCampaigns.length} with the model choosing who to contact returned ROI <b>{smart.roi.toFixed(2)}</b> vs <b>{broad.roi.toFixed(2)}</b> for discounting everyone, with {pct(1 - smart.discountCost / broad.discountCost)} less discount.
-              </p>
-            </Panel>
-          </>
-        )}
       </div>
     </>
   );
