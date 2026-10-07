@@ -16,9 +16,6 @@ interface Ctx {
   page: PageId;
   go: (p: PageId, params?: Record<string, string>) => void;
   params: Record<string, string>;
-  /** active Behaviour Analytics tab (shared so the story strip can follow it) */
-  tab: string;
-  setTab: (t: string) => void;
   decisions: Record<string, Decision>;
   decide: (id: string, d: Decision | null) => void;
 }
@@ -43,7 +40,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return PAGES.includes(h) ? h : 'analytics';
   });
   const [params, setParams] = useState<Record<string, string>>({});
-  const [tab, setTab] = useState<string>(() => new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('tab') ?? 'results');
   const [decisions, setDecisions] = useState<Record<string, Decision>>(() => {
     try {
       return JSON.parse(localStorage.getItem('behaviouriq.decisions') ?? '{}');
@@ -79,8 +75,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const go = useCallback((p: PageId, pr: Record<string, string> = {}) => {
     setPage(p);
     setParams(pr);
-    setTab(p === 'analytics' ? pr.tab ?? 'results' : 'results');
-    window.history.replaceState(null, '', p === 'analytics' && pr.tab ? `#/${p}?tab=${pr.tab}` : `#/${p}`);
+    window.history.replaceState(null, '', `#/${p}`);
     document.getElementById('main-scroll')?.scrollTo({ top: 0 });
   }, []);
 
@@ -99,8 +94,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ engine, error, source, loadText, page, go, params, tab, setTab, decisions, decide }),
-    [engine, error, source, loadText, page, go, params, tab, decisions, decide],
+    () => ({ engine, error, source, loadText, page, go, params, decisions, decide }),
+    [engine, error, source, loadText, page, go, params, decisions, decide],
   );
   return <C.Provider value={value}>{children}</C.Provider>;
 }

@@ -106,7 +106,7 @@ export function Planning() {
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2">
-          <Panel hero title="Expected net profit by campaign" what="What the best promotion for each planned campaign is expected to earn, after discount cost."
+          <Panel title="Expected net profit by campaign" what="What the best promotion for each planned campaign is expected to earn, after discount cost."
             legend={[{ label: 'Bar height', text: 'Expected net profit over the campaign window: margin on promoted sales, minus the margin customers would have earned anyway, minus stock borrowed from later weeks.' }, { label: 'Green bar', color: 'var(--green)', text: 'Campaign you have accepted.' }, { label: 'Navy bar', color: 'var(--navy)', text: 'Still to be decided.' }, { label: 'Label under the bar', text: 'The promotion chosen for that campaign.' }]}>
             <BarChart height={210} posColor="var(--navy)" negColor="var(--red)" format={(v) => inr(v, 0)} showValues
               data={e.recommendations.map((r) => { const sc = chosen(r); return { label: r.candidate.name.split(' ')[0].slice(0, 8), sub: sc ? shortOffer(sc.option.label) : 'none', value: sc?.net ?? 0, color: decisions[r.candidate.id]?.status === 'accepted' ? 'var(--green)' : undefined, tip: <><b>{r.candidate.name}</b><br />{sc ? sc.option.label : 'No profitable offer'} · {sc ? inr(sc.net) : '–'}</> }; })} />

@@ -230,7 +230,7 @@ export function Simulation() {
             </div>
           </Card>
 
-          <Panel hero flush title="Compare promotion options" what={`Same objective and audience, every promotion type for ${cand.category}. Highest response is rarely the best decision.`}
+          <Panel flush title="Compare promotion options" what={`Same objective and audience, every promotion type for ${cand.category}. Highest response is rarely the best decision.`}
             right={<ViewToggle value={cmpView} onChange={setCmpView} />}
             legend={[
               { label: 'Grey bar', color: '#94a3b8', text: 'No Promotion: what these customers do anyway.' },

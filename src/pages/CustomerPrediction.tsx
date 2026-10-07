@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Download, Search } from 'lucide-react';
 import { useEngine } from '@/state';
 import { Help, Lbl } from '@/components/Help';
-import { Btn, Card, CardTitle, Chip, FilterBar, FilterSelect, Kpi, Meter, Panel, Toggle, TypeBadge, ViewToggle } from '@/components/ui';
+import { Btn, Card, CardTitle, Chip, FilterSelect, Kpi, Meter, Panel, Toggle, TypeBadge, ViewToggle } from '@/components/ui';
 import { BarChart, GroupedBars, HBars, Legend } from '@/components/charts';
 import { PageTop } from '@/pages/Analytics';
 import { compareOptions, explain, promoOptions, shortOffer, type PromoOption } from '@/engine/options';
@@ -71,14 +71,14 @@ export function CustomerPrediction() {
   }, [rowsAll, persona, channel, query, sort]);
 
   const filters = (
-    <FilterBar active={(persona !== 'all' ? 1 : 0) + (channel !== 'all' ? 1 : 0) + (query ? 1 : 0)} className="flex flex-wrap items-center gap-2.5 border-b border-[var(--line)] bg-white px-6 py-2.5">
+    <div className="flex flex-wrap items-center gap-2.5 border-b border-[var(--line)] bg-white px-6 py-2.5">
       <span className="text-[9.5px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-3)]">Filters</span>
       <FilterSelect value={category} onChange={(v) => { setCategory(v); setOfferKey('best'); }} options={cats.map((c) => ({ value: c, label: `Category: ${c}` }))} />
       <FilterSelect value={persona} onChange={setPersona} options={[{ value: 'all', label: 'All Customer Types' }, ...TYPES.map((t) => ({ value: t.id, label: t.name }))]} />
       <FilterSelect value={channel} onChange={setChannel} options={[{ value: 'all', label: 'All Channels' }, ...channels.map((c) => ({ value: c, label: c }))]} />
       <div className="flex h-8 items-center gap-1.5 rounded-md border border-[var(--line)] bg-white px-2.5"><Search className="h-3 w-3 text-[var(--ink-3)]" /><input value={query} onChange={(ev) => setQuery(ev.target.value)} placeholder="Customer ID" className="w-24 bg-transparent text-[11.5px] outline-none" /></div>
       <span className="ml-auto text-[11px] text-[var(--ink-3)]">{filtered.length} of {rowsAll.length} recently active customers</span>
-    </FilterBar>
+    </div>
   );
 
   return (
@@ -175,7 +175,7 @@ function Detail({ cid, S, category }: { cid: string; S: Props['S']; category: st
         <p className="mt-3 border-t border-[var(--line)] pt-2.5 text-[10.5px] text-[var(--ink-2)]"><b>Why this type:</b> {r.reasons.join('. ')}.</p>
       </Card>
 
-      <Panel hero flush title={`What will ${cid} respond to?`} what={`Predicted chance of buying ${category} in the next 14 days and what each promotion would earn from this customer.`}
+      <Panel flush title={`What will ${cid} respond to?`} what={`Predicted chance of buying ${category} in the next 14 days and what each promotion would earn from this customer.`}
         right={<ViewToggle value={pView} onChange={setPView} />}
         legend={[
           { label: 'Grey bar / None', color: '#94a3b8', text: 'Chance of buying with no promotion at all.' },
