@@ -21,7 +21,7 @@ export function ImpactPanel() {
   const broad = e.strategies[0];
   return (
     <>
-            <Panel title="Business impact: traditional vs behaviour-based" what="Forecast for the six planned campaigns: the same offer to everyone, versus the best offer only for customers it pays off with."
+            <Panel title="Business impact: traditional vs behaviour-based" what={`Forecast for the six planned campaigns, behaviour-based vs the same 20% offer to everyone: ${pct(1 - impact.beh.cost / impact.trad.cost)} less discount, ${inr(impact.beh.net - impact.trad.net)} more profit.`} defaultOpen={false}
               right={<Chip tone="green">{pct(1 - impact.beh.cost / impact.trad.cost)} less discount · {inr(impact.beh.net - impact.trad.net)} more profit</Chip>}
               legend={[{ label: 'Grey', color: '#94a3b8', text: 'traditional: 20% Discount to every recently active customer' }, { label: 'Navy', color: '#0b1c2f', text: 'behaviour-based: best promotion, only where it pays off' }, { label: 'Leakage', text: 'discount given to sales that would have happened anyway' }]}>
               <GroupedBars height={230} format={(v) => inr(v, 0)} series={[{ label: 'Traditional', color: '#94a3b8' }, { label: 'Behaviour-based', color: '#0b1c2f' }]}

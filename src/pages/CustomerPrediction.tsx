@@ -35,7 +35,7 @@ export function CustomerPrediction() {
   const [channel, setChannel] = useState('all');
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('net');
-  const [limit, setLimit] = useState(20);
+  const [limit, setLimit] = useState(10);
   const [offerKey, setOfferKey] = useState('best');
   const [sel, setSel] = useState<string | null>(null);
 
@@ -131,7 +131,7 @@ function CustomerView({ S, filtered, sel, setSel, sort, setSort, limit, setLimit
         </div>
         <div className="flex items-center justify-between px-4 py-3 text-[11px] text-[var(--ink-3)]">
           <span>Showing {Math.min(limit, filtered.length)} of {filtered.length}</span>
-          {limit < filtered.length && <button className="font-semibold text-[var(--ink)] hover:underline" onClick={() => setLimit(limit + 20)}>Show more</button>}
+          {limit < filtered.length && <button className="font-semibold text-[var(--ink)] hover:underline" onClick={() => setLimit(limit + 10)}>Show more</button>}
         </div>
       </Card>
       <Insights S={S} filtered={filtered} category={category} />
@@ -179,7 +179,7 @@ function Detail({ cid, S, category }: { cid: string; S: Props['S']; category: st
       </Card>
 
       <Panel flush title={`What will ${cid} respond to?`} what={`Predicted chance of buying ${category} in the next ${PREDICTION_WINDOW_DAYS} days and what each promotion would earn from this customer over the same ${PREDICTION_WINDOW_DAYS} days.`}
-        right={<><WindowChip /><ViewToggle value={pView} onChange={setPView} /></>}
+        right={<ViewToggle value={pView} onChange={setPView} />}
         legend={[
           { label: 'Grey bar / None', color: '#94a3b8', text: 'Chance of buying with no promotion at all.' },
           { label: 'Green bar', color: 'var(--green)', text: 'The promotion that earns the most from this customer.' },
@@ -374,7 +374,7 @@ function Insights({ filtered, category }: Props) {
     return { name: sg.short, n: rs.length, none: avg((x) => x.p0), best: avg((x) => x.b?.e.p1 ?? x.p0) };
   }).filter((g) => g.n > 0);
   return (
-    <Panel title="Summary of the customers in view" what={`Roll-ups for the ${filtered.length} customers matching the filters. Pick a view from the dropdown.`}
+    <Panel title="Summary of the customers in view" defaultOpen={false} what={`Roll-ups for the ${filtered.length} customers matching the filters. Pick a view from the dropdown.`}
       right={<FilterSelect value={view} onChange={setView} options={[{ value: 'mix', label: 'Best promotion mix' }, { value: 'profit', label: 'Profit by customer type' }, { value: 'lift', label: 'Response lift by customer type' }]} />}
       legend={view === 'mix' ? [{ label: 'Bar', text: `Number of customers for whom each ${category} promotion earns the most. No discount means nothing pays off.` }]
         : view === 'profit' ? [{ label: 'Bar', text: 'Expected profit if every customer in view gets their own best promotion, summed by customer type. Colours match the customer types.' }]

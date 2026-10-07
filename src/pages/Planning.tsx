@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { AlertTriangle, Check, ChevronDown, Pencil, Sparkles, X } from 'lucide-react';
 import { useApp, useEngine } from '@/state';
 import { Btn, Card, CardTitle, Chip, Kpi, Meter, FilterSelect, Panel } from '@/components/ui';
-import { BarChart, HBars, Stack } from '@/components/charts';
+import { HBars, Stack } from '@/components/charts';
 import { PageTop } from '@/pages/Analytics';
 import { dayOf } from '@/engine/data';
 import { explain, FACTOR_ORDER, shortOffer } from '@/engine/options';
@@ -106,28 +106,6 @@ export function Planning() {
           <Kpi label="Budget at risk" value={inr(atRisk)} tone={atRisk ? 'bad' : undefined} note="in flagged campaigns" />
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Panel title="Expected net profit by campaign" what="What the best promotion for each planned campaign is expected to earn, after discount cost."
-            legend={[{ label: 'Bar height', text: 'Expected net profit over the campaign window: margin on promoted sales, minus the margin customers would have earned anyway, minus stock borrowed from later weeks.' }, { label: 'Green bar', color: 'var(--green)', text: 'Campaign you have accepted.' }, { label: 'Navy bar', color: 'var(--navy)', text: 'Still to be decided.' }, { label: 'Label under the bar', text: 'The promotion chosen for that campaign.' }]}>
-            <BarChart height={210} posColor="var(--navy)" negColor="var(--red)" format={(v) => inr(v, 0)} showValues
-              data={e.recommendations.map((r) => { const sc = chosen(r); return { label: r.candidate.name.split(' ')[0].slice(0, 8), sub: sc ? shortOffer(sc.option.label) : 'none', value: sc?.net ?? 0, color: decisions[r.candidate.id]?.status === 'accepted' ? 'var(--green)' : undefined, tip: <><b>{r.candidate.name}</b><br />{sc ? sc.option.label : 'No profitable offer'} · {sc ? inr(sc.net) : '–'}</> }; })} />
-          </Panel>
-          <Panel title="Who each campaign targets" what="Mix of customer types that receive the offer. Shows the targeting logic at a glance." defaultOpen={false}
-            legend={TYPES.map((t) => ({ label: t.short, color: t.color, text: 'Share of the audience in this customer type.' }))}>
-            <div className="space-y-3">
-              {e.recommendations.map((r) => {
-                const sc = chosen(r);
-                return (
-                  <div key={r.candidate.id}>
-                    <div className="mb-1 flex justify-between text-[11px]"><span className="font-medium">{r.candidate.name}</span><span className="num text-[var(--ink-3)]">{sc ? `${sc.audience.targeted} customers` : 'no offer'}</span></div>
-                    {sc ? <Stack height={10} parts={TYPES.map((t) => ({ label: t.short, value: sc.audience.byType[t.id].targeted, color: t.color }))} /> : <div className="h-[10px] rounded bg-[var(--line)]" />}
-                  </div>
-                );
-              })}
-            </div>
-          </Panel>
-        </div>
-
         <Card pad={false}>
           <div className="flex items-center justify-between px-4 pt-4">
             <CardTitle title="AI Recommended Campaigns" sub={`${ready.length} campaigns recommended for the next 3 months`} />
@@ -152,22 +130,37 @@ export function Planning() {
           </section>
         )}
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Card>
-            <CardTitle title="Calendar Gaps Detected" sub="Opportunities no planned campaign covers, identified by AI" />
-            <div className="space-y-2">
-              {lapsed > 0 && <Gap title={`${lapsed} regular customers have gone quiet`} body="They ordered 8+ times but nothing in 45 days. No planned campaign targets win-back; consider a reactivation offer." />}
-              {uncovered.map((t) => <Gap key={t} title={`${TYPE_BY_ID[t].name} customers are left out`} body={`${e.stats.find((s) => s.type === t)!.n} customers get no offer in any recommended campaign. ${TYPE_BY_ID[t].play}`} />)}
-              {!lapsed && !uncovered.length && <p className="text-[11.5px] text-[var(--ink-3)]">No gaps found.</p>}
+        <Card>
+          <CardTitle title="Calendar Gaps Detected" sub="Opportunities no planned campaign covers, identified by AI" />
+          <div className="space-y-2">
+            {lapsed > 0 && <Gap title={`${lapsed} regular customers have gone quiet`} body="They ordered 8+ times but nothing in 45 days. No planned campaign targets win-back; consider a reactivation offer." />}
+            {uncovered.map((t) => <Gap key={t} title={`${TYPE_BY_ID[t].name} customers are left out`} body={`${e.stats.find((s) => s.type === t)!.n} customers get no offer in any recommended campaign. ${TYPE_BY_ID[t].play}`} />)}
+            {!lapsed && !uncovered.length && <p className="text-[11.5px] text-[var(--ink-3)]">No gaps found.</p>}
+          </div>
+        </Card>
+
+        <div className="grid items-start gap-4 lg:grid-cols-2">
+          <Panel title="Who each campaign targets" what="Mix of customer types that receive the offer. Shows the targeting logic at a glance." defaultOpen={false}
+            legend={TYPES.map((t) => ({ label: t.short, color: t.color, text: 'Share of the audience in this customer type.' }))}>
+            <div className="space-y-3">
+              {e.recommendations.map((r) => {
+                const sc = chosen(r);
+                return (
+                  <div key={r.candidate.id}>
+                    <div className="mb-1 flex justify-between text-[11px]"><span className="font-medium">{r.candidate.name}</span><span className="num text-[var(--ink-3)]">{sc ? `${sc.audience.targeted} customers` : 'no offer'}</span></div>
+                    {sc ? <Stack height={10} parts={TYPES.map((t) => ({ label: t.short, value: sc.audience.byType[t.id].targeted, color: t.color }))} /> : <div className="h-[10px] rounded bg-[var(--line)]" />}
+                  </div>
+                );
+              })}
             </div>
-            <p className="mb-0.5 mt-5 text-[9.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">Audience coverage across the six campaigns</p>
-            <p className="mb-2 text-[10.5px] text-[var(--ink-3)]">Bar = share of each customer type that receives an offer.</p>
+          </Panel>
+          <Panel title="Audience coverage across the six campaigns" what="Share of each customer type that receives an offer. Low coverage is deliberate for customers who would buy anyway." defaultOpen={false}>
             <HBars labelW={110} max={1} format={(v) => pct(v)}
               rows={TYPES.map((t) => { const tot = e.recommendations.reduce((a, r) => a + (r.best?.audience.byType[t.id].total ?? 0), 0) || 1; const tg = e.recommendations.reduce((a, r) => a + (r.best?.audience.byType[t.id].targeted ?? 0), 0); return { label: t.short, value: tg / tot, color: t.color }; })} />
-            <p className="mt-2 text-[10.5px] text-[var(--ink-3)]">Share of each customer type that receives an offer. Low coverage is deliberate for customers who would buy anyway.</p>
-          </Card>
-          <Card>
-            <CardTitle title="Smart Alerts" sub="What the watchdog found in the last 13 campaigns" />
+          </Panel>
+        </div>
+
+        <Panel title="Smart Alerts" what={`${e.alerts.filter((a) => a.id !== 'lapsed').length} things the watchdog found in the last 13 campaigns`} defaultOpen={false}>
             <div className="space-y-2">
               {e.alerts.filter((a) => a.id !== 'lapsed').map((a) => (
                 <div key={a.id} className="rounded-lg border border-[var(--line)] p-2.5">
@@ -176,8 +169,7 @@ export function Planning() {
                 </div>
               ))}
             </div>
-          </Card>
-        </div>
+        </Panel>
       </div>
     </>
   );

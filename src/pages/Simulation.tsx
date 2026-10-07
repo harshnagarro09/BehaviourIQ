@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { AlertTriangle, Sparkles } from 'lucide-react';
 import { useApp, useEngine } from '@/state';
-import { Btn, Card, CardTitle, Chip, Meter, Panel, ViewToggle } from '@/components/ui';
+import { Btn, Card, CardTitle, Chip, Panel, ViewToggle } from '@/components/ui';
 import { PageTop } from '@/pages/Analytics';
-import { BarChart, HBars, Legend, LineChart } from '@/components/charts';
+import { BarChart, LineChart } from '@/components/charts';
 import { TYPES } from '@/engine/segments';
 import { TYPE_IDS } from '@/engine/insights';
 import type { TypeId } from '@/engine/behaviour';
@@ -148,27 +148,13 @@ export function Simulation() {
           <div className="space-y-2.5 border-t border-[var(--line)] p-3.5 text-[11px]">
             <p className="text-[9.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">Selected campaign</p>
             {([
-              ['Offer', best ? best.option.label : 'none'], ['Window', `${shortDate(cand.start)} · ${cand.days} days`], ['Theme', cand.theme],
-              ['Confidence', `${rec.confidence}%`], ['AI net profit', best ? inr(best.net) : '–'], ['Customers', best ? `${best.audience.targeted} of ${best.audience.total}` : '–'],
+              ['Window', `${shortDate(cand.start)} · ${cand.days} days`], ['Theme', cand.theme], ['Confidence', `${rec.confidence}%`],
             ] as [string, string][]).map(([l, v]) => <div key={l} className="flex justify-between gap-3"><span className="text-[var(--ink-3)]">{l}</span><span className="text-right font-semibold">{v}</span></div>)}
-          </div>
-          <div className="space-y-2 border-t border-[var(--line)] p-3.5">
-            <p className="text-[9.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">AI picks across the quarter</p>
-            {e.recommendations.map((r) => (
-              <div key={r.candidate.id}>
-                <div className="flex justify-between text-[10.5px]"><span className="truncate pr-2">{r.candidate.name}</span><span className="num font-semibold">{r.best ? inr(r.best.net) : '–'}</span></div>
-                <Meter value={r.best ? Math.max(0, r.best.net) / Math.max(1, ...e.recommendations.map((x) => x.best?.net ?? 0)) : 0} color={r.candidate.id === slot ? 'var(--green)' : 'var(--navy)'} width={200} />
-              </div>
-            ))}
           </div>
         </aside>
 
         <div className="min-w-0 space-y-4">
           <p className="text-[10.5px] text-[var(--ink-3)]"><button className="hover:underline" onClick={() => go('planning')}>Planning</button> / <b className="text-[var(--ink)]">Simulation: {cand.name}</b></p>
-          <Card>
-            <p className="text-[12.5px]"><b>{cand.name}</b> <span className="text-[var(--ink-3)]">· {cand.category} · {best ? best.option.label : 'no offer'} · {cand.days} days · ROI </span><b style={{ color: 'var(--green-dark)' }}>{best ? best.roi.toFixed(2) : '–'}</b></p>
-          </Card>
-
           <Card>
             <CardTitle title="Simulation Controls" />
             <p className="mb-1.5 text-[9.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">Business objective</p>
@@ -289,22 +275,17 @@ export function Simulation() {
             </div>)}
           </Panel>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Panel title="Response by customer type, as the discount deepens" what="How each kind of customer reacts when the percentage discount is increased." defaultOpen={false}
-              legend={[...TYPES.map((t) => ({ label: t.short, color: t.color, text: 'Average predicted chance of buying among all recently active customers of this type.' })), { label: 'Reading it', text: 'A steep line means the customers are persuadable by depth; a flat high line means they buy anyway; a low flat line means discounts do not move them.' }]}>
-              <LineChart height={210} yMax={1} xFormat={(v) => `${v}%`} yFormat={(v) => pct(v)} xTicks={[5, 15, 25, 35, 50]} markers={false}
-                series={TYPES.map((t) => ({ name: t.short, color: t.color, points: typeCurve.map((c) => ({ x: c.d, y: c.byType[t.id] })) }))} />
-              <div className="mt-1"><Legend items={TYPES.map((t) => ({ label: t.short, color: t.color }))} /></div>
-            </Panel>
-            <Panel title="Who the simulated scenario reaches" what={`${sim.targeted} of ${sim.total} customers contacted, by customer type.`} defaultOpen={false}
-              legend={[{ label: 'Top bars', text: 'Customers contacted in each customer type, out of all customers of that type (shown on the right).' }, { label: 'Bar', text: 'customers contacted of each type; the number on the right is all customers of that type' }]}>
-              <HBars labelW={100} max={Math.max(1, ...TYPES.map((t) => sim.byType[t.id]))} format={(v) => String(v)} rows={TYPES.map((t) => ({ label: t.short, value: sim.byType[t.id], color: t.color, note: `of ${ctxs.filter((c) => e.recById.get(c.cid)!.type === t.id).length}` }))} />
-            </Panel>
-          </div>
-
-          <Panel title="Net profit by discount depth" what="Percentage-discount offers, same objective, audience and budget. The best depth is where profit peaks." defaultOpen={false}
-            legend={[{ label: 'Bar', text: 'Expected net profit at that discount depth.' }, { label: 'Green bar', color: 'var(--green)', text: 'The depth currently selected in the controls.' }, { label: 'Red bar', color: 'var(--red)', text: 'The discount costs more than it earns.' }]}>
-            <BarChart height={200} format={(v) => inr(v, 1)} posColor="var(--navy)" negColor="var(--red)" data={curve.map((c) => ({ label: `${c.d}%`, value: c.net, color: c.d === depthEff && mech === 'PCT_OFF' ? 'var(--green)' : undefined }))} />
+          <Panel title="Discount depth: response and profit" what="As the percentage discount deepens, predicted response rises while net profit peaks and then falls." defaultOpen={false}
+            legend={[...TYPES.map((t) => ({ label: t.short, color: t.color, text: 'Average predicted chance of buying among all recently active customers of this type.' })), { label: 'Reading the lines', text: 'A steep line means customers can be persuaded by depth; a high flat line means they buy anyway; a low flat line means discounts do not move them.' }, { label: 'Bars', text: 'Expected net profit at each depth; green is the depth selected in the controls, red a loss.' }]}>
+            <div className="grid gap-5 lg:grid-cols-2">
+              <div><p className="mb-1 text-[10.5px] font-semibold">Response by customer type</p>
+                <LineChart height={210} yMax={1} xFormat={(v) => `${v}%`} yFormat={(v) => pct(v)} xTicks={[5, 15, 25, 35, 50]} markers={false}
+                  series={TYPES.map((t) => ({ name: t.short, color: t.color, points: typeCurve.map((c) => ({ x: c.d, y: c.byType[t.id] })) }))} />
+              </div>
+              <div><p className="mb-1 text-[10.5px] font-semibold">Net profit by discount depth</p>
+                <BarChart height={200} format={(v) => inr(v, 1)} posColor="var(--navy)" negColor="var(--red)" data={curve.map((c) => ({ label: `${c.d}%`, value: c.net, color: c.d === depthEff && mech === 'PCT_OFF' ? 'var(--green)' : undefined }))} />
+              </div>
+            </div>
           </Panel>
           <ImpactPanel />
         </div>

@@ -697,6 +697,8 @@ An action view. Choose an offer from the dropdown: **each customer's own best pr
 
 ## 10. Page 3: Planning
 
+> **Current layout (decluttered).** Visible: one takeaway line, the 4 number cards, the AI Recommended Campaigns table (Accept, Reject, Undo, Modify with its three detail parts, Open in Simulation), Needs Attention, and the Calendar Gaps list. Collapsed panels, one click to open: *Who each campaign targets*, *Audience coverage across the six campaigns* and *Smart Alerts*. The "Expected net profit by campaign" bar chart was removed because the table's "ROI · ₹ net" column shows the same figures. Descriptions of those panels below still apply.
+
 **Purpose:** the AI-recommended promotion calendar for the next quarter, with the human decision (accept, reject, modify) at the centre.
 
 **Four number cards**
@@ -738,6 +740,8 @@ An action view. Choose an offer from the dropdown: **each customer's own best pr
 ---
 
 ## 11. Page 4: Simulation
+
+> **Current layout (decluttered).** Removed because they repeated other content on the page: the campaign header card, the left rail's "AI picks across the quarter" and "Who the simulated scenario reaches" (the audience chips and the card counts show it). The rail's "Selected campaign" box now lists window, theme and confidence only. "Response by customer type as the discount deepens" and "Net profit by discount depth" are one collapsed panel, *Discount depth: response and profit*. The Business impact panel (6.x / 8.6) closes the page, collapsed, with its headline in the subtitle.
 
 **Purpose:** test a decision before spending, and compare it with the AI recommendation.
 
