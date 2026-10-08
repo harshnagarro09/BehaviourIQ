@@ -1,0 +1,36 @@
+<section id="step7" data-transition="fade" style="background:#F7F8F5;color:#0F1B2D;font-family:'DM Sans', Arial, sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:36px">
+<div style="display:flex;flex-direction:column;gap:10px">
+<p style="font-size:26px;font-weight:600;color:#047857;letter-spacing:2px;text-transform:uppercase">Step 7 of 10 · Customer Prediction · How the model predicts tab</p>
+<h2 style="font-size:64px;font-weight:700;line-height:1.1">Check that the prediction works</h2>
+</div>
+<div style="display:flex;gap:40px;flex:1">
+<div style="width:560px;display:flex;flex-direction:column;gap:22px;background:#FFFFFF;border:1px solid #E2E6E3;border-radius:20px;padding:40px">
+<p style="font-size:24px;font-weight:700;color:#047857;letter-spacing:2px;text-transform:uppercase">What User A does</p>
+<div style="display:flex;gap:18px;align-items:flex-start"><p style="width:44px;height:44px;border-radius:22px;background:#047857;color:#FFFFFF;font-size:26px;font-weight:700;text-align:center;line-height:44px">1</p><p style="flex:1;font-size:28px;line-height:1.35">Opens the tab <b>How the model predicts, and does it work</b>.</p></div>
+<div style="display:flex;gap:18px;align-items:flex-start"><p style="width:44px;height:44px;border-radius:22px;background:#047857;color:#FFFFFF;font-size:26px;font-weight:700;text-align:center;line-height:44px">2</p><p style="flex:1;font-size:28px;line-height:1.35">Reads which <b>behaviours drive</b> the prediction.</p></div>
+<div style="display:flex;gap:18px;align-items:flex-start"><p style="width:44px;height:44px;border-radius:22px;background:#047857;color:#FFFFFF;font-size:26px;font-weight:700;text-align:center;line-height:44px">3</p><p style="flex:1;font-size:28px;line-height:1.35">Reads the test on <b>8 campaigns</b> the model never saw.</p></div>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:24px">
+<div style="display:flex;gap:20px">
+<div style="flex:1;display:flex;flex-direction:column;gap:6px;background:#FFFFFF;border:1px solid #E2E6E3;border-radius:16px;padding:24px"><p style="font-size:48px;font-weight:700;color:#0F1B2D;line-height:1">0.82</p><p style="font-size:26px;line-height:1.3;color:#475569">AUC, unseen campaigns</p></div>
+<div style="flex:1;display:flex;flex-direction:column;gap:6px;background:#FFFFFF;border:1px solid #E2E6E3;border-radius:16px;padding:24px"><p style="font-size:48px;font-weight:700;color:#047857;line-height:1">₹41.1K</p><p style="font-size:26px;line-height:1.3;color:#475569">behaviour-based, ROI 1.18</p></div>
+<div style="flex:1;display:flex;flex-direction:column;gap:6px;background:#FFFFFF;border:1px solid #E2E6E3;border-radius:16px;padding:24px"><p style="font-size:48px;font-weight:700;color:#0F1B2D;line-height:1">₹17.7K</p><p style="font-size:26px;line-height:1.3;color:#475569">offering everyone, ROI 0.08</p></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px;background:#FFFFFF;border:1px solid #E2E6E3;border-radius:16px;padding:24px 28px">
+<p style="font-size:24px;font-weight:700;color:#475569;letter-spacing:1px;text-transform:uppercase">What drives the prediction</p>
+<div style="display:flex;align-items:center;gap:16px"><p style="width:170px;font-size:26px">Brand</p><div style="width:420px;height:22px;background:#0B1C2F;border-radius:6px"></div><p style="font-size:26px;font-weight:700">42%</p></div>
+<div style="display:flex;align-items:center;gap:16px"><p style="width:170px;font-size:26px">Promotion</p><div style="width:300px;height:22px;background:#0B1C2F;border-radius:6px"></div><p style="font-size:26px;font-weight:700">30%</p></div>
+<div style="display:flex;align-items:center;gap:16px"><p style="width:170px;font-size:26px">Price</p><div style="width:100px;height:22px;background:#64748B;border-radius:6px"></div><p style="font-size:26px;font-weight:700">10%</p></div>
+<div style="display:flex;align-items:center;gap:16px"><p style="width:170px;font-size:26px">Purchasing</p><div style="width:100px;height:22px;background:#64748B;border-radius:6px"></div><p style="font-size:26px;font-weight:700">10%</p></div>
+<div style="display:flex;align-items:center;gap:16px"><p style="width:170px;font-size:26px">Basket, timing</p><div style="width:80px;height:22px;background:#64748B;border-radius:6px"></div><p style="font-size:26px;font-weight:700">8%</p></div>
+</div>
+<div style="display:flex;flex-direction:column;justify-content:center;gap:8px;background:#0B1C2F;border-radius:20px;padding:28px 36px">
+<p style="font-size:24px;font-weight:700;color:#34D399;letter-spacing:2px;text-transform:uppercase">So what</p>
+<p style="font-size:30px;line-height:1.3;color:#FFFFFF">Brand habits and past promotion response drive about 72%. Targeting by behaviour beat offering everyone.</p>
+</div>
+</div>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:1200px;font-size:24px;color:#64748B">BehaviourIQ for Reliance Fresh · simulated demo data</p>
+<p style="position:absolute;right:128px;bottom:64px;width:200px;font-size:24px;color:#64748B;text-align:right">24</p>
+<aside>The model is trained on earlier campaigns and tested on the last 8. AUC 0.82 means it ranks customers well: 0.5 is guessing, 1.0 is perfect. Basket is 7% and timing 1%, shown together as 8%. The skipped customers would have lost ₹23.4K had they been offered.</aside>
+</section>

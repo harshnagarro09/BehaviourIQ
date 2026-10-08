@@ -1,0 +1,17 @@
+{
+  "v": 4,
+  "createdOnFiles": { "v": 1, "at": "2026-10-07T18:00:00Z" },
+  "lists": "css",
+  "title": "BehaviourIQ Guide Deck",
+  "order": ["cover", "question", "flow", "part1", "appmap", "an-overview", "an-results", "an-behaviour", "types", "cp-customers", "cp-detail", "cp-model", "planning", "simulation", "advisor", "part2", "usera", "step1", "step2", "step3", "step4", "step5", "step6", "step7", "step8", "step9", "step10", "pitch", "numbers", "caveats", "close"],
+  "sections": {
+    "s1": { "description": "The manager's question and the four-move answer: behaviour, prediction, decision, proof.", "start": "cover" },
+    "s2": { "description": "A guide to every page and every section of BehaviourIQ.", "start": "part1" },
+    "s3": { "description": "User A's ten steps from the question to a promotion decision.", "start": "part2" },
+    "s4": { "description": "The pitch: talk track, key numbers, honest caveats and the ask.", "start": "pitch" }
+  },
+  "faces": {
+    "dm-sans": { "family": "DM Sans", "href": "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" }
+  },
+  "designSystems": []
+}

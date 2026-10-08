@@ -73,17 +73,6 @@ export function Analytics() {
   };
   const pp = (n: number) => `${(n * 100).toFixed(1)}pp`;
 
-  // ---- validation: does the prediction work, does acting on it make money
-  const V = e.validation;
-  const vt = useMemo(() => {
-    const s = (fn: (v: (typeof V)[number]) => number) => V.reduce((a, v) => a + fn(v), 0);
-    const real = s((v) => v.realNet), cost = s((v) => v.cost);
-    return { real, cost, roi: cost ? real / cost : 0, skipped: s((v) => v.skippedNet), broad: s((v) => v.broadNet), broadCost: s((v) => v.broadCost), reached: s((v) => v.reached), tgt: s((v) => v.targeted) };
-  }, [V]);
-  const top20 = e.model.gains.find((g) => g.pctCustomers >= 0.2);
-  const broadRoi = vt.broadCost ? vt.broad / vt.broadCost : 0;
-  const makesMoney = vt.real > 0;
-
   const dots = rows.map(({ campaign: c, agg }) => {
     const v = verdictOf(roiOf(agg));
     return {
@@ -164,13 +153,11 @@ export function Analytics() {
       </div>
 
       <div className="space-y-4 p-6">
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Kpi label="Discount invested" value={inr(A.cost)} delta={dPct(A.cost, P.cost, null)} note={sub || `${A.campaigns} campaigns`} />
           <Kpi help="netProfit" label="Net promo profit" value={inr(A.net)} tone={A.net < 0 ? 'bad' : 'good'} delta={dPct(A.net, P.net)} note={sub || 'past promotions'} />
           <Kpi help="roi" label="Avg promo ROI" value={roiOf(A).toFixed(2)} tone={roiOf(A) < 0 ? 'bad' : undefined} delta={dAbs(roiOf(A), roiOf(P), (n) => n.toFixed(2))} note={sub || 'profit per ₹ of discount'} />
           <Kpi label="Response rate" value={pct(respOf(A))} delta={dAbs(respOf(A), respOf(P), pp)} note={sub || 'bought on promo'} />
-          <Kpi emphasis help="auc" label="Prediction quality" value={`AUC ${e.model.aucTest.toFixed(2)}`} note={`top 20% hold ${pct(top20?.pctResponders ?? 0)} of buyers`} />
-          <Kpi emphasis label="Profit from acting on it" value={inr(vt.real)} tone={makesMoney ? 'good' : 'bad'} note={`ROI ${vt.roi.toFixed(2)} vs ${broadRoi.toFixed(2)} offering all`} />
         </div>
 
         <Takeaway>{takeaway}</Takeaway>
