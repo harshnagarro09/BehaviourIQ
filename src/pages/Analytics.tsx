@@ -1,11 +1,11 @@
 import { useMemo, useState, type ComponentProps, type ReactNode } from 'react';
 import { Takeaway } from '@/components/Takeaway';
 import { behaviourTakeaway, pastResultsTakeaway } from '@/lib/takeaways';
-import { RotateCcw, SlidersHorizontal } from 'lucide-react';
+import { ChevronDown, RotateCcw, SlidersHorizontal } from 'lucide-react';
 import { useApp, useEngine } from '@/state';
 import { Help, Lbl } from '@/components/Help';
 import { Chip, FilterSelect, Kpi, Meter, Panel, Tabs, Toggle, ViewToggle } from '@/components/ui';
-import { BarChart, Heat, Scatter, Waterfall, useWidth } from '@/components/charts';
+import { BarChart, Heat, Scatter, useWidth } from '@/components/charts';
 import { TYPES } from '@/engine/segments';
 import { offerName } from '@/engine/options';
 import {
@@ -23,15 +23,10 @@ const FEAT_METRICS: { key: string; label: string; get: (g: FeatRow) => number; f
   { key: 'resp', label: 'Promo response', get: (g) => g.resp, fmt: (v) => pct(v) },
   { key: 'roi', label: 'Promo ROI', get: (g) => roiOf(g.a), fmt: (v) => v.toFixed(2) },
   { key: 'net', label: 'Net promo profit', get: (g) => g.a.net, fmt: (v) => inr(v, 0) },
-  { key: 'cost', label: 'Discount invested', get: (g) => g.a.cost, fmt: (v) => inr(v, 0) },
   { key: 'promo', label: 'Purchases on promo', get: (g) => g.promo, fmt: (v) => pct(v) },
   { key: 'freq', label: 'Orders per month', get: (g) => g.freq, fmt: (v) => v.toFixed(1) },
-  { key: 'rec', label: 'Days since last order', get: (g) => g.rec, fmt: (v) => v.toFixed(0) },
-  { key: 'spend', label: 'Average spend', get: (g) => g.spend, fmt: (v) => inr(v, 0) },
   { key: 'aov', label: 'Order value', get: (g) => g.aov, fmt: (v) => inr(v, 0) },
-  { key: 'basket', label: 'Items per order', get: (g) => g.basket, fmt: (v) => v.toFixed(1) },
   { key: 'ourShare', label: 'Our-brand share', get: (g) => g.ourShare, fmt: (v) => pct(v) },
-  { key: 'weekend', label: 'Weekend orders', get: (g) => g.weekend, fmt: (v) => pct(v) },
 ];
 const shortName = (n: string) => n.replace(' Buyers', '').replace(' Buyer', '').replace(' Promotions', '').replace('Competitor ', '');
 
@@ -91,6 +86,12 @@ export function Analytics() {
       a: aggregate(e, cur, (cid) => ids.has(cid)),
     };
   }).filter((g) => g.n > 0), [e, ok, cur]);
+
+  const behaviourKpi = useMemo(() => {
+    const n = feat.reduce((a, g) => a + g.n, 0);
+    const byNet = [...feat].sort((a, b) => b.a.net - a.a.net);
+    return { n, promo: n ? feat.reduce((a, g) => a + g.promo * g.n, 0) / n : 0, best: byNet[0], worst: byNet.length > 1 ? byNet[byNet.length - 1] : undefined };
+  }, [feat]);
 
   const personaRows = f.persona === 'all' ? TYPES : TYPES.filter((t) => t.id === f.persona);
   const heat = useMemo(() => personaRows.map((t) => cats.map((cat) => {
@@ -153,12 +154,21 @@ export function Analytics() {
       </div>
 
       <div className="space-y-4 p-6">
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Kpi label="Discount invested" value={inr(A.cost)} delta={dPct(A.cost, P.cost, null)} note={sub || `${A.campaigns} campaigns`} />
-          <Kpi help="netProfit" label="Net promo profit" value={inr(A.net)} tone={A.net < 0 ? 'bad' : 'good'} delta={dPct(A.net, P.net)} note={sub || 'past promotions'} />
-          <Kpi help="roi" label="Avg promo ROI" value={roiOf(A).toFixed(2)} tone={roiOf(A) < 0 ? 'bad' : undefined} delta={dAbs(roiOf(A), roiOf(P), (n) => n.toFixed(2))} note={sub || 'profit per ₹ of discount'} />
-          <Kpi label="Response rate" value={pct(respOf(A))} delta={dAbs(respOf(A), respOf(P), pp)} note={sub || 'bought on promo'} />
-        </div>
+        {tab === 'results' ? (
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <Kpi label="Discount invested" value={inr(A.cost)} delta={dPct(A.cost, P.cost, null)} note={sub || `${A.campaigns} campaigns`} />
+            <Kpi help="netProfit" label="Net promo profit" value={inr(A.net)} tone={A.net < 0 ? 'bad' : 'good'} delta={dPct(A.net, P.net)} note={sub || 'past promotions'} />
+            <Kpi help="roi" label="Avg promo ROI" value={roiOf(A).toFixed(2)} tone={roiOf(A) < 0 ? 'bad' : undefined} delta={dAbs(roiOf(A), roiOf(P), (n) => n.toFixed(2))} note={sub || 'profit per ₹ of discount'} />
+            <Kpi label="Response rate" value={pct(respOf(A))} delta={dAbs(respOf(A), respOf(P), pp)} note={sub || 'bought on promo'} />
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <Kpi label="Customers in view" value={int(behaviourKpi.n)} note={`${feat.length} customer types`} />
+            <Kpi label="Buying on promotion" value={pct(behaviourKpi.promo)} note="average share of a customer's purchases" />
+            <Kpi label="Top-earning type" value={behaviourKpi.best ? shortName(behaviourKpi.best.name) : '–'} tone="good" note={behaviourKpi.best ? `${inr(behaviourKpi.best.a.net)} promo profit` : ''} />
+            <Kpi label="Biggest money-loser" value={behaviourKpi.worst ? shortName(behaviourKpi.worst.name) : '–'} tone={behaviourKpi.worst && behaviourKpi.worst.a.net < 0 ? 'bad' : undefined} note={behaviourKpi.worst ? `${inr(behaviourKpi.worst.a.net)} promo profit` : ''} />
+          </div>
+        )}
 
         <Takeaway>{takeaway}</Takeaway>
 
@@ -175,9 +185,9 @@ export function Analytics() {
                   { label: 'Green', color: 'var(--green)', text: 'ROI 0.5+' }, { label: 'Amber', color: 'var(--amber)', text: 'ROI 0 to 0.5' }, { label: 'Red', color: 'var(--red)', text: 'loses money' },
                 ]}>
                 {perfView === 'chart' ? (
-                  <Scatter height={240} dots={dots} xLabel="Discount invested" yLabel="Net profit" xFormat={(v) => inr(v, 0)} yFormat={(v) => inr(v, 0)} />
+                  <Scatter height={380} dots={dots} xLabel="Discount invested" yLabel="Net profit" xFormat={(v) => inr(v, 0)} yFormat={(v) => inr(v, 0)} />
                 ) : (
-                  <div className="-mx-4 max-h-[280px] overflow-auto">
+                  <div className="-mx-4 max-h-[420px] overflow-auto">
                     <table className="w-full min-w-[720px] text-[12.5px]">
                       <thead className="sticky top-0 bg-white"><tr className="border-y border-[var(--line)] text-left text-[10.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">
                         {['Campaign', 'Offer', 'Window', 'Response', 'Discount', 'Net profit', 'ROI', ''].map((h) => <th key={h} className="px-3 py-2"><Lbl t={h} /></th>)}
@@ -202,14 +212,28 @@ export function Analytics() {
                   </div>
                 )}
               </Panel>
-              <Panel title={<>Incrementality<Help term="incrementality" /></>} what="Estimated incremental response: promoted units that were extra, against each customer's own baseline."
-                legend={[{ label: 'Sold', text: 'all units sold on promotion' }, { label: 'Bought anyway', color: 'var(--red)', text: "customers' own full-price baseline" }, { label: 'Estimated extra', text: 'estimated to be caused by the promotion' }]}>
-                <Waterfall height={230} format={(v) => int(v)} steps={[
-                  { label: 'Sold on\npromotion', value: A.units, kind: 'total' },
-                  { label: 'Bought\nanyway', value: -A.base, kind: 'delta', note: "Each customer's own baseline for the same days" },
-                  { label: 'Estimated\nextra', value: A.units - A.base, kind: 'total' },
-                ]} />
-                <p className="mt-1 text-[11.5px] text-[var(--ink-3)]">An estimated {pct(incShareOf(A))} of promoted units were extra; {pct(leakOf(A))} of the discount went to sales that would have happened anyway. Estimated from each customer's own baseline, not a randomised test.</p>
+              <Panel title={<>Incrementality<Help term="incrementality" /></>} what="Of the units sold during promotions, how many would have sold anyway and how many were extra."
+                legend={[{ label: 'Navy', color: 'var(--navy)', text: 'all units sold during the promotions' }, { label: 'Grey', color: '#94a3b8', text: 'would have been bought anyway at full price' }, { label: 'Green', color: 'var(--green)', text: 'extra units the promotion brought in' }]}>
+                <BarChart height={250} maxW={460} showValues yLabel="Units sold" yTitle="Units sold" xTitle="Promoted sales, split" format={(v) => int(v)}
+                  data={[
+                    { label: 'All promo sales', value: A.units, color: 'var(--navy)' },
+                    { label: 'Would sell anyway', value: A.base, color: '#94a3b8' },
+                    { label: 'Extra from promo', value: A.units - A.base, color: 'var(--green)' },
+                  ]} />
+                <details className="group mt-3 rounded-lg bg-[var(--page)] text-[12.5px] leading-snug">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-3 text-[12px] font-semibold text-[var(--ink)] [&::-webkit-details-marker]:hidden">
+                    How the numbers come from the bars
+                    <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[var(--ink-3)] transition-transform group-open:rotate-180" />
+                  </summary>
+                  <div className="space-y-2 px-3 pb-3">
+                  <p className="num flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                    <Chip tone="navy">{int(A.units)} sold</Chip>−<span className="rounded-full bg-[#e2e8f0] px-2 py-0.5 font-semibold">{int(A.base)} anyway</span>=<Chip tone="green">{int(A.units - A.base)} extra</Chip>
+                  </p>
+                  <p><b>{pct(incShareOf(A))} extra</b> = {int(A.units - A.base)} extra ÷ {int(A.units)} sold.</p>
+                  <p><b>{pct(leakOf(A))} of the discount wasted</b> = {inr(A.leak, 0)} ÷ {inr(A.cost, 0)}. {inr(A.leak, 0)} is the discount handed out on the "would sell anyway" units. Those customers would have paid full price.</p>
+                  </div>
+                </details>
+                <p className="mt-2 text-[11.5px] leading-snug text-[var(--ink-3)]">An estimate: each customer's own usual full-price buying is the baseline. There was no test group.</p>
               </Panel>
             </div>
             <Panel title="Promotion type performance" what="Which kinds of promotion earned their discount back."

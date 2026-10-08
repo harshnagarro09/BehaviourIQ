@@ -78,15 +78,17 @@ export function Legend({ items }: { items: { label: string; color: string }[] })
 export interface BarDatum { label: string; value: number; color?: string; tip?: ReactNode; sub?: string }
 
 export function BarChart({
-  data, height = 220, format, color = 'var(--t-anyways)', posColor, negColor, showValues = false, yLabel, maxW,
+  data, height = 220, format, color = 'var(--t-anyways)', posColor, negColor, showValues = false, yLabel, maxW, xTitle, yTitle,
 }: {
   data: BarDatum[]; height?: number; format: (v: number) => string; color?: string; posColor?: string; negColor?: string; showValues?: boolean; yLabel?: string;
   /** override the default maximum width (see useWidth) */
   maxW?: number;
+  /** visible axis titles (optional) */
+  xTitle?: string; yTitle?: string;
 }) {
   const [ref, w] = useWidth<HTMLDivElement>(maxW ?? capFor(data.length, 120, 380, 1000));
   const { box, show, hide, el } = useTip();
-  const m = { t: 14, r: 8, b: 34, l: 52 };
+  const m = { t: 14, r: 8, b: xTitle ? 52 : 34, l: yTitle ? 66 : 52 };
   const min = Math.min(0, ...data.map((d) => d.value));
   const max = Math.max(0, ...data.map((d) => d.value));
   const { lo, hi, vals } = ticks(min, max);
@@ -107,6 +109,8 @@ export function BarChart({
               </g>
             ))}
             <line x1={m.l} x2={w - m.r} y1={y(0)} y2={y(0)} stroke="var(--ink-3)" strokeWidth={1} />
+            {yTitle && <text transform={`translate(11 ${m.t + ih / 2}) rotate(-90)`} textAnchor="middle" className="chart-text" style={{ fill: 'var(--ink-2)', fontWeight: 600 }}>{yTitle}</text>}
+            {xTitle && <text x={m.l + iw / 2} y={height - 6} textAnchor="middle" className="chart-text" style={{ fill: 'var(--ink-2)', fontWeight: 600 }}>{xTitle}</text>}
             {data.map((d, i) => {
               const cx = m.l + bw * i + bw / 2;
               const y0 = y(0);

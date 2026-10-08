@@ -8,7 +8,7 @@ export const NOT_ENOUGH = 'Not enough data in this view to summarise. Widen the 
 
 export function pastResultsTakeaway(o: { campaigns: number; lost: number; incShare: number; units: number }): string {
   if (o.campaigns < 2 || o.units < 30) return NOT_ENOUGH;
-  return `Across ${o.campaigns} campaigns, ${o.lost} lost money; an estimated ${pct(o.incShare)} of promoted sales would have happened anyway.`;
+  return `Across ${o.campaigns} campaigns, ${o.lost} lost money; an estimated ${pct(1 - o.incShare)} of promoted sales would have happened anyway.`;
 }
 
 export function behaviourTakeaway(groups: { name: string; n: number; net: number }[]): string {

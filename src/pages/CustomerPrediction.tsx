@@ -3,7 +3,7 @@ import { Download, Search } from 'lucide-react';
 import { useApp, useEngine } from '@/state';
 import { Help, Lbl } from '@/components/Help';
 import { Btn, Card, CardTitle, Chip, FilterSelect, Meter, Panel, Tabs, TypeBadge, ViewToggle, WindowChip } from '@/components/ui';
-import { BarChart, GroupedBars, HBars, Legend } from '@/components/charts';
+import { BarChart, HBars } from '@/components/charts';
 import { PageTop } from '@/pages/Analytics';
 import { compareOptions, explain, promoOptions, shortOffer, type PromoOption } from '@/engine/options';
 import { activeAt, buildCtxs } from '@/engine/planner';
@@ -35,7 +35,7 @@ export function CustomerPrediction() {
   const [persona, setPersona] = useState('all');
   const [channel, setChannel] = useState('all');
   const [query, setQuery] = useState('');
-  const [sort, setSort] = useState('net');
+  const [sort, setSort] = useState('id');
   const [limit, setLimit] = useState(12);
   const [sel, setSelState] = useState<string | null>(params.id ?? null);
   const setTab = (t: Tab) => { setTabState(t); syncParams(t === 'model' ? { tab: t } : sel ? { id: sel } : {}); };
@@ -88,7 +88,7 @@ export function CustomerPrediction() {
   return (
     <>
       <PageTop title="Customer Prediction" sub="What promotion will this customer respond to? Behaviour in, predicted response out, one customer at a time"
-        tabs={<Tabs value={tab} onChange={setTab} options={[{ id: 'customers', label: 'Customers' }, { id: 'model', label: 'How the model predicts, and does it work' }]} />} />
+        tabs={<Tabs value={tab} onChange={setTab} options={[{ id: 'customers', label: 'Customers' }, { id: 'model', label: 'How customer behaviour is used for promotion prediction' }]} />} />
       {tab === 'customers' ? (
         <>
           {filters}
@@ -113,8 +113,8 @@ function CustomerView({ S, filtered, sel, setSel, sort, setSort, limit, setLimit
       <div className="min-w-0 space-y-4">
       <Card pad={false} className="h-fit">
         <div className="flex items-start justify-between gap-3 px-4 pt-4 pb-3">
-          <div><CardTitle title="Customers" sub={`Best promotion for ${category}, ranked`} /><div className="mt-1"><WindowChip /></div></div>
-          <FilterSelect value={sort} onChange={setSort} options={[{ value: 'net', label: 'Sort: expected profit' }, { value: 'resp', label: 'Sort: predicted response' }, { value: 'uplift', label: 'Sort: uplift' }, { value: 'recency', label: 'Sort: longest silent' }, { value: 'id', label: 'Sort: ID' }]} />
+          <div><CardTitle title="Customers" sub={`Best promotion for ${category}, customer by customer`} /><div className="mt-1"><WindowChip /></div></div>
+          <FilterSelect value={sort} onChange={setSort} options={[{ value: 'id', label: 'Sort: Customer ID' }, { value: 'net', label: 'Sort: expected profit' }, { value: 'resp', label: 'Sort: predicted response' }, { value: 'uplift', label: 'Sort: uplift' }, { value: 'recency', label: 'Sort: longest silent' }]} />
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[470px] text-[12.5px]">
@@ -160,7 +160,6 @@ function Detail({ cid, S, category }: { cid: string; S: Props['S']; category: st
   const fx = useMemo(() => explain(e.model, ctx, shown.depth, shown.mechanic, category).sort((a, c) => Math.abs(c.effect) - Math.abs(a.effect)), [e, ctx, shown, category]);
   const maxAbs = Math.max(...fx.map((f) => Math.abs(f.effect)), 0.01);
   const none = S.x(cid, 'none');
-  const hist = e.perCustomer.get(cid) ?? [];
   const topCats = Object.entries(b.catShare).sort((a, c) => c[1] - a[1]).slice(0, 2).map(([c, s]) => `${c} ${pct(s)}`).join(', ');
   const feats: [string, string][] = [
     ['Orders / month', b.ordersPerMonth.toFixed(1)], ['Last order', `${b.recencyDays}d ago`], ['Total spend', inr(b.totalSpend)], ['Order value', inr(b.avgOrderValue, 0)],
@@ -260,15 +259,6 @@ function Detail({ cid, S, category }: { cid: string; S: Props['S']; category: st
         </ul>
       </Panel>
 
-      <Panel title="Past promotions" what="Which previous campaigns this customer bought on." defaultOpen={false}
-        legend={[{ label: 'Green chip', color: 'var(--green)', text: 'Bought on that promotion.' }, { label: 'Grey chip', color: '#e2e8f0', text: 'Active but did not respond.' }, { label: 'Pale chip', color: '#eef1f6', text: 'Not yet a customer or not active then.' }]}>
-        <div className="flex flex-wrap gap-1.5">
-          {e.results.map((res) => {
-            const h = hist.find((x) => x.campaignId === res.campaign.id);
-            return <span key={res.campaign.id} title={`${res.campaign.name}: ${!h ? 'not active' : h.bought ? 'bought on promo' : 'no response'}`} className="flex h-6 items-center rounded px-2 text-[11px] font-medium" style={{ background: !h ? '#eef1f6' : h.bought ? 'var(--green)' : '#e2e8f0', color: h?.bought ? '#fff' : 'var(--ink-3)' }}>{res.campaign.name.split(' ')[0]}</span>;
-          })}
-        </div>
-      </Panel>
     </div>
   );
 }
@@ -341,36 +331,19 @@ function Insights({ S, filtered, category }: Props) {
   const mix = new Map<string, number>();
   filtered.forEach((x) => { const k = x.b ? shortOffer(x.b.o.label) : 'No discount'; mix.set(k, (mix.get(k) ?? 0) + 1); });
   const mixRows = [...mix.entries()].sort((a, b) => b[1] - a[1]);
-  const byType = TYPES.map((t) => {
-    const rs = filtered.filter((x) => x.r.type === t.id);
-    return { t, n: rs.length, net: rs.reduce((s, x) => s + (x.b?.e.net ?? 0), 0) };
-  }).filter((g) => g.n > 0);
-  const bySeg = TYPES.map((sg) => {
-    const rs = filtered.filter((x) => x.r.type === sg.id);
-    const avg = (f: (x: (typeof rs)[number]) => number) => (rs.length ? rs.reduce((s, x) => s + f(x), 0) / rs.length : 0);
-    return { name: sg.short, n: rs.length, none: avg((x) => x.p0), best: avg((x) => x.b?.e.p1 ?? x.p0) };
-  }).filter((g) => g.n > 0);
   const groupRows = GROUPS.map((g) => {
     const rs = targetRows(S, filtered).filter((r) => r.g === g.id);
     const avg = (fn: (r: (typeof rs)[number]) => number) => (rs.length ? rs.reduce((a, r) => a + fn(r), 0) / rs.length : 0);
     return { title: g.title, n: rs.length, p0: avg((r) => r.p0), p1: avg((r) => r.x?.p1 ?? r.p0), color: g.tone === 'green' ? 'var(--green)' : g.tone === 'amber' ? 'var(--amber)' : g.tone === 'red' ? 'var(--red)' : '#94a3b8' };
   });
   return (
-    <Panel title="Summary of the customers in view" defaultOpen={false} what={`Roll-ups for the ${filtered.length} customers matching the filters. Pick a view from the dropdown.`}
-      right={<FilterSelect value={view} onChange={setView} options={[{ value: 'mix', label: 'Best promotion mix' }, { value: 'profit', label: 'Profit by customer type' }, { value: 'lift', label: 'Response lift by customer type' }, { value: 'groups', label: 'Who to contact, by group' }]} />}
+    <Panel title="Summary of the customers in view" what={`Roll-ups for the ${filtered.length} customers matching the filters. Pick a view from the dropdown.`}
+      right={<FilterSelect value={view} onChange={setView} options={[{ value: 'mix', label: 'Best promotion mix' }, { value: 'groups', label: 'Who to contact, by group' }]} />}
       legend={view === 'mix' ? [{ label: 'Bar', text: `Number of customers for whom each ${category} promotion earns the most. No discount means nothing pays off.` }]
         : view === 'groups' ? GROUPS.map((g) => ({ label: g.title, text: g.body }))
-        : view === 'profit' ? [{ label: 'Bar', text: 'Expected profit if every customer in view gets their own best promotion, summed by customer type. Colours match the customer types.' }]
-        : [{ label: 'Grey', color: '#94a3b8', text: 'Average chance of buying with no promotion.' }, { label: 'Navy', color: '#0b1c2f', text: "Average chance with each customer's best promotion. The gap is the lift." }]}>
+        : []}>
       {view === 'groups' && <HBars labelW={170} format={(v) => String(v)} rows={groupRows.map((g) => ({ label: g.title, value: g.n, color: g.color, note: `${pct(g.p0)} → ${pct(g.p1)} avg chance` }))} />}
       {view === 'mix' && <HBars labelW={110} format={(v) => String(v)} rows={mixRows.map(([l, v]) => ({ label: l, value: v, color: l === 'No discount' ? '#94a3b8' : 'var(--navy)' }))} />}
-      {view === 'profit' && <BarChart height={200} posColor="var(--green)" negColor="var(--red)" format={(v) => inr(v, 0)} data={byType.map((g) => ({ label: g.t.short, value: g.net, color: g.t.color, tip: <><b>{g.t.name}</b><br />{g.n} customers · {inr(g.net)}</> }))} />}
-      {view === 'lift' && (
-        <>
-          <GroupedBars height={200} format={(v) => pct(v)} series={[{ label: 'No promotion', color: '#94a3b8' }, { label: 'Best promotion', color: '#0b1c2f' }]} groups={bySeg.map((g) => ({ label: g.name, values: [g.none, g.best] }))} />
-          <div className="mt-1"><Legend items={[{ label: 'No promotion', color: '#94a3b8' }, { label: 'Best promotion', color: '#0b1c2f' }]} /></div>
-        </>
-      )}
     </Panel>
   );
 }

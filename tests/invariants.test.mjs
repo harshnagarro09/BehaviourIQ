@@ -99,7 +99,7 @@ test('customer takeaway uses P0, P1 and net of the selected customer', () => {
 });
 
 test('past-results, behaviour, planning and simulation takeaways', () => {
-  assert.equal(pastResultsTakeaway({ campaigns: 30, lost: 9, incShare: 0.767, units: 18508 }), 'Across 30 campaigns, 9 lost money; an estimated 77% of promoted sales would have happened anyway.');
+  assert.equal(pastResultsTakeaway({ campaigns: 30, lost: 9, incShare: 0.767, units: 18508 }), 'Across 30 campaigns, 9 lost money; an estimated 23% of promoted sales would have happened anyway.');
   assert.equal(pastResultsTakeaway({ campaigns: 0, lost: 0, incShare: 0, units: 0 }), NOT_ENOUGH);
   const t = behaviourTakeaway([{ name: 'A', n: 10, net: 5 }, { name: 'B', n: 10, net: -5 }, { name: 'C', n: 10, net: -1 }]);
   assert.equal(t, 'A customers earn money from promotions; B and C cost money.');
