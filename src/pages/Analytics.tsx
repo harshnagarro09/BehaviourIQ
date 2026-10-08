@@ -89,8 +89,7 @@ export function Analytics() {
 
   const behaviourKpi = useMemo(() => {
     const n = feat.reduce((a, g) => a + g.n, 0);
-    const byNet = [...feat].sort((a, b) => b.a.net - a.a.net);
-    return { n, promo: n ? feat.reduce((a, g) => a + g.promo * g.n, 0) / n : 0, best: byNet[0], worst: byNet.length > 1 ? byNet[byNet.length - 1] : undefined };
+    return { n, promo: n ? feat.reduce((a, g) => a + g.promo * g.n, 0) / n : 0 };
   }, [feat]);
 
   const personaRows = f.persona === 'all' ? TYPES : TYPES.filter((t) => t.id === f.persona);
@@ -162,11 +161,9 @@ export function Analytics() {
             <Kpi label="Response rate" value={pct(respOf(A))} delta={dAbs(respOf(A), respOf(P), pp)} note={sub || 'bought on promo'} />
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3">
             <Kpi label="Customers in view" value={int(behaviourKpi.n)} note={`${feat.length} customer types`} />
             <Kpi label="Buying on promotion" value={pct(behaviourKpi.promo)} note="average share of a customer's purchases" />
-            <Kpi label="Top-earning type" value={behaviourKpi.best ? shortName(behaviourKpi.best.name) : '–'} tone="good" note={behaviourKpi.best ? `${inr(behaviourKpi.best.a.net)} promo profit` : ''} />
-            <Kpi label="Biggest money-loser" value={behaviourKpi.worst ? shortName(behaviourKpi.worst.name) : '–'} tone={behaviourKpi.worst && behaviourKpi.worst.a.net < 0 ? 'bad' : undefined} note={behaviourKpi.worst ? `${inr(behaviourKpi.worst.a.net)} promo profit` : ''} />
           </div>
         )}
 
