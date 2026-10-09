@@ -1,12 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { AlertTriangle, Check, ChevronDown, Pencil, Sparkles, X } from 'lucide-react';
 import { useApp, useEngine } from '@/state';
 import { Btn, Card, CardTitle, Chip, Kpi, Meter, FilterSelect, Panel } from '@/components/ui';
 import { HBars, Stack } from '@/components/charts';
 import { PageTop } from '@/pages/Analytics';
 import { dayOf } from '@/engine/data';
-import { explain, FACTOR_ORDER, shortOffer } from '@/engine/options';
-import { buildCtxs, activeAt, type Recommendation, type Scenario } from '@/engine/planner';
+import { shortOffer } from '@/engine/options';
+import { type Recommendation, type Scenario } from '@/engine/planner';
 import { TYPES, TYPE_BY_ID } from '@/engine/segments';
 import { TYPE_IDS } from '@/engine/insights';
 import { inr, int, pct, shortDate } from '@/lib/fmt';
@@ -28,7 +28,7 @@ function objectiveOf(s: Scenario | null): string {
   // the type that is most over-represented in the audience compared with the whole base
   const lift = (t: (typeof TYPE_IDS)[number]) => (bt[t].targeted / Math.max(1, s.audience.targeted)) / (bt[t].total / Math.max(1, s.audience.total) || 1);
   const top = TYPE_IDS.reduce((a, b) => (lift(b) > lift(a) ? b : a));
-  return { deal: 'Convert deal seekers', stockup: 'Grow basket size', switcher: 'Win competitor buyers', anyways: 'Reward loyal buyers', ignores: 'Re-engage non-responders' }[top];
+  return { persuadable: 'Win Persuadables', sure: 'Reward loyal buyers', lost: 'Re-engage non-responders', dog: 'Protect existing sales' }[top];
 }
 
 export function Planning() {
@@ -90,13 +90,13 @@ export function Planning() {
 
   const header = (
     <div className={`grid ${COLS} gap-3 px-4 py-2 text-[10.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]`}>
-      {['Campaign & offer', 'Objective', 'Week / duration', 'Budget', 'Predicted', 'Confidence', 'Actions'].map((h) => <span key={h} title={h === 'Confidence' ? 'How well the model picks performed in tests on campaigns it had not seen, for this category' : undefined}>{h}</span>)}
+      {['Campaign & offer', 'Objective', 'Week / duration', 'Budget', 'Predicted', 'Confidence', 'Actions'].map((h) => <span key={h} title={h === 'Confidence' ? 'How much past campaign history in this category the recommendation draws on' : undefined}>{h}</span>)}
     </div>
   );
 
   return (
     <>
-      <PageTop title="Planning" sub="AI-recommended promotion calendar for the next quarter, built from predicted customer response" />
+      <PageTop title="Planning" sub="Recommended promotion calendar for the next quarter, built from simulated customer response" />
       <div className="space-y-4 p-6">
         <Takeaway>{planningTakeaway({ campaigns: e.recommendations.length, net: e.recommendations.reduce((s, r) => s + (r.best?.net ?? 0), 0), flagged: attention.length })}</Takeaway>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -108,8 +108,8 @@ export function Planning() {
 
         <Card pad={false}>
           <div className="flex items-center justify-between px-4 pt-4">
-            <CardTitle title="AI Recommended Campaigns" sub={`${ready.length} campaigns recommended for the next 3 months`} />
-            <div className="flex items-center gap-2"><WindowChip /><Chip tone="green"><Sparkles className="h-3 w-3" />AI Generated</Chip></div>
+            <CardTitle title="Recommended Campaigns" sub={`${ready.length} campaigns recommended for the next 3 months`} />
+            <div className="flex items-center gap-2"><WindowChip /><Chip tone="green"><Sparkles className="h-3 w-3" />Rule-based</Chip></div>
           </div>
           {header}
           {ready.map(row)}
@@ -121,7 +121,7 @@ export function Planning() {
             <div className="flex items-center justify-between px-4 pt-4">
               <div className="mb-3">
                 <h3 className="flex items-center gap-1.5 text-[13px] font-semibold"><AlertTriangle className="h-3.5 w-3.5 text-[var(--amber)]" />Needs Attention</h3>
-                <p className="mt-0.5 text-[12px] text-[var(--ink-3)]">AI has flagged these campaigns for review before committing</p>
+                <p className="mt-0.5 text-[12px] text-[var(--ink-3)]">These campaigns are flagged for review before committing</p>
               </div>
               <Chip tone="amber">{attention.length} campaigns</Chip>
             </div>
@@ -131,7 +131,7 @@ export function Planning() {
         )}
 
         <Card>
-          <CardTitle title="Calendar Gaps Detected" sub="Opportunities no planned campaign covers, identified by AI" />
+          <CardTitle title="Calendar Gaps Detected" sub="Opportunities no planned campaign covers, " />
           <div className="space-y-2">
             {lapsed > 0 && <Gap title={`${lapsed} regular customers have gone quiet`} body="They ordered 8+ times but nothing in 45 days. No planned campaign targets win-back; consider a reactivation offer." />}
             {uncovered.map((t) => <Gap key={t} title={`${TYPE_BY_ID[t].name} customers are left out`} body={`${e.stats.find((s) => s.type === t)!.n} customers get no offer in any recommended campaign. ${TYPE_BY_ID[t].play}`} />)}
@@ -185,34 +185,16 @@ function Gap({ title, body }: { title: string; body: string }) {
 }
 
 function Detail({ r, onSimulate }: { r: Recommendation; onSimulate: () => void }) {
-  const e = useEngine();
   const { decisions, decide } = useApp();
   const d = decisions[r.candidate.id];
   const [key, setKey] = useState(d?.optionKey || r.best?.option.key || r.scenarios[0].option.key);
   const sc = r.scenarios.find((s) => s.option.key === key)!;
 
-  // which behaviours drive the prediction for this campaign's audience
-  const drivers = useMemo(() => {
-    const ctxs = buildCtxs(e.ds, activeAt(e.ds, e.asOf), r.candidate.category, e.asOf);
-    const target = ctxs.filter((c) => (r.expectations.get(c.cid)?.net ?? -1) > 0);
-    const pool = target.length ? target : ctxs;
-    const sums = new Map<string, number>();
-    const dir = new Map<string, number>();
-    for (const c of pool) {
-      for (const f of explain(e.model, c, sc.option.depth, sc.option.mechanic, r.candidate.category)) {
-        sums.set(f.factor, (sums.get(f.factor) ?? 0) + Math.abs(f.effect));
-        dir.set(f.factor, (dir.get(f.factor) ?? 0) + f.effect);
-      }
-    }
-    const tot = [...sums.values()].reduce((a, b) => a + b, 0) || 1;
-    return FACTOR_ORDER.map((f) => ({ f, share: (sums.get(f) ?? 0) / tot, up: (dir.get(f) ?? 0) >= 0 })).sort((a, b) => b.share - a.share).slice(0, 5);
-  }, [e, r, sc]);
-
   const maxResp = Math.max(...r.scenarios.map((s) => s.buyers / Math.max(1, s.audience.targeted)), 0.01);
   return (
     <div className="grid gap-6 border-t border-dashed border-[var(--line)] bg-[#f8fafc] px-5 py-4 lg:grid-cols-3">
       <div>
-        <p className="mb-2 text-[10.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">Predicted response by promotion</p>
+        <p className="mb-2 text-[10.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">Simulated response by promotion</p>
         <div className="space-y-1.5">
           {r.scenarios.map((s) => {
             const resp = s.buyers / Math.max(1, s.audience.targeted);
@@ -231,17 +213,8 @@ function Detail({ r, onSimulate }: { r: Recommendation; onSimulate: () => void }
       </div>
 
       <div>
-        <p className="mb-2 text-[10.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">Behaviours behind the prediction</p>
-        <div className="space-y-2">
-          {drivers.map((x) => (
-            <div key={x.f} className="flex items-center gap-2 text-[12px]">
-              <span className="w-[150px] shrink-0 truncate">{x.f}</span>
-              <Meter value={x.share / drivers[0].share} color={x.up ? 'var(--green)' : 'var(--amber)'} width={70} />
-              <span className="num text-[11.5px] text-[var(--ink-3)]">{pct(x.share)}</span>
-            </div>
-          ))}
-        </div>
-        <ul className="mt-3 space-y-1 text-[12px] leading-snug text-[var(--ink-2)]">{r.rationale.slice(0, 3).map((t, i) => <li key={i}>• {t}</li>)}</ul>
+        <p className="mb-2 text-[10.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">Why this recommendation</p>
+        <ul className="space-y-1.5 text-[12px] leading-snug text-[var(--ink-2)]">{r.rationale.map((t, i) => <li key={i}>• {t}</li>)}</ul>
       </div>
 
       <div>
@@ -250,7 +223,7 @@ function Detail({ r, onSimulate }: { r: Recommendation; onSimulate: () => void }
           {TYPES.map((t) => <span key={t.id} className="flex items-center gap-1.5 rounded-full bg-white px-2 py-0.5 text-[11.5px] font-medium ring-1 ring-[var(--line)]"><span className="h-2 w-2 rounded-full" style={{ background: t.color }} />{t.short} {sc.audience.byType[t.id].targeted}/{sc.audience.byType[t.id].total}</span>)}
         </div>
         <dl className="mb-3 grid grid-cols-3 gap-2 text-[11.5px]">
-          {[['Customers', int(sc.audience.targeted)], ['Net profit', inr(sc.net)], ['ROI', sc.roi.toFixed(2)], ['Discount', inr(sc.discountCost)], ['Leakage', inr(sc.leakage)], ['If sent to all', inr(sc.blanket.net)]].map(([l, v]) => <div key={l}><dt className="text-[var(--ink-3)]"><Lbl t={l} /></dt><dd className="num text-[13px] font-semibold">{v}</dd></div>)}
+          {[['Customers', int(sc.audience.targeted)], ['Net profit', inr(sc.net)], ['ROI', sc.roi.toFixed(2)], ['Discount', inr(sc.discountCost)], ['Subsidy', inr(sc.leakage)], ['If sent to all', inr(sc.blanket.net)]].map(([l, v]) => <div key={l}><dt className="text-[var(--ink-3)]"><Lbl t={l} /></dt><dd className="num text-[13px] font-semibold">{v}</dd></div>)}
         </dl>
         <div className="flex gap-2">
           <Btn variant="navy" disabled={!sc.audience.targeted} onClick={() => decide(r.candidate.id, { status: 'accepted', optionKey: key })}>Accept this version</Btn>

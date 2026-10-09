@@ -61,14 +61,14 @@ export function isoOf(day: number): string {
 }
 
 const REQUIRED = [
-  'order_id', 'customer_id', 'order_date', 'product_id', 'product_name', 'category', 'brand', 'is_our_brand',
+  'order_id', 'customer_id', 'order_date', 'product_id', 'product_name', 'category', 'brand',
   'quantity', 'list_price', 'unit_price', 'discount_pct', 'promo_id', 'promo_name', 'promo_mechanic', 'unit_cost',
 ];
 
 export function parseCsv(text: string): Line[] {
   const rows = text.split(/\r?\n/);
   const head = rows[0].trim().split(',');
-  const ix: Record<string, number> = { channel: head.indexOf('channel'), min_spend: head.indexOf('min_spend') };
+  const ix: Record<string, number> = { channel: head.indexOf('channel'), min_spend: head.indexOf('min_spend'), is_our_brand: head.indexOf('is_our_brand') };
   REQUIRED.forEach((c) => {
     const i = head.indexOf(c);
     if (i < 0) throw new Error(`CSV is missing required column "${c}"`);
@@ -79,6 +79,8 @@ export function parseCsv(text: string): Line[] {
     const row = rows[r];
     if (!row) continue;
     const f = row.split(',');
+    // older files may still carry other brands: the retailer cannot see competitor data, so those rows are ignored
+    if (ix.is_our_brand >= 0 && f[ix.is_our_brand] !== '1') continue;
     out.push({
       orderId: f[ix.order_id],
       cid: f[ix.customer_id],
@@ -87,7 +89,7 @@ export function parseCsv(text: string): Line[] {
       product: f[ix.product_name],
       category: f[ix.category],
       brand: f[ix.brand],
-      ours: f[ix.is_our_brand] === '1',
+      ours: true,
       qty: +f[ix.quantity],
       list: +f[ix.list_price],
       unit: +f[ix.unit_price],

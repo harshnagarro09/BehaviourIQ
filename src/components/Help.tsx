@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { GLOSSARY, type GlossaryKey } from '@/lib/glossary';
 
 const BY_LABEL: Record<string, GlossaryKey> = {
-  'Net profit': 'netProfit', ROI: 'roi', Uplift: 'uplift', Leakage: 'leakage', 'Customer type': 'customerType', 'Promo ROI': 'roi',
+  'Net profit': 'netProfit', ROI: 'roi', Uplift: 'uplift', Subsidy: 'leakage', Baseline: 'baseline', Incrementality: 'incrementality', 'Promo ROI': 'roi',
 };
 /** a label that gets a "?" when the glossary knows the term */
 export function Lbl({ t }: { t: string }): ReactNode {
@@ -15,7 +15,7 @@ export function Lbl({ t }: { t: string }): ReactNode {
  * Small "?" with a plain-English tooltip (hover or keyboard focus). The tip is fixed-positioned above the
  * "?" so it never sits on top of the short key under a panel title, and flips below only when there is no room.
  */
-export function Help({ term }: { term: GlossaryKey }) {
+export function Help({ term, below: forceBelow = false }: { term: GlossaryKey; below?: boolean }) {
   const g = GLOSSARY[term];
   const id = useId();
   const ref = useRef<HTMLSpanElement>(null);
@@ -23,7 +23,7 @@ export function Help({ term }: { term: GlossaryKey }) {
   const show = () => {
     const r = ref.current?.getBoundingClientRect();
     if (!r) return;
-    const below = r.top < 120;
+    const below = forceBelow || r.top < 120;
     setPos({ left: Math.min(Math.max(12, r.left + r.width / 2 - 130), window.innerWidth - 272), top: below ? r.bottom + 6 : r.top - 6, below });
   };
   const hide = () => setPos(null);
@@ -46,10 +46,16 @@ export function Help({ term }: { term: GlossaryKey }) {
         <span
           id={id}
           role="tooltip"
-          style={{ position: 'fixed', left: pos.left, top: pos.top, transform: pos.below ? undefined : 'translateY(-100%)', width: 260, zIndex: 60 }}
+          style={{ position: 'fixed', left: pos.left, top: pos.top, transform: pos.below ? undefined : 'translateY(-100%)', width: 280, zIndex: 60 }}
           className="pointer-events-none rounded-md bg-[var(--navy)] px-3 py-2 text-left text-[12px] font-normal normal-case leading-snug tracking-normal text-white shadow-lg"
         >
-          <b className="block text-[12px]">{g.term}</b>{g.text}
+          <b className="block text-[12px]">{g.term}</b>
+          {g.text.split('\n').map((line, i) => {
+            const k = line.indexOf(': ');
+            return k > 0 && g.text.includes('\n')
+              ? <span key={i} className="mt-1 block"><b>{line.slice(0, k)}:</b> {line.slice(k + 2)}</span>
+              : <span key={i} className="block">{line}</span>;
+          })}
         </span>
       )}
     </span>

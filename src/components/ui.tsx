@@ -4,7 +4,7 @@ import type { TypeId } from '@/engine/behaviour';
 import { TYPE_BY_ID } from '@/engine/segments';
 import { Help } from '@/components/Help';
 import type { GlossaryKey } from '@/lib/glossary';
-import { PREDICTION_WINDOW_DAYS } from '@/engine/model';
+import { SIM_WINDOW_DAYS } from '@/engine/simulation';
 
 export function Card({ children, className = '', pad = true }: { children: ReactNode; className?: string; pad?: boolean }) {
   return <section className={`card ${pad ? 'p-4' : ''} ${className}`}>{children}</section>;
@@ -121,13 +121,20 @@ export function Meter({ value, color = 'var(--green)', width = 90 }: { value: nu
 
 
 /** Chart / Table switch for cards that can show either */
-/** "Prediction window: next 14 days" with a "?"; the number comes from the model's own constant */
+/** "Offer window: next 14 days" with a "?" */
 export function WindowChip() {
   return (
     <span className="inline-flex items-center rounded-full bg-[var(--page)] px-2 py-0.5 text-[11px] font-medium text-[var(--ink-2)]">
-      Prediction window: next {PREDICTION_WINDOW_DAYS} days<Help term="predictionWindow" />
+      Offer window: next {SIM_WINDOW_DAYS} days<Help term="predictionWindow" />
     </span>
   );
+}
+
+/** Marks whether the numbers in a card are actual history or a simulated result */
+export function SourceChip({ kind }: { kind: 'actual' | 'simulated' }) {
+  return kind === 'actual'
+    ? <span className="inline-flex items-center rounded-full bg-[#e8eef7] px-2 py-0.5 text-[11px] font-semibold text-[var(--navy)]" title="Calculated from the order history in the data file (demo data)">Actual history</span>
+    : <span className="inline-flex items-center rounded-full bg-[#fff1dc] px-2 py-0.5 text-[11px] font-semibold text-[#92400e]" title="Rule-based simulation from behaviour plus stated assumptions. Not a trained model and not a measurement">Simulated</span>;
 }
 
 /** Page tabs: underlined, shown at the bottom of the page header (see PageTop) */

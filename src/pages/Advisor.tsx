@@ -51,12 +51,12 @@ export function Advisor() {
 
   return (
     <div className="flex h-full flex-col">
-      <PageTop title="AI Advisor" sub="Conversational AI tuned to your customer and promotion data" />
+      <PageTop title="Advisor" sub="Ask in plain English. Answers come from fixed rules applied to your loaded data" />
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
         <div className="mx-auto max-w-[900px] space-y-4">
           {msgs.length === 0 && (
             <div className="rounded-xl border border-dashed border-[var(--line)] bg-white p-5 text-[13px] leading-relaxed text-[var(--ink-2)]">
-              <p className="mb-1 flex items-center gap-1.5 font-semibold text-[var(--ink)]"><Sparkles className="h-3.5 w-3.5" />Ask about campaigns, budget, customers or predictions</p>
+              <p className="mb-1 flex items-center gap-1.5 font-semibold text-[var(--ink)]"><Sparkles className="h-3.5 w-3.5" />Ask about campaigns, budget, customers or the simulation</p>
               Answers are calculated from the loaded CSV by the same engine behind the other pages. Try a suggested question below, or a customer ID such as C0042.
             </div>
           )}
@@ -90,7 +90,7 @@ export function Advisor() {
             {SUGGESTED.map((s) => <button key={s} onClick={() => ask(s)} className="rounded-full border border-[var(--line)] bg-white px-2.5 py-1 text-[11.5px] text-[var(--ink-2)] hover:bg-[var(--page)]">{s}</button>)}
           </div>
           <div className="flex items-center gap-2">
-            <input value={input} onChange={(ev) => setInput(ev.target.value)} onKeyDown={(ev) => ev.key === 'Enter' && ask(input)} placeholder="Ask about campaigns, budget, customers, or predictions…" className="h-10 flex-1 rounded-lg border border-[var(--line)] px-3 text-[13px] outline-none focus:border-[var(--navy)]" />
+            <input value={input} onChange={(ev) => setInput(ev.target.value)} onKeyDown={(ev) => ev.key === 'Enter' && ask(input)} placeholder="Ask about campaigns, budget, customers, or the simulation…" className="h-10 flex-1 rounded-lg border border-[var(--line)] px-3 text-[13px] outline-none focus:border-[var(--navy)]" />
             <button onClick={() => ask(input)} disabled={!input.trim() || busy} className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--green)] text-white disabled:opacity-40"><Send className="h-4 w-4" /></button>
           </div>
         </div>

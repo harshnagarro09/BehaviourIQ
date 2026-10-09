@@ -1,10 +1,8 @@
-// What did each past promotion REALLY deliver?  Incrementality = actual sales minus what each customer
-// was already buying at full price (their own baseline), including the dip after the promotion ends.
+// What did each past promotion actually deliver?  Baseline = what each customer was already buying at full price;
+// uplift = promoted sales above that baseline, after the dip once the promotion ends. Measured from actual orders.
 import { baselineRate, cutIndex } from './behaviour.ts';
 import type { TypeId } from './behaviour.ts';
 import type { Campaign, Dataset } from './data.ts';
-import { expect } from './economics.ts';
-import { makeCtx, type TrainedModel } from './model.ts';
 
 export interface Slice {
   customers: number; // customers reached (active)
@@ -38,6 +36,9 @@ export interface CampaignResult extends Slice {
 export interface CustomerCampaign {
   cid: string;
   campaignId: string;
+  revenue: number; // cash received on promoted units
+  grossProfit: number; // price paid minus unit cost on promoted units
+  pullForwardUnits: number; // units missing in the weeks after (the dip)
   active: boolean;
   bought: boolean;
   units: number;
@@ -51,7 +52,7 @@ export interface CustomerCampaign {
 export function evaluateCampaigns(ds: Dataset, typeOf: Map<string, TypeId>) {
   const results: CampaignResult[] = [];
   const perCustomer = new Map<string, CustomerCampaign[]>();
-  const types: TypeId[] = ['anyways', 'deal', 'stockup', 'switcher', 'ignores'];
+  const types: TypeId[] = ['persuadable', 'sure', 'lost', 'dog'];
   for (const c of ds.campaigns) {
     const len = c.end - c.start + 1;
     const econ = ds.ourEcon[c.category];
@@ -85,7 +86,7 @@ export function evaluateCampaigns(ds: Dataset, typeOf: Map<string, TypeId>) {
       const inc = A - B;
       const leakShare = A > 0 ? Math.min(A, B) / A : 0;
       const net = marg - B * mFull - dip * mFull;
-      const slice = [tot, byType[typeOf.get(cid) ?? 'ignores']];
+      const slice = [tot, byType[typeOf.get(cid) ?? 'lost']];
       for (const s of slice) {
         s.customers++;
         if (bought) s.buyers++;
@@ -101,7 +102,7 @@ export function evaluateCampaigns(ds: Dataset, typeOf: Map<string, TypeId>) {
         s.dipMargin -= dip * mFull;
         s.netProfit += net;
       }
-      rows.push({ cid, campaignId: c.id, active, bought, units: A, baselineUnits: B, incUnits: inc, discountCost: disc, leakage: disc * leakShare, net });
+      rows.push({ cid, campaignId: c.id, revenue: rev, grossProfit: marg, pullForwardUnits: dip, active, bought, units: A, baselineUnits: B, incUnits: inc, discountCost: disc, leakage: disc * leakShare, net });
       let arr = perCustomer.get(cid);
       if (!arr) perCustomer.set(cid, (arr = []));
       arr.push(rows[rows.length - 1]);
@@ -130,94 +131,23 @@ export interface StrategyResult {
 }
 
 /**
- * Backtest on the held-out campaigns: the model is fitted on data BEFORE them and then decides who
- * to target. Realised profit comes from what those customers actually did.
- * Assumption: customers who are not targeted behave exactly at their baseline (no discount, no uplift).
+ * Replay of past campaigns under simple audience rules, using what customers ACTUALLY did (no prediction).
+ * Customers who are not contacted are assumed to buy at their baseline. Indicative: the types are built from the same history.
  */
-export function backtest(
-  ds: Dataset, model: TrainedModel, perCustomer: Map<string, CustomerCampaign[]>, typeOf: Map<string, TypeId>,
-): StrategyResult[] {
-  const testCamps = ds.campaigns.filter((c) => c.start >= model.splitDay);
-  const strategies = [
-    { name: 'Discount everyone', description: 'Broad offer to every active customer', pick: () => true },
-    { name: 'Skip Buys-anyways & Ignores', description: 'Rule based on consumer type: no offer for customers who need no push or will not respond', pick: 'type' as const },
-    { name: 'Target likely buyers', description: 'Top half by predicted purchase probability', pick: 'propensity' as const },
-    { name: 'Target persuadable customers', description: 'Only where the model predicts the discount earns more profit than it costs', pick: 'net' as const },
+export function replayStrategies(perCustomer: Map<string, CustomerCampaign[]>, typeOf: Map<string, TypeId>): StrategyResult[] {
+  const strategies: { name: string; description: string; keep: (t: TypeId) => boolean }[] = [
+    { name: 'Offer everyone', description: 'Every active customer receives the offer (what was done)', keep: () => true },
+    { name: 'Skip Sure Things & Sleeping Dogs', description: 'No offer for customers who buy anyway or are put off by offers', keep: (t) => t !== 'sure' && t !== 'dog' },
+    { name: 'Target Persuadables only', description: 'Only customers who buy because of the offer', keep: (t) => t === 'persuadable' },
   ];
   const acc = strategies.map(() => ({ targeted: 0, cost: 0, net: 0 }));
-  for (const c of testCamps) {
-    const rows: { r: CustomerCampaign; p1: number; net: number; uplift: number }[] = [];
-    for (const cid of ds.customers) {
-      const r = perCustomer.get(cid)?.find((x) => x.campaignId === c.id);
-      if (!r) continue;
-      const ctx = makeCtx(ds, cid, c.category, c.start);
-      const e = expect(ds, model.holdout, ctx, { category: c.category, depth: c.depth, mechanic: c.mechanic, minSpend: c.minSpend });
-      rows.push({ r, p1: e.p1, net: e.net, uplift: e.uplift });
-    }
-    const sorted = [...rows].sort((a, b) => b.p1 - a.p1);
-    const topHalf = new Set(sorted.slice(0, Math.ceil(rows.length / 2)).map((x) => x.r.cid));
+  for (const [cid, rows] of perCustomer) {
+    const t = typeOf.get(cid);
+    if (!t) continue;
     strategies.forEach((s, k) => {
-      for (const x of rows) {
-        const t = typeOf.get(x.r.cid);
-        const take = s.pick === 'propensity' ? topHalf.has(x.r.cid) : s.pick === 'net' ? (x.net > 0 && x.uplift >= 0.03) : s.pick === 'type' ? t !== 'anyways' && t !== 'ignores' : true;
-        if (!take) continue;
-        acc[k].targeted++;
-        acc[k].cost += x.r.discountCost;
-        acc[k].net += x.r.net;
-      }
+      if (!s.keep(t)) return;
+      for (const r of rows) { acc[k].targeted++; acc[k].cost += r.discountCost; acc[k].net += r.net; }
     });
   }
-  return strategies.map((s, k) => ({
-    name: s.name,
-    description: s.description,
-    targeted: acc[k].targeted,
-    discountCost: acc[k].cost,
-    netProfit: acc[k].net,
-    roi: acc[k].cost ? acc[k].net / acc[k].cost : 0,
-  }));
-}
-
-export interface ValidationRow {
-  campaign: Campaign;
-  reached: number;
-  targeted: number;
-  predNet: number; // what the model expected the targeted customers to earn
-  realNet: number; // what they actually earned
-  predBuyers: number;
-  realBuyers: number;
-  cost: number;
-  roi: number;
-  skippedNet: number; // what the customers the model skipped would have earned if they had been offered
-  broadNet: number; // offering everyone
-  broadCost: number;
-}
-
-/**
- * Per held-out campaign: the model (fitted only on earlier data) picks who to target; we compare what it
- * predicted with what happened, and compare against offering everyone.
- */
-export function validationByCampaign(ds: Dataset, model: TrainedModel, perCustomer: Map<string, CustomerCampaign[]>): ValidationRow[] {
-  const out: ValidationRow[] = [];
-  for (const c of ds.campaigns.filter((x) => x.start >= model.splitDay)) {
-    const row: ValidationRow = { campaign: c, reached: 0, targeted: 0, predNet: 0, realNet: 0, predBuyers: 0, realBuyers: 0, cost: 0, roi: 0, skippedNet: 0, broadNet: 0, broadCost: 0 };
-    for (const cid of ds.customers) {
-      const r = perCustomer.get(cid)?.find((x) => x.campaignId === c.id);
-      if (!r) continue;
-      const e = expect(ds, model.holdout, makeCtx(ds, cid, c.category, c.start), { category: c.category, depth: c.depth, mechanic: c.mechanic, minSpend: c.minSpend });
-      row.reached++;
-      row.broadNet += r.net;
-      row.broadCost += r.discountCost;
-      if (e.net > 0 && e.uplift >= 0.03) {
-        row.targeted++;
-        row.predNet += e.net;
-        row.realNet += r.net;
-        row.predBuyers += e.p1;
-        if (r.bought) row.realBuyers++;
-        row.cost += r.discountCost;
-      } else row.skippedNet += r.net;
-    }
-    row.roi = row.cost ? row.realNet / row.cost : 0;
-    out.push(row);
-  }
-  return out;
+  return strategies.map((s, k) => ({ name: s.name, description: s.description, targeted: acc[k].targeted, discountCost: acc[k].cost, netProfit: acc[k].net, roi: acc[k].cost ? acc[k].net / acc[k].cost : 0 }));
 }

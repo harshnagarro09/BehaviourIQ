@@ -1,4 +1,5 @@
-// The five consumer types from the research brief, assigned from OBSERVED behaviour only.
+// The four customer types used in promotion targeting (industry uplift terms), assigned from OBSERVED behaviour only
+// by transparent rules. No model and no hidden labels.
 import type { Behaviour, TypeId } from './behaviour.ts';
 
 export interface TypeMeta {
@@ -8,94 +9,86 @@ export interface TypeMeta {
   color: string;
   tagline: string;
   signature: string; // what the data looks like
+  rule: string; // the rule that assigns the type
   play: string; // what to do with them
-  promoStance: 'exclude' | 'target' | 'bundle' | 'conquest' | 'nurture';
+  promoStance: 'target' | 'exclude' | 'skip' | 'avoid';
 }
 
 export const TYPES: TypeMeta[] = [
   {
-    id: 'anyways', name: 'Buys Anyways', short: 'Buys anyways', color: '#2a78d6',
-    tagline: 'Would have bought at full price',
-    signature: 'Mostly picks our brand at full price, few purchases depend on a promo, no volume spike during offers.',
-    play: 'Keep them out of broad discounts. Reward with loyalty perks or early access instead, so margin is not given away.',
-    promoStance: 'exclude',
-  },
-  {
-    id: 'deal', name: 'Deal-Only Buyer', short: 'Deal-only', color: '#eb6834',
-    tagline: 'Buys only when discounted',
-    signature: 'Most of our-brand purchases happen on promotion, buys the category rarely at other times, responds to almost every campaign.',
-    play: 'Core audience for percent-off offers. Use the shallowest discount that still converts and watch for promo fatigue.',
+    id: 'persuadable', name: 'Persuadables', short: 'Persuadables', color: '#1baf7a',
+    tagline: 'Buy only because of the offer',
+    signature: 'Buy the brand mainly when it is on promotion, respond to many past offers and buy more units when it is discounted.',
+    rule: 'Responded to 20%+ of past promotions, or buy 1.7x their normal quantity on offer',
+    play: 'The only group that creates new sales. Target them with the shallowest offer that still adds profit.',
     promoStance: 'target',
   },
   {
-    id: 'stockup', name: 'Stock-Up Buyer', short: 'Stock-up', color: '#1baf7a',
-    tagline: 'Buys more and stocks up',
-    signature: 'Quantity per promo purchase is a multiple of normal, followed by a visible dip in category buying afterwards.',
-    play: 'Multi-buy and bundle mechanics fit. Count the post-promo dip against the uplift, so pull-forward is not mistaken for growth.',
-    promoStance: 'bundle',
+    id: 'sure', name: 'Sure Things', short: 'Sure Things', color: '#2a78d6',
+    tagline: 'Would buy anyway',
+    signature: 'Buy the brand regularly at full price and take discounted units when they appear, but their volume does not rise because of the offer.',
+    rule: '2.5+ full-price purchases of our brand a month and under 30% of their purchases on promotion',
+    play: 'A discount just gives away margin. Keep them out of broad offers and reward loyalty without cutting price.',
+    promoStance: 'exclude',
   },
   {
-    id: 'switcher', name: 'Competitor Switcher', short: 'Switcher', color: '#8a63d2',
-    tagline: 'Switches from a competitor',
-    signature: 'Normally buys competitor brands, tries ours during a deep promotion, then drifts back.',
-    play: 'Use deeper, time-boxed offers or trial packs, with a follow-up to convert the trial into a habit.',
-    promoStance: 'conquest',
+    id: 'lost', name: 'Lost Causes', short: 'Lost Causes', color: '#8b8a85',
+    tagline: 'Will not buy either way',
+    signature: 'Rarely buy our brand at full price or on promotion and do not react when it is discounted.',
+    rule: 'Responded to fewer than 20% of past promotions and rarely buy our brand',
+    play: 'Do not spend promotion budget or contact cost here. Test a non-price trigger such as sampling.',
+    promoStance: 'skip',
   },
   {
-    id: 'ignores', name: 'Ignores Promotions', short: 'Ignores', color: '#8b8a85',
-    tagline: 'Promotions do not move them',
-    signature: 'Rarely buys our brand either way and does not react when it is discounted.',
-    play: 'Do not spend promo budget here. Test a non-price trigger such as sampling or content before giving up.',
-    promoStance: 'nurture',
+    id: 'dog', name: 'Sleeping Dogs', short: 'Sleeping Dogs', color: '#d64545',
+    tagline: 'Do Not Disturb: put off by the offer',
+    signature: 'Buy our brand regularly at full price, but buy noticeably less of it while it is on promotion.',
+    rule: 'Buy our brand 1.5+ times a month at full price, yet their volume in promotion windows is under 60% of normal',
+    play: 'Do not send offers. A promotion pulls them away, so leaving them alone protects existing sales.',
+    promoStance: 'avoid',
   },
 ];
 export const TYPE_BY_ID = Object.fromEntries(TYPES.map((t) => [t.id, t])) as Record<TypeId, TypeMeta>;
 
 export interface Classification {
   type: TypeId;
-  confidence: number; // 0.5 - 0.99, how far the customer sits from the decision thresholds
+  confidence: number; // 0.5 - 0.99, how far the customer sits from the rule thresholds
   reasons: string[];
 }
 
 const clamp = (v: number, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 
-/**
- * Transparent decision rules (no hidden labels). Each rule reads one behavioural signal:
- *  1. quantity per promo purchase vs normal  -> stock-up
- *  2. our share of full-price purchases      -> buys anyways
- *  3. response to past campaigns             -> ignores when very low
- *  4. response rate: moderate -> switcher, high -> deal-only
- */
+/** Rules are checked in this order; each reads one observable behaviour. */
 export function classify(b: Behaviour): Classification {
   const reasons: string[] = [];
   let type: TypeId;
   let margin: number;
-  if (b.qtyRatio >= 1.7) {
-    type = 'stockup';
+  if (b.lift < 0.6 && b.fullPriceBuysPerMonth >= 1.5) {
+    type = 'dog';
+    margin = (0.6 - b.lift) / 0.4;
+    reasons.push(`Buys our brand ${b.fullPriceBuysPerMonth.toFixed(1)} times a month at full price`);
+    reasons.push(`During promotions their volume falls to ${pct(b.lift)} of normal`);
+  } else if (b.qtyRatio >= 1.7) {
+    type = 'persuadable';
     margin = (b.qtyRatio - 1.7) / 0.8;
     reasons.push(`Buys ${b.qtyRatio.toFixed(1)}x the usual quantity when a promotion runs`);
-    if (b.dipRatio < 0.8) reasons.push(`Category buying drops to ${pct(b.dipRatio)} of normal after a promo`);
-  } else if (b.ourShareFull >= 0.55) {
-    type = 'anyways';
-    margin = (b.ourShareFull - 0.55) / 0.25;
-    reasons.push(`${pct(b.ourShareFull)} of full-price purchases are our brand`);
-    reasons.push(`Only ${pct(b.promoReliance)} of our-brand purchases needed a promo`);
+    if (b.dipRatio < 0.8) reasons.push(`Category buying drops to ${pct(b.dipRatio)} of normal afterwards (pull-forward)`);
+  } else if (b.fullPriceBuysPerMonth >= 2.5 && b.promoReliance <= 0.3) {
+    type = 'sure';
+    margin = (b.fullPriceBuysPerMonth - 2.5) / 2;
+    reasons.push(`Buys our brand at full price ${b.fullPriceBuysPerMonth.toFixed(1)} times a month`);
+    reasons.push(`Only ${pct(b.promoReliance)} of their purchases of it needed a promotion`);
   } else if (b.respRate < 0.2) {
-    type = 'ignores';
+    type = 'lost';
     margin = (0.2 - b.respRate) / 0.2;
     reasons.push(`Responded to only ${b.respondedCampaigns} of ${b.activeCampaigns} campaigns (${pct(b.respRate)})`);
-    reasons.push(`Just ${pct(b.promoReliance)} of our-brand purchases were on promo`);
-  } else if (b.respRate < 0.55) {
-    type = 'switcher';
-    margin = (0.55 - b.respRate) / 0.3;
-    reasons.push(`Buys ${b.compPerMonth.toFixed(1)} competitor items per month at full price`);
-    reasons.push(`Takes our brand mainly when the discount is deep (${pct(b.promoReliance)} of our purchases on promo)`);
+    reasons.push(`Buys our brand just ${b.fullPriceBuysPerMonth.toFixed(1)} times a month at full price`);
   } else {
-    type = 'deal';
-    margin = (b.respRate - 0.4) / 0.4;
-    reasons.push(`${pct(b.promoReliance)} of our-brand purchases were on promotion`);
+    type = 'persuadable';
+    margin = (b.respRate - 0.2) / 0.4;
     reasons.push(`Responded to ${b.respondedCampaigns} of ${b.activeCampaigns} campaigns (${pct(b.respRate)})`);
+    reasons.push(`${pct(b.promoReliance)} of their purchases of our brand were on promotion`);
   }
   return { type, confidence: 0.5 + 0.49 * clamp(margin), reasons };
 }

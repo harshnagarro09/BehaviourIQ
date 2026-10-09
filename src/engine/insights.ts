@@ -1,11 +1,11 @@
 // Descriptive analytics for the six behaviour dimensions in the research brief.
 import { dowOf, type Behaviour, type TypeId } from './behaviour.ts';
 import type { CampaignResult } from './campaigns.ts';
-import type { Dataset, Line } from './data.ts';
+import type { Dataset } from './data.ts';
 import { isoOf } from './data.ts';
 import type { SegId } from './groups.ts';
 
-export const TYPE_IDS: TypeId[] = ['anyways', 'deal', 'stockup', 'switcher', 'ignores'];
+export const TYPE_IDS: TypeId[] = ['persuadable', 'sure', 'lost', 'dog'];
 
 export interface CustomerRecord {
   cid: string;
@@ -25,15 +25,14 @@ export interface TypeStat {
   avgSpend: number;
   spendShare: number;
   promoReliance: number;
-  ourShareFull: number;
   respRate: number;
   qtyRatio: number;
-  compPerMonth: number;
   recency: number;
   weekendShare: number;
   avgInterval: number;
   avgDisc: number;
   fullPriceShare: number;
+  fullPriceBuysPerMonth: number;
   discountCost: number;
   incUnits: number;
   leakage: number;
@@ -65,15 +64,14 @@ export function typeStats(recs: CustomerRecord[], results: CampaignResult[]): Ty
       avgSpend: mean(bs.map((b) => b.totalSpend)),
       spendShare: bs.reduce((s, b) => s + b.totalSpend, 0) / totalSpend,
       promoReliance: mean(bs.map((b) => b.promoReliance)),
-      ourShareFull: mean(bs.map((b) => b.ourShareFull)),
       respRate: mean(bs.map((b) => b.respRate)),
       qtyRatio: mean(bs.map((b) => b.qtyRatio)),
-      compPerMonth: mean(bs.map((b) => b.compPerMonth)),
       recency: mean(bs.map((b) => b.recencyDays)),
       weekendShare: mean(bs.map((b) => b.weekendShare)),
       avgInterval: mean(bs.filter((b) => b.avgInterval > 0).map((b) => b.avgInterval)),
       avgDisc: mean(bs.filter((b) => b.avgDiscAccepted > 0).map((b) => b.avgDiscAccepted)),
       fullPriceShare: mean(bs.map((b) => b.fullPriceShare)),
+      fullPriceBuysPerMonth: mean(bs.map((b) => b.fullPriceBuysPerMonth)),
       discountCost: cost,
       incUnits: inc,
       leakage: leak,
@@ -133,51 +131,6 @@ export function campaignTypeMatrix(ds: Dataset, results: CampaignResult[]) {
     campaign: r.campaign,
     rates: Object.fromEntries(TYPE_IDS.map((t) => [t, r.byType[t].customers ? r.byType[t].buyers / r.byType[t].customers : 0])) as Record<TypeId, number>,
   }));
-}
-
-// ---------------------------------------------------------------- brand behaviour
-export function brandBehaviour(ds: Dataset, recs: CustomerRecord[]) {
-  const typeOf = new Map(recs.map((r) => [r.cid, r.type]));
-  const camp = ds.campaigns;
-  const inWin = (l: Line) => camp.some((c) => c.category === l.category && l.day >= c.start && l.day <= c.end);
-  const acc = Object.fromEntries(TYPE_IDS.map((t) => [t, { baseOur: 0, baseAll: 0, winOur: 0, winAll: 0 }])) as Record<TypeId, { baseOur: number; baseAll: number; winOur: number; winAll: number }>;
-  for (const l of ds.lines) {
-    if (!camp.some((c) => c.category === l.category)) continue;
-    const a = acc[typeOf.get(l.cid)!];
-    if (inWin(l)) {
-      a.winAll += l.qty;
-      if (l.ours) a.winOur += l.qty;
-    } else {
-      a.baseAll += l.qty;
-      if (l.ours) a.baseOur += l.qty;
-    }
-  }
-  return TYPE_IDS.map((t) => ({
-    type: t,
-    baselineShare: acc[t].baseAll ? acc[t].baseOur / acc[t].baseAll : 0,
-    promoShare: acc[t].winAll ? acc[t].winOur / acc[t].winAll : 0,
-  }));
-}
-
-/** among customers who normally buy competitors, how many tried us on promo and how many stayed? */
-export function switchingFunnel(ds: Dataset, recs: CustomerRecord[]) {
-  let rivals = 0, tried = 0, stayed = 0;
-  for (const r of recs) {
-    if (r.b.ourShareFull >= 0.3) continue;
-    rivals++;
-    const lines = ds.byCustomer.get(r.cid)!;
-    let didTry = false;
-    let didStay = false;
-    for (const c of ds.campaigns) {
-      const t0 = lines.some((l) => l.promoId === c.id);
-      if (!t0) continue;
-      didTry = true;
-      if (lines.some((l) => l.ours && l.disc === 0 && l.category === c.category && l.day > c.end && l.day <= c.end + 30)) didStay = true;
-    }
-    if (didTry) tried++;
-    if (didStay) stayed++;
-  }
-  return { rivals, tried, stayed };
 }
 
 // ---------------------------------------------------------------- basket behaviour

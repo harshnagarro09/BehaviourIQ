@@ -1,6 +1,6 @@
 // Single source of truth for the retailer and brand names shown in the app.
 // Keep in sync with the constants at the top of scripts/generate-data.mjs.
-// Engine logic never matches on these names: it uses the `is_our_brand` column.
+// Engine logic never matches on these names. The data holds only the retailer's own brand: there is no competitor data.
 export const RETAILER_NAME = 'Reliance Fresh';
 export const OUR_BRAND_NAME = 'Reliance Fresh';
 /** "our brand (Reliance Fresh)": use once where the name helps */

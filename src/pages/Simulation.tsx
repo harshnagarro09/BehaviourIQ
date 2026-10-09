@@ -17,11 +17,11 @@ import { Takeaway } from '@/components/Takeaway';
 import { ImpactPanel } from '@/components/ImpactPanel';
 import { simulationTakeaway } from '@/lib/takeaways';
 
-type Objective = 'profit' | 'volume' | 'conquest' | 'reactivate';
+type Objective = 'profit' | 'volume' | 'basket' | 'reactivate';
 const OBJECTIVES: { id: Objective; label: string; hint: string }[] = [
   { id: 'profit', label: 'Maximise profit', hint: 'Only customers where the offer earns more than it costs' },
   { id: 'volume', label: 'Maximise extra buyers', hint: 'Anyone whose chance of buying rises by 5+ points' },
-  { id: 'conquest', label: 'Win competitor customers', hint: 'Customers who mostly buy competitor brands' },
+  { id: 'basket', label: 'Grow basket size', hint: 'Customers who already buy 1.4x or more of their usual quantity on promotion' },
   { id: 'reactivate', label: 'Reactivate quiet customers', hint: 'Customers with no order in the last 30 days' },
 ];
 const MECH = [
@@ -31,7 +31,7 @@ const MECH = [
   { id: 'MULTIBUY_3FOR2', label: 'Bundle / Combo Offer' },
 ];
 
-interface Item { type: TypeId; recency: number; ourShare: number; e: Expectation }
+interface Item { type: TypeId; recency: number; qtyRatio: number; e: Expectation }
 interface Sim {
   targeted: number; total: number; buyers: number; inc: number; units: number; revenue: number; incRevenue: number; margin: number;
   cost: number; leak: number; net: number; roi: number; byType: Record<TypeId, number>;
@@ -41,10 +41,10 @@ function simulate(items: Item[], L: number, objective: Objective, types: Set<Typ
   let pool = items.filter((x) => types.has(x.type));
   if (objective === 'profit') pool = pool.filter((x) => x.e.net > 0 && x.e.uplift >= 0.03);
   if (objective === 'volume') pool = pool.filter((x) => x.e.uplift >= 0.05);
-  if (objective === 'conquest') pool = pool.filter((x) => x.ourShare < 0.3);
+  if (objective === 'basket') pool = pool.filter((x) => x.qtyRatio >= 1.4);
   if (objective === 'reactivate') pool = pool.filter((x) => x.recency > 30);
   pool = [...pool].sort((a, b) => b.e.net / Math.max(1, b.e.discountCost) - a.e.net / Math.max(1, a.e.discountCost));
-  const o: Sim = { targeted: 0, total: items.length, buyers: 0, inc: 0, units: 0, revenue: 0, incRevenue: 0, margin: 0, cost: 0, leak: 0, net: 0, roi: 0, byType: { anyways: 0, deal: 0, stockup: 0, switcher: 0, ignores: 0 } };
+  const o: Sim = { targeted: 0, total: items.length, buyers: 0, inc: 0, units: 0, revenue: 0, incRevenue: 0, margin: 0, cost: 0, leak: 0, net: 0, roi: 0, byType: { persuadable: 0, sure: 0, lost: 0, dog: 0 } };
   for (const x of pool) {
     if (budget !== null && o.cost + x.e.discountCost > budget) continue;
     o.targeted++;
@@ -92,7 +92,7 @@ export function Simulation() {
   const ctxs = useMemo(() => buildCtxs(e.ds, activeAt(e.ds, e.asOf), cand.category, e.asOf), [e, cand.category]);
   const build = (d: number, m: string, minSpend?: number): Item[] => ctxs.map((ctx) => {
     const r = e.recById.get(ctx.cid)!;
-    return { type: r.type, recency: r.b.recencyDays, ourShare: r.b.ourShareFull, e: expect(e.ds, e.model, ctx, { category: cand.category, depth: d, mechanic: m, minSpend: m === 'FLAT_OFF' ? (minSpend ?? fixedOpt.minSpend) : undefined }) };
+    return { type: r.type, recency: r.b.recencyDays, qtyRatio: r.b.qtyRatio, e: expect(e.ds, ctx, { category: cand.category, depth: d, mechanic: m, minSpend: m === 'FLAT_OFF' ? (minSpend ?? fixedOpt.minSpend) : undefined }, e.assumptions) };
   });
   const sim = useMemo(() => simulate(build(depthEff, mech, fixedOpt.minSpend), L, objective, types, budget), [e, ctxs, depthEff, mech, objective, types, budget]); // eslint-disable-line react-hooks/exhaustive-deps
   const options = useMemo(() => promoOptions(e.ds, cand.category), [e, cand.category]);
@@ -130,7 +130,7 @@ export function Simulation() {
 
   return (
     <>
-      <PageTop title="Simulation" sub="Model campaign scenarios and see the predicted customer response before spending" />
+      <PageTop title="Simulation" sub="Model campaign scenarios and see the simulated customer response before spending" />
       <div className="px-6 pt-4"><Takeaway>{simulationTakeaway({ targeted: sim.targeted, total: sim.total, net: sim.net, roi: sim.roi })}</Takeaway></div>
       <div className="grid gap-4 p-6 pt-4 lg:grid-cols-[250px_1fr]">
         <aside className="card h-fit overflow-hidden">
@@ -188,30 +188,30 @@ export function Simulation() {
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--red)]" />
                 <div><p className="text-[13px] font-semibold text-[#b91c1c]">Guardrail Violated — Simulated Scenario Cannot Be Applied</p><ul className="mt-0.5 text-[12.5px] text-[#b91c1c]">{violations.map((v) => <li key={v}>• {v}</li>)}</ul></div>
               </div>
-              {best && <Btn variant="ai" onClick={applyAi}><Sparkles className="h-3 w-3" />Get AI Alternative</Btn>}
+              {best && <Btn variant="ai" onClick={applyAi}><Sparkles className="h-3 w-3" />Use recommended instead</Btn>}
             </div>
           )}
 
           <Card>
-            <div className="flex flex-wrap items-start justify-between gap-2"><CardTitle title="Scenario Comparison" sub="AI recommended baseline vs your adjusted simulation" /><WindowChip /></div>
+            <div className="flex flex-wrap items-start justify-between gap-2"><CardTitle title="Scenario Comparison" sub="Recommended promotion vs your adjusted simulation" /><WindowChip /></div>
             <div className="grid gap-4 lg:grid-cols-2">
               <div className="rounded-lg border border-[#a7e8c8] bg-[#f0fdf7] p-4">
-                <Chip tone="green"><Sparkles className="h-3 w-3" />AI Recommended</Chip>
+                <Chip tone="green"><Sparkles className="h-3 w-3" />Recommended</Chip>
                 <p className="mb-3 mt-1.5 text-[11.5px] text-[var(--ink-3)]">{best ? `${best.option.label} · ${cand.days} days · ${inr(best.discountCost)} budget` : 'No profitable offer for this slot'}</p>
                 {best ? (
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                     <Metric l="Customers" v={`${best.audience.targeted}/${best.audience.total}`} /><Metric l="Extra buyers" v={int(best.incrementalBuyers)} /><Metric l="Revenue" v={inr(best.revenue)} />
-                    <Metric l="ROI" v={best.roi.toFixed(2)} tone="good" /><Metric l="Net profit" v={inr(best.net)} /><Metric l="Leakage" v={inr(best.leakage)} />
+                    <Metric l="ROI" v={best.roi.toFixed(2)} tone="good" /><Metric l="Net profit" v={inr(best.net)} /><Metric l="Subsidy" v={inr(best.leakage)} />
                   </div>
                 ) : <p className="text-[12.5px] text-[var(--ink-2)]">Every offer loses money for this audience.</p>}
-                <Btn className="mt-4 w-full" onClick={applyAi} disabled={!best}>Apply AI Recommended</Btn>
+                <Btn className="mt-4 w-full" onClick={applyAi} disabled={!best}>Load recommended settings</Btn>
               </div>
               <div className="rounded-lg border border-[var(--line)] p-4">
                 <Chip tone="navy">Simulated</Chip>
                 <p className="mb-3 mt-1.5 text-[11.5px] text-[var(--ink-3)]">{mech === 'PCT_OFF' ? `${depthEff}% Discount` : MECH.find((m) => m.id === mech)!.label} · {inr(sim.cost)} budget</p>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                   <Metric l="Customers" v={`${sim.targeted}/${sim.total}`} /><Metric l="Extra buyers" v={int(sim.inc)} /><Metric l="Revenue" v={inr(sim.revenue)} />
-                  <Metric l="ROI" v={sim.roi.toFixed(2)} tone={sim.roi < guard ? 'bad' : 'good'} /><Metric l="Net profit" v={inr(sim.net)} tone={sim.net < 0 ? 'bad' : undefined} /><Metric l="Leakage" v={inr(sim.leak)} />
+                  <Metric l="ROI" v={sim.roi.toFixed(2)} tone={sim.roi < guard ? 'bad' : 'good'} /><Metric l="Net profit" v={inr(sim.net)} tone={sim.net < 0 ? 'bad' : undefined} /><Metric l="Subsidy" v={inr(sim.leak)} />
                 </div>
                 <Btn variant="navy" className="mt-4 w-full" disabled={violations.length > 0} onClick={() => undefined}>Apply Simulated</Btn>
               </div>
@@ -223,7 +223,7 @@ export function Simulation() {
             legend={[
               { label: 'Grey bar', color: '#94a3b8', text: 'No Promotion: what these customers do anyway.' },
               { label: 'Green bar', color: 'var(--green)', text: 'Promotion with the highest profit.' },
-              { label: 'Predicted response', text: 'Average chance of buying among the customers selected by your objective and audience.' },
+              { label: 'Simulated response', text: 'Average chance of buying among the customers selected by your objective and audience.' },
               { label: 'Incremental revenue', text: 'Revenue above what would have sold anyway.' },
               { label: 'Net profit', text: 'After discount cost and stock borrowed from later weeks. Red is a loss.' },
             ]}>
@@ -233,13 +233,13 @@ export function Simulation() {
               if (!hrRow || !bestRow || hrRow.o.key === bestRow.o.key) return null;
               return (
                 <p className="mx-4 mb-2 rounded-md border border-[#f3d9b4] bg-[#fff8ee] px-3 py-2 text-[12px] text-[var(--ink-2)]">
-                  <b>Prediction vs decision.</b> Highest predicted response: {shortOffer(hrRow.o.label)} ({pct(hrRow.resp)}), but it earns {inr(hrRow.s!.net, 0)}. Most profitable: {shortOffer(bestRow.o.label)} ({pct(bestRow.resp)}), earning {inr(bestRow.s!.net, 0)}.
+                  <b>Response vs decision.</b> Highest simulated response: {shortOffer(hrRow.o.label)} ({pct(hrRow.resp)}), but it earns {inr(hrRow.s!.net, 0)}. Most profitable: {shortOffer(bestRow.o.label)} ({pct(bestRow.resp)}), earning {inr(bestRow.s!.net, 0)}.
                 </p>
               );
             })()}
             {cmpView === 'chart' ? (
               <div className="grid gap-4 px-4 pb-4 pt-1 md:grid-cols-3">
-                <div><p className="mb-1 text-[11.5px] font-semibold">Predicted response</p>
+                <div><p className="mb-1 text-[11.5px] font-semibold">Simulated response</p>
                   <BarChart height={200} format={(v) => pct(v)} showValues color="var(--navy)" data={table.map((r) => ({ label: shortOffer(r.o.label), value: r.resp, color: r.none ? '#94a3b8' : bestRow?.o.key === r.o.key ? 'var(--green)' : 'var(--navy)' }))} /></div>
                 <div><p className="mb-1 text-[11.5px] font-semibold">Incremental revenue</p>
                   <BarChart height={200} format={(v) => inr(v, 0)} showValues posColor="var(--navy)" negColor="var(--red)" data={table.filter((r) => r.s).map((r) => ({ label: shortOffer(r.o.label), value: r.s!.incRevenue, color: bestRow?.o.key === r.o.key ? 'var(--green)' : undefined }))} /></div>
@@ -275,8 +275,8 @@ export function Simulation() {
             </div>)}
           </Panel>
 
-          <Panel title="Discount depth: response and profit" what="As the percentage discount deepens, predicted response rises while net profit peaks and then falls." defaultOpen={false}
-            legend={[...TYPES.map((t) => ({ label: t.short, color: t.color, text: 'Average predicted chance of buying among all recently active customers of this type.' })), { label: 'Reading the lines', text: 'A steep line means customers can be persuaded by depth; a high flat line means they buy anyway; a low flat line means discounts do not move them.' }, { label: 'Bars', text: 'Expected net profit at each depth; green is the depth selected in the controls, red a loss.' }]}>
+          <Panel title="Discount depth: response and profit" what="As the percentage discount deepens, simulated response rises while net profit peaks and then falls." defaultOpen={false}
+            legend={[...TYPES.map((t) => ({ label: t.short, color: t.color, text: 'Average simulated chance of buying among all recently active customers of this type.' })), { label: 'Reading the lines', text: 'A steep line means customers can be persuaded by depth; a high flat line means they buy anyway; a low flat line means discounts do not move them.' }, { label: 'Bars', text: 'Expected net profit at each depth; green is the depth selected in the controls, red a loss.' }]}>
             <div className="grid gap-5 lg:grid-cols-2">
               <div><p className="mb-1 text-[11.5px] font-semibold">Response by customer type</p>
                 <LineChart height={210} yMax={1} xFormat={(v) => `${v}%`} yFormat={(v) => pct(v)} xTicks={[5, 15, 25, 35, 50]} markers={false}

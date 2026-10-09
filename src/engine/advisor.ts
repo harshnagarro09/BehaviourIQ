@@ -4,7 +4,7 @@
 import type { TypeId } from './behaviour.ts';
 import type { Engine } from './index.ts';
 import { TYPES, TYPE_BY_ID } from './segments.ts';
-import { PREDICTION_WINDOW_DAYS } from './model.ts';
+import { SIM_WINDOW_DAYS } from './simulation.ts';
 import type { Scenario } from './planner.ts';
 
 export interface Answer {
@@ -16,13 +16,13 @@ export interface Answer {
 
 export const SUGGESTED = [
   'Give me a summary of how we are doing',
-  'Which customers buy even without a discount?',
+  'Which customers are Sure Things?',
   'Where are we wasting discount money?',
   'Best offer for ₹10K discount budget',
   'What should we run for Beverages?',
-  'Who are the stock-up buyers?',
-  'Is the prediction accurate and does it make money?',
-  'Which behaviours predict response?',
+  'Who are the Sleeping Dogs?',
+  'How does the simulation work?',
+  'Which behaviours drive the simulated response?',
   'What do customers buy together?',
 ];
 
@@ -34,11 +34,10 @@ const inr = (v: number) => {
 const pct = (v: number, d = 0) => `${(v * 100).toFixed(d)}%`;
 
 const TYPE_WORDS: [TypeId, RegExp][] = [
-  ['anyways', /anyway|any way|regardless|even without|full price|loyal/],
-  ['deal', /deal|only when disc|only on promo|bargain|waits? for/],
-  ['stockup', /stock|bulk|load up|pantry/],
-  ['switcher', /switch|competitor|rival|conquest/],
-  ['ignores', /ignor|unresponsive|never respond|not respond/],
+  ['sure', /sure thing|anyway|any way|regardless|even without|full price|loyal/],
+  ['persuadable', /persuad|only when disc|only on promo|bargain|waits? for|stock|bulk/],
+  ['lost', /lost cause|ignor|unresponsive|never respond|not respond/],
+  ['dog', /sleeping dog|do not disturb|put off|pulled away|dog/],
 ];
 
 function findType(q: string): TypeId | null {
@@ -76,12 +75,12 @@ export function answer(e: Engine, raw: string): Answer {
       .filter((o) => o.ex && o.x.best && o.ex.net > 0)
       .sort((a, b) => b.ex!.net - a.ex!.net);
     const lines = [
-      `**${cid}** is a **${TYPE_BY_ID[r.type].name}** (confidence ${pct(r.confidence)}).`,
+      `**${cid}** is one of the **${TYPE_BY_ID[r.type].name}** (rule fit ${pct(r.confidence)}).`,
       ...r.reasons.map((s) => `- ${s}`),
       `They order about ${r.b.ordersPerMonth.toFixed(1)} times a month, spent ${inr(r.b.totalSpend)} in total and last ordered ${r.b.recencyDays} days ago.`,
       offers.length
         ? `**Best next offer:** ${offers[0].x.candidate.name} at ${offers[0].x.best!.option.label}. Chance of buying rises from ${pct(offers[0].ex!.p0)} to ${pct(offers[0].ex!.p1)}.`
-        : `**No discount recommended.** The model expects any offer to give away more margin than it wins. ${TYPE_BY_ID[r.type].play}`,
+        : `**No discount recommended.** In the simulation any offer gives away more margin than it wins. ${TYPE_BY_ID[r.type].play}`,
     ];
     return { text: lines.join('\n'), links: [{ label: 'Open profile', page: 'customers', params: { id: cid } }] };
   }
@@ -106,7 +105,7 @@ export function answer(e: Engine, raw: string): Answer {
         top.s.blanket.net < top.s.net ? `- Sending the same offer to everyone would earn ${inr(top.s.blanket.net)}, so targeting adds ${inr(top.s.net - top.s.blanket.net)}` : `- Sending to everyone earns ${inr(top.s.blanket.net)}, similar to targeting`,
       ].join('\n'),
       table: alt.length ? { head: ['Alternative', 'Offer', 'Spend', 'Net profit'], rows: alt.map((a) => [a.name, a.s.option.label, inr(a.s.discountCost), inr(a.s.net)]) } : undefined,
-      links: [{ label: 'Open AI Recommendations', page: 'plan' }, { label: 'Try in Simulator', page: 'simulator' }],
+      links: [{ label: 'Open Planning', page: 'plan' }, { label: 'Try in Simulation', page: 'simulator' }],
       followUps: ['Where are we wasting discount money?', 'Who should we target?'],
     };
   }
@@ -114,18 +113,18 @@ export function answer(e: Engine, raw: string): Answer {
   // ------------------------------------------------ waste / leakage
   if (/wast|leak|losing|loss|lose|cannibal|giving away|subsid|anyway.*discount/.test(q) && !/accura|profitable|make money|worth|loss.?making|profit.?making|reliable/.test(q)) {
     const worst = [...e.results].sort((a, b) => a.netProfit - b.netProfit).slice(0, 3);
-    const anyw = e.stats.find((s) => s.type === 'anyways')!;
-    const ign = e.stats.find((s) => s.type === 'ignores')!;
+    const anyw = e.stats.find((s) => s.type === 'sure')!;
+    const ign = e.stats.find((s) => s.type === 'dog')!;
     return {
       text: [
-        `Across ${e.results.length} past campaigns, **${inr(t.leakage)}** (${pct(t.leakagePct)} of ${inr(t.discountCost)} discount) went to purchases that would have happened anyway.`,
+        `Across ${e.results.length} past campaigns, **${inr(t.leakage)}** (${pct(t.leakagePct)} of ${inr(t.discountCost)} discount) was subsidy on baseline purchases that would have happened anyway.`,
         `After counting baseline sales and the post-promo dip, promotions returned **${inr(t.netProfit)}** (ROI ${t.roi.toFixed(2)}).`,
-        `- Buys-anyways customers: net ${inr(anyw.netProfit)} (${anyw.n} customers)`,
-        `- Ignores-promotions customers: net ${inr(ign.netProfit)} (${ign.n} customers)`,
+        `- Sure Things: net ${inr(anyw.netProfit)} (${anyw.n} customers)`,
+        `- Sleeping Dogs: net ${inr(ign.netProfit)} (${ign.n} customers)`,
       ].join('\n'),
-      table: { head: ['Weakest campaigns', 'Offer', 'Net profit', 'Leakage'], rows: worst.map((r) => [r.campaign.name, `${r.campaign.depth}%`, inr(r.netProfit), pct(r.leakagePct)]) },
+      table: { head: ['Weakest campaigns', 'Offer', 'Net profit', 'Subsidy'], rows: worst.map((r) => [r.campaign.name, `${r.campaign.depth}%`, inr(r.netProfit), pct(r.leakagePct)]) },
       links: [{ label: 'See scorecard', page: 'lab' }, { label: 'Watchdog alerts', page: 'plan' }],
-      followUps: ['Which customers buy even without a discount?', 'Best offer for ₹10K discount budget'],
+      followUps: ['Which customers are Sure Things?', 'Best offer for ₹10K discount budget'],
     };
   }
 
@@ -149,29 +148,23 @@ export function answer(e: Engine, raw: string): Answer {
   }
   if (/type|segment|kinds? of (customer|consumer)|who are our (customers|consumers)/.test(q)) {
     return {
-      text: 'Customers fall into five behaviour types, assigned from what they actually buy:',
+      text: 'Customers fall into four types, assigned by fixed rules from what they actually buy:',
       table: { head: ['Type', 'Customers', 'Promo ROI'], rows: e.stats.map((s) => [TYPE_BY_ID[s.type].name, `${s.n} (${pct(s.share)})`, s.roi.toFixed(2)]) },
       links: [{ label: 'Open Consumer Types', page: 'types' }],
     };
   }
 
-  // ------------------------------------------------ model
-  if (/accura|auc|model|predict|how does it work|trust|validate|profitable|make money|worth|loss.?making|profit.?making|reliable|behaviours? (that )?(predict|matter|drive)/.test(q)) {
-    const m = e.model;
-    const V = e.validation;
-    const sum = (f: (v: (typeof V)[number]) => number) => V.reduce((x, v) => x + f(v), 0);
-    const real = sum((v) => v.realNet), cost = sum((v) => v.cost), broad = sum((v) => v.broadNet), broadCost = sum((v) => v.broadCost), skipped = sum((v) => v.skippedNet);
-    const top20 = m.gains.find((g) => g.pctCustomers >= 0.2);
-    const groups = m.groupImportance.slice(0, 3).map((g) => g.group.toLowerCase() + ' (' + pct(g.share) + ')').join(', ');
+  // ------------------------------------------------ how the simulation works
+  if (/accura|model|predict|simulat|how does it work|trust|assumption|behaviours? (that )?(predict|matter|drive)|reliable/.test(q)) {
     return {
       text: [
-        `The model estimates each customer's chance of buying in ${PREDICTION_WINDOW_DAYS} days, with and without a promotion. It was checked on **${V.length} campaigns it never saw**.`,
-        `- **Accurate?** AUC **${m.aucTest.toFixed(2)}** (0.5 = guessing). The 20% of customers it ranks highest hold **${pct(top20?.pctResponders ?? 0)}** of all buyers.`,
-        `- **Profitable?** Targeting by behaviour earned **${inr(real)}** (ROI ${(cost ? real / cost : 0).toFixed(2)}), versus **${inr(broad)}** (ROI ${(broadCost ? broad / broadCost : 0).toFixed(2)}) for offering everyone. ${real > 0 ? 'It is profit-making.' : 'It is loss-making.'}`,
-        `- Customers it chose to skip would have lost a further ${inr(-skipped)} if offered.`,
-        `- **What drives it:** ${groups}.`,
+        `There is **no trained model**. Each customer's response is simulated with fixed business rules from their own purchase history over a ${SIM_WINDOW_DAYS}-day window:`,
+        '- **Baseline**: chance of buying with no offer, from purchase frequency, existing buying of our brand, recency and timing',
+        '- **Price sensitivity**: past response to shallow and deep offers, scaled by product affinity and basket fit',
+        '- **Uplift**: chance with the offer minus baseline; customers whose volume falls during promotions are Sleeping Dogs',
+        'Results are **simulated** for a business demonstration, not forecasts from a model. The data itself is demo data.',
       ].join('\n'),
-      links: [{ label: 'See the validation', page: 'analytics' }],
+      links: [{ label: 'Open Customer Prediction', page: 'customers' }],
       followUps: ['Where are we wasting discount money?', 'What should we run for Beverages?'],
     };
   }
@@ -210,20 +203,10 @@ export function answer(e: Engine, raw: string): Answer {
 
   // ------------------------------------------------ price
   if (/depth|how much (discount|off)|sensitiv|price|willing|threshold/.test(q)) {
-    const sw = e.stats.find((s) => s.type === 'switcher')!;
-    const dl = e.stats.find((s) => s.type === 'deal')!;
+    const dl = e.stats.find((s) => s.type === 'persuadable')!;
     return {
-      text: [`Deal-only buyers take about **${dl.avgDisc.toFixed(0)}%** off on average, Switchers about **${sw.avgDisc.toFixed(0)}%**.`, `Across the planned slots the model's best offers are: ${[...new Set(e.recommendations.filter((r) => r.best).map((r) => r.best!.option.label))].join(', ')}. Deeper offers mostly add leakage and pull-forward.`].join('\n'),
+      text: [`Persuadables take about **${dl.avgDisc.toFixed(0)}%** off on average.`, `Across the planned slots the best offers are: ${[...new Set(e.recommendations.filter((r) => r.best).map((r) => r.best!.option.label))].join(', ')}. Deeper offers mostly add leakage and pull-forward.`].join('\n'),
       links: [{ label: 'Price behaviour', page: 'lab' }, { label: 'Try the Simulator', page: 'simulator' }],
-    };
-  }
-
-  // ------------------------------------------------ brand
-  if (/brand|loyal|compet|switch/.test(q)) {
-    const f = e.funnel;
-    return {
-      text: `Of ${f.rivals} customers who normally buy competitors, **${f.tried}** tried us on promotion and only **${f.stayed}** (${f.tried ? pct(f.stayed / f.tried) : '0%'}) bought us again at full price within 30 days.`,
-      links: [{ label: 'Brand behaviour', page: 'lab' }],
     };
   }
 
@@ -235,7 +218,7 @@ export function answer(e: Engine, raw: string): Answer {
     return {
       text: `For **${r.candidate.name}** (${b.option.label}), target ${b.audience.targeted} of ${b.audience.total} customers:`,
       table: { head: ['Type', 'Targeted', 'Of'], rows: TYPES.map((x) => [x.short, String(b.audience.byType[x.id].targeted), String(b.audience.byType[x.id].total)]) },
-      links: [{ label: 'Open AI Recommendations', page: 'plan' }],
+      links: [{ label: 'Open Planning', page: 'plan' }],
     };
   }
 
@@ -246,7 +229,6 @@ export function answer(e: Engine, raw: string): Answer {
         `**${t.customers} customers**, ${t.orders.toLocaleString()} orders, ${inr(t.revenue)} revenue over 15 months.`,
         `- Promotions gave away ${inr(t.discountCost)} in discount. Only ${pct(t.incShare)} of promoted units are estimated to be incremental (estimated from each customer's own baseline, not a randomised test).`,
         `- Net promotion profit: **${inr(t.netProfit)}** (ROI ${t.roi.toFixed(2)}). ${e.results.filter((r) => r.roi < 0).length} of ${e.results.length} campaigns lost money.`,
-        `- The prediction model scores AUC ${e.model.aucTest.toFixed(2)} on unseen campaigns.`,
         `- The planner expects ${inr(e.recommendations.reduce((s, r) => s + (r.best?.net ?? 0), 0))} from the next ${e.recommendations.length} campaigns.`,
       ].join('\n'),
       links: [{ label: 'Overview', page: 'problem' }],
@@ -255,7 +237,7 @@ export function answer(e: Engine, raw: string): Answer {
   }
 
   return {
-    text: 'I can answer questions about customer behaviour, consumer types, past promotion results, predictions and upcoming campaigns, using the loaded data. For example:',
+    text: 'I can answer questions about customer behaviour, customer types, past promotion results, the simulation and upcoming campaigns, using the loaded data. For example:',
     followUps: SUGGESTED.slice(0, 5),
   };
 }

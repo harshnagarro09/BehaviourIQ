@@ -13,7 +13,7 @@ export interface SegMeta {
 export const SEGMENTS: SegMeta[] = [
   { id: 'loyal', name: 'Loyal Customers', rule: 'Orders at least 2.5 times a month', blurb: 'Shop often and steadily. Their habit is the asset to protect.' },
   { id: 'value', name: 'High-Value Customers', rule: 'Top 20% by total spend', blurb: 'A small group that carries a large share of revenue.' },
-  { id: 'new', name: 'New Customers', rule: 'First order in the last 200 days', blurb: 'Little history yet, so the model leans on similar customers.' },
+  { id: 'new', name: 'New Customers', rule: 'First order in the last 200 days', blurb: 'Little history yet, so the simulation leans on the all-customer average.' },
   { id: 'risk', name: 'At-Risk Customers', rule: 'No order for 45+ days', blurb: 'Used to buy, now quiet. Need a reason to return.' },
   { id: 'occasional', name: 'Occasional Buyers', rule: 'Everyone else: lower frequency, mild promo use', blurb: 'Buy now and then, mostly at full price.' },
 ];

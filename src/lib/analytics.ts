@@ -9,23 +9,25 @@ export interface Filters {
   promo: string; // all | pct10 | pct20 | flat | bogo | bundle
   period: '3m' | '6m' | 'all';
   segment: string; // internal activity grouping (not shown in the UI)
-  loyalty: string; // all | ours | mixed | rival
   frequency: string; // all | high | mid | low
 }
-export const DEFAULT_FILTERS: Filters = { category: 'all', persona: 'all', channel: 'all', promo: 'all', period: '6m', segment: 'all', loyalty: 'all', frequency: 'all' };
+export const DEFAULT_FILTERS: Filters = { category: 'all', persona: 'all', channel: 'all', promo: 'all', period: '6m', segment: 'all', frequency: 'all' };
 
 export interface Agg {
   campaigns: number;
   reached: number;
   buyers: number;
   units: number;
-  base: number;
-  inc: number;
+  revenue: number;
+  gross: number; // gross profit on promoted units
+  base: number; // baseline units
+  inc: number; // gross lift in units
+  dip: number; // post-promotion dip (pull-forward) in units
   cost: number;
   leak: number;
   net: number;
 }
-export const emptyAgg = (): Agg => ({ campaigns: 0, reached: 0, buyers: 0, units: 0, base: 0, inc: 0, cost: 0, leak: 0, net: 0 });
+export const emptyAgg = (): Agg => ({ campaigns: 0, reached: 0, buyers: 0, units: 0, revenue: 0, gross: 0, base: 0, inc: 0, dip: 0, cost: 0, leak: 0, net: 0 });
 
 export const roiOf = (a: Agg) => (a.cost > 0 ? a.net / a.cost : 0);
 export const respOf = (a: Agg) => (a.reached ? a.buyers / a.reached : 0);
@@ -51,11 +53,10 @@ export function selectCampaigns(e: Engine, f: Filters): { cur: Campaign[]; prior
 export function customerFilter(e: Engine, f: Filters): (cid: string) => boolean {
   return (cid) => {
     const r = e.recById.get(cid)!;
-    const loyal = r.b.ourShareFull >= 0.5 ? 'ours' : r.b.ourShareFull >= 0.15 ? 'mixed' : 'rival';
     const freq = r.b.ordersPerMonth >= 3 ? 'high' : r.b.ordersPerMonth >= 1.5 ? 'mid' : 'low';
     return (
       (f.persona === 'all' || r.type === f.persona) && (f.channel === 'all' || r.b.topChannel === f.channel) && (f.segment === 'all' || r.seg === f.segment) &&
-      (f.loyalty === 'all' || loyal === f.loyalty) && (f.frequency === 'all' || freq === f.frequency)
+      (f.frequency === 'all' || freq === f.frequency)
     );
   };
 }
@@ -71,6 +72,9 @@ export function aggregate(e: Engine, camps: Campaign[], ok: (cid: string) => boo
       a.reached++;
       if (r.bought) a.buyers++;
       a.units += r.units;
+      a.revenue += r.revenue;
+      a.gross += r.grossProfit;
+      a.dip += r.pullForwardUnits;
       a.base += r.baselineUnits;
       a.inc += r.incUnits;
       a.cost += r.discountCost;

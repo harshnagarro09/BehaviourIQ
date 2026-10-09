@@ -1,23 +1,22 @@
 // Plain-English help text for jargon. Edit the wording here; every "?" tooltip in the app reads from this file.
 // Sources: the glossary in docs/PROJECT_GUIDE.md.
-import { PREDICTION_WINDOW_DAYS } from '../engine/model.ts';
+import { SIM_WINDOW_DAYS } from '../engine/simulation.ts';
 
 export const GLOSSARY = {
-  predictionWindow: { term: 'Prediction window', text: `Chance this customer buys our brand within ${PREDICTION_WINDOW_DAYS} days of the promotion starting. Profit is for the same ${PREDICTION_WINDOW_DAYS} days, not a yearly value.` },
-  auc: { term: 'AUC', text: 'How well the model ranks customers, from 0.5 (no better than guessing) to 1.0 (perfect). Higher means the customers it puts first really are the ones who buy.' },
-  uplift: { term: 'Uplift', text: 'The chance of buying with the promotion minus the chance without it, in percentage points. It is an estimate from observed behaviour, not a measured experiment.' },
-  leakage: { term: 'Leakage', text: 'Discount given on purchases that would have happened anyway, so it earned nothing extra.' },
-  incrementality: { term: 'Incrementality', text: 'How much of the promoted sales are estimated to be extra, above what each customer would normally have bought at full price.' },
+  predictionWindow: { term: 'Offer window', text: `The simulation looks at the ${SIM_WINDOW_DAYS} days after an offer starts: will this customer buy our brand in that time? Profit is for the same ${SIM_WINDOW_DAYS} days, not a yearly value.` },
+  uplift: { term: 'Uplift', text: 'Sales or buying chance above the baseline because of the offer. It is estimated from past behaviour here, not measured with a control group.' },
+  baseline: { term: 'Baseline', text: 'What customers would have bought anyway with no promotion.' },
+  leakage: { term: 'Subsidy', text: 'Discount given on purchases that would have happened anyway (the baseline), so it earned nothing extra.' },
+  incrementality: { term: 'Incrementality', text: 'Promoted sales split into baseline (would have sold anyway) and uplift (extra sales caused by the promotion).' },
   roi: { term: 'ROI', text: 'Net profit divided by the discount given. Above 0 the promotion earned its discount back; below 0 it lost money.' },
-  calibration: { term: 'Calibration', text: 'A check that predicted chances match what really happened: of customers given about a 40% chance, roughly 40% should actually buy.' },
-  netProfit: { term: 'Net profit', text: 'Margin on promoted sales, minus the margin that would have been earned anyway, minus the dip in later weeks.' },
+  netProfit: { term: 'Net profit', text: 'Margin on promoted sales, minus the margin that would have been earned anyway (baseline), minus the dip in later weeks.' },
   pullForward: { term: 'Pull-forward / dip', text: 'Buying brought forward from later weeks, so sales just after a promotion are lower than normal.' },
-  customerType: { term: 'Customer type', text: 'One of five groups based on how a customer reacts to promotions: Buys Anyways, Deal-Only, Stock-Up, Switcher or Ignores.' },
-  anyways: { term: 'Buys Anyways', text: 'Mostly buys our brand at full price whether or not there is a promotion, so a discount only gives margin away.' },
-  deal: { term: 'Deal-Only', text: 'Rarely buys our brand at full price but responds strongly to almost every promotion, even shallow ones.' },
-  stockup: { term: 'Stock-Up', text: 'Buys 2 to 4 times the usual quantity on promotion, then holds off for weeks.' },
-  switcher: { term: 'Switcher', text: 'Normally buys a competitor and tries our brand only when the discount is deep, around 20% or more.' },
-  ignores: { term: 'Ignores Promotions', text: 'Rarely buys our brand and barely reacts to promotions.' },
+  customerType: { term: 'Customer type', text: 'One of four groups by how a customer responds to an offer: Persuadables, Sure Things, Lost Causes or Sleeping Dogs.' },
+  allTypes: { term: 'Customer types', text: 'Persuadables: buy only because of the offer.\nSure Things: would buy anyway, so a discount gives away margin.\nLost Causes: will not buy either way.\nSleeping Dogs (Do Not Disturb): put off by the offer, so they buy less while it runs.' },
+  persuadable: { term: 'Persuadables', text: 'Buy only because of the offer. They respond to many past promotions or buy extra units when discounted, so the offer creates new sales. The group to target.' },
+  sure: { term: 'Sure Things', text: 'Would buy anyway. They buy our brand at full price several times a month, so a discount just gives away margin. Keep them out of broad offers.' },
+  lost: { term: 'Lost Causes', text: 'Will not buy either way. They rarely buy our brand and ignore offers, so a promotion only wastes cost.' },
+  dog: { term: 'Sleeping Dogs', text: 'Also called Do Not Disturb. They buy regularly at full price but are put off or pulled away by the offer, buying less while it runs. Do not send them offers.' },
 } as const;
 
 export type GlossaryKey = keyof typeof GLOSSARY;

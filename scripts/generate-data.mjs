@@ -38,35 +38,27 @@ const wpick = (items, weights) => {
 };
 
 // ---------------------------------------------------------------- catalogue
-// OUR_BRAND_NAME = the retailer's own-label products being promoted ("our brand"). Others are fictional competitor brands on the same shelf.
+// Business design of the demo data (own-label gross margin by category, set so every promotion type is economically coherent):
+//   Personal Care ~73%, Snacks ~73%, Household ~56%, Beverages ~49%, Breakfast ~47%, Dairy ~34%.
+// BOGO (50% off every unit) is only run where margin is clearly above 50% (Personal Care, Snacks), as a retailer would.
+// The catalogue holds only the retailer's own-label products ("our brand"). A retailer has no visibility of what customers buy from
+// competitors, so competitor products and purchases do not exist anywhere in this data.
 const PRODUCTS = [
-  ['BEV01', `${OUR_BRAND_NAME} Cola 1.25L`, 'Beverages', OUR_BRAND_NAME, 70, 46],
-  ['BEV02', `${OUR_BRAND_NAME} Iced Tea 1L`, 'Beverages', OUR_BRAND_NAME, 45, 29],
-  ['BEV03', 'Fizzo Cola 1.25L', 'Beverages', 'Fizzo', 68, 45],
-  ['BEV04', 'Zing Energy Drink', 'Beverages', 'Zing', 110, 72],
-  ['SNK01', `${OUR_BRAND_NAME} Potato Chips`, 'Snacks', OUR_BRAND_NAME, 40, 24],
-  ['SNK02', `${OUR_BRAND_NAME} Nacho Crunch`, 'Snacks', OUR_BRAND_NAME, 55, 33],
-  ['SNK03', 'Crispo Salted Chips', 'Snacks', 'Crispo', 38, 23],
-  ['SNK04', 'Munchies Namkeen', 'Snacks', 'Munchies', 60, 37],
-  ['BRK01', `${OUR_BRAND_NAME} Corn Flakes`, 'Breakfast', OUR_BRAND_NAME, 210, 138],
-  ['BRK02', `${OUR_BRAND_NAME} Muesli`, 'Breakfast', OUR_BRAND_NAME, 320, 205],
-  ['BRK03', 'GoldenGrain Oats', 'Breakfast', 'GoldenGrain', 180, 118],
-  ['BRK04', 'Wholesome Muesli', 'Breakfast', 'Wholesome', 290, 190],
-  ['DAI01', `${OUR_BRAND_NAME} Full Cream Milk 1L`, 'Dairy', OUR_BRAND_NAME, 68, 55],
-  ['DAI02', `${OUR_BRAND_NAME} Butter 100g`, 'Dairy', OUR_BRAND_NAME, 58, 42],
-  ['DAI03', 'DairyDale Milk 1L', 'Dairy', 'DairyDale', 66, 53],
-  ['DAI04', 'DairyDale Cheese Slices', 'Dairy', 'DairyDale', 120, 85],
-  ['HSH01', `${OUR_BRAND_NAME} Detergent 1kg`, 'Household', OUR_BRAND_NAME, 180, 118],
-  ['HSH02', `${OUR_BRAND_NAME} Dishwash 500ml`, 'Household', OUR_BRAND_NAME, 110, 68],
-  ['HSH03', 'Sparkle Detergent 1kg', 'Household', 'Sparkle', 175, 116],
-  ['HSH04', 'Sparkle Dishwash 500ml', 'Household', 'Sparkle', 105, 66],
-  ['PCR01', `${OUR_BRAND_NAME} Shampoo 340ml`, 'Personal Care', OUR_BRAND_NAME, 250, 150],
-  ['PCR02', `${OUR_BRAND_NAME} Soap 4-pack`, 'Personal Care', OUR_BRAND_NAME, 140, 82],
-  ['PCR03', 'Silkora Shampoo 340ml', 'Personal Care', 'Silkora', 240, 146],
-  ['PCR04', 'Silkora Soap 4-pack', 'Personal Care', 'Silkora', 135, 80],
+  ['BEV01', `${OUR_BRAND_NAME} Cola 1.25L`, 'Beverages', OUR_BRAND_NAME, 70, 36],
+  ['BEV02', `${OUR_BRAND_NAME} Iced Tea 1L`, 'Beverages', OUR_BRAND_NAME, 45, 23],
+  ['SNK01', `${OUR_BRAND_NAME} Potato Chips`, 'Snacks', OUR_BRAND_NAME, 40, 11],
+  ['SNK02', `${OUR_BRAND_NAME} Nacho Crunch`, 'Snacks', OUR_BRAND_NAME, 55, 15],
+  ['BRK01', `${OUR_BRAND_NAME} Corn Flakes`, 'Breakfast', OUR_BRAND_NAME, 210, 112],
+  ['BRK02', `${OUR_BRAND_NAME} Muesli`, 'Breakfast', OUR_BRAND_NAME, 320, 172],
+  ['DAI01', `${OUR_BRAND_NAME} Full Cream Milk 1L`, 'Dairy', OUR_BRAND_NAME, 68, 45],
+  ['DAI02', `${OUR_BRAND_NAME} Butter 100g`, 'Dairy', OUR_BRAND_NAME, 58, 38],
+  ['HSH01', `${OUR_BRAND_NAME} Detergent 1kg`, 'Household', OUR_BRAND_NAME, 180, 80],
+  ['HSH02', `${OUR_BRAND_NAME} Dishwash 500ml`, 'Household', OUR_BRAND_NAME, 110, 48],
+  ['PCR01', `${OUR_BRAND_NAME} Shampoo 340ml`, 'Personal Care', OUR_BRAND_NAME, 250, 68],
+  ['PCR02', `${OUR_BRAND_NAME} Soap 4-pack`, 'Personal Care', OUR_BRAND_NAME, 140, 38],
 ].map(([id, name, category, brand, price, cost]) => ({ id, name, category, brand, price, cost, ours: brand === OUR_BRAND_NAME }));
 const CATS = ['Beverages', 'Snacks', 'Breakfast', 'Dairy', 'Household', 'Personal Care'];
-const byCat = (c, ours) => PRODUCTS.filter((p) => p.category === c && p.ours === ours);
+const byCat = (c) => PRODUCTS.filter((p) => p.category === c);
 
 // Complementary categories (drives basket behaviour)
 const PAIRS = {
@@ -82,7 +74,7 @@ const PAIRS = {
 const CAMPAIGNS = [
   // id, name, start, category, mechanic, typical depth %, flat rupees off, minimum spend (FLAT_OFF only)
   // Promotion types: 10% Discount, 20% Discount, flat Rs off on Rs min spend, BOGO, Bundle / Combo (3 for 2)
-  ['PRM01', 'Breakfast Bonanza', '2025-09-08', 'Breakfast', 'BOGO', 50, 0, 0],
+  ['PRM01', 'Breakfast Bonanza', '2025-09-08', 'Breakfast', 'PCT_OFF', 20, 0, 0],
   ['PRM02', 'Soap Saver', '2025-09-29', 'Personal Care', 'BOGO', 50, 0, 0],
   ['PRM03', 'Pre-Diwali Clean-Up', '2025-10-06', 'Household', 'PCT_OFF', 20, 0, 0],
   ['PRM04', 'Diwali Dhamaka', '2025-10-13', 'Beverages', 'PCT_OFF', 20, 0, 0],
@@ -93,7 +85,7 @@ const CAMPAIGNS = [
   ['PRM09', 'New Year Fitness', '2026-01-12', 'Breakfast', 'PCT_OFF', 20, 0, 0],
   ['PRM10', 'Spring Clean', '2026-02-02', 'Household', 'FLAT_OFF', 20, 30, 250],
   ['PRM11', 'Snack Attack', '2026-02-09', 'Snacks', 'BOGO', 50, 0, 0],
-  ['PRM12', 'Butter Fest', '2026-02-23', 'Dairy', 'BOGO', 50, 0, 0],
+  ['PRM12', 'Butter Fest', '2026-02-23', 'Dairy', 'PCT_OFF', 10, 0, 0],
   ['PRM13', 'Holi Hungama', '2026-03-02', 'Beverages', 'PCT_OFF', 10, 0, 0],
   ['PRM14', 'Holi Colours', '2026-03-09', 'Personal Care', 'FLAT_OFF', 18, 35, 250],
   ['PRM15', 'Spring Start', '2026-03-23', 'Breakfast', 'FLAT_OFF', 13, 30, 300],
@@ -101,10 +93,10 @@ const CAMPAIGNS = [
   ['PRM17', 'Summer Dairy', '2026-04-27', 'Dairy', 'FLAT_OFF', 13, 8, 100],
   ['PRM18', 'IPL Night', '2026-05-04', 'Snacks', 'PCT_OFF', 20, 0, 0],
   ['PRM19', 'Household Helper', '2026-05-18', 'Household', 'PCT_OFF', 20, 0, 0],
-  ['PRM20', 'Monsoon Chill', '2026-06-08', 'Beverages', 'BOGO', 50, 0, 0],
+  ['PRM20', 'Monsoon Chill', '2026-06-08', 'Beverages', 'PCT_OFF', 20, 0, 0],
   ['PRM21', 'Muesli Month', '2026-06-15', 'Breakfast', 'PCT_OFF', 10, 0, 0],
   ['PRM22', 'Monsoon Dairy', '2026-06-22', 'Dairy', 'PCT_OFF', 10, 0, 0],
-  ['PRM23', 'Monsoon Care', '2026-07-06', 'Household', 'BOGO', 50, 0, 0],
+  ['PRM23', 'Monsoon Care', '2026-07-06', 'Household', 'MULTIBUY_3FOR2', 33, 0, 0],
   ['PRM24', 'Glow Up', '2026-07-06', 'Personal Care', 'PCT_OFF', 10, 0, 0],
   ['PRM25', 'Monsoon Munch', '2026-07-20', 'Snacks', 'MULTIBUY_3FOR2', 33, 0, 0],
   ['PRM26', 'Independence Sale', '2026-08-03', 'Personal Care', 'PCT_OFF', 20, 0, 0],
@@ -122,11 +114,14 @@ const END = new Date('2026-09-30T00:00:00Z').getTime();
 const DAY = 864e5;
 
 // ---------------------------------------------------------------- consumer types (latent)
+// Latent design -> business customer type:  anyways = Sure Thing | deal, stockup, switcher = Persuadable |
+// ignores = Lost Cause | dog = Sleeping Dog (buys the brand regularly but buys LESS while it is on offer).
 const TYPES = {
-  anyways: { share: 0.24, trips: [2.6, 4.2], pOur: [0.74, 0.93], maxP: 0.0, thr: [12, 20], qty: [1.0, 1.0] },
-  deal: { share: 0.22, trips: [1.2, 2.2], pOur: [0.06, 0.18], maxP: 0.82, thr: [7, 13], qty: [1.1, 1.5] },
-  stockup: { share: 0.16, trips: [1.6, 2.8], pOur: [0.35, 0.6], maxP: 0.78, thr: [9, 16], qty: [2.6, 4.0] },
-  switcher: { share: 0.16, trips: [2.0, 3.4], pOur: [0.03, 0.11], maxP: 0.72, thr: [17, 26], qty: [1.0, 1.4] },
+  dog: { share: 0.10, trips: [2.4, 4.0], pOur: [0.55, 0.85], maxP: 0.0, thr: [40, 50], qty: [1.0, 1.0] },
+  anyways: { share: 0.26, trips: [2.6, 4.2], pOur: [0.74, 0.93], maxP: 0.0, thr: [12, 20], qty: [1.0, 1.0] },
+  deal: { share: 0.19, trips: [1.2, 2.2], pOur: [0.06, 0.18], maxP: 0.82, thr: [7, 13], qty: [1.1, 1.5] },
+  stockup: { share: 0.13, trips: [1.6, 2.8], pOur: [0.35, 0.6], maxP: 0.78, thr: [9, 16], qty: [2.6, 4.0] },
+  switcher: { share: 0.10, trips: [2.0, 3.4], pOur: [0.03, 0.11], maxP: 0.72, thr: [17, 26], qty: [1.0, 1.4] },
   ignores: { share: 0.22, trips: [0.8, 1.8], pOur: [0.05, 0.25], maxP: 0.07, thr: [22, 35], qty: [1.0, 1.0] },
 };
 const TYPE_KEYS = Object.keys(TYPES);
@@ -227,8 +222,11 @@ for (let i = 1; i <= N; i++) {
     const oid = 'O' + String(orderSeq++).padStart(6, '0');
     for (const ln of lines) {
       const cp = CAMPAIGNS.find((x) => x.category === ln.cat && t >= x.s && t <= x.e);
-      const useOurs = ln.forced ? true : rng() < pOur;
-      const prod = pick(byCat(ln.cat, useOurs));
+      // Sleeping Dogs are put off by offers: they largely stop buying the promoted brand while it is on promotion
+      const dogOff = type === 'dog' && CAMPAIGNS.some((x) => x.category === ln.cat && t >= x.s && t <= x.e + 14);
+      // a basket line is only visible to the retailer if the customer bought our brand; otherwise there is no record
+      if (!ln.forced && !(rng() < (dogOff ? pOur * 0.2 : pOur))) continue;
+      const prod = pick(byCat(ln.cat));
       let qty = wpick([1, 2, 3], [0.7, 0.24, 0.06]) * (hhQty > 1 && rng() < 0.4 ? 2 : 1);
       qty = clamp(qty, 1, 4);
       let disc = 0;
@@ -257,7 +255,7 @@ for (let i = 1; i <= N; i++) {
         }
       }
       rows.push([
-        oid, cid, fmt(t), prod.id, prod.name, prod.category, prod.brand, prod.ours ? 1 : 0,
+        oid, cid, fmt(t), prod.id, prod.name, prod.category, prod.brand,
         qty, prod.price, unit, disc, promo ? promo.id : '', promo ? promo.name : '', promo ? promo.mechanic : '', prod.cost,
       ]);
     }
@@ -276,10 +274,10 @@ for (const r of rows) {
   const pref = prefOf(r[1]);
   const u = hash01('ch' + r[0]);
   r.push(u < 0.8 ? pref : CHANNELS.filter((c) => c !== pref)[u < 0.9 ? 0 : 1]);
-  r.push(r[14] === 'FLAT_OFF' ? CAMPAIGNS.find((c) => c.id === r[12]).minSpend : '');
+  r.push(r[13] === 'FLAT_OFF' ? CAMPAIGNS.find((c) => c.id === r[11]).minSpend : '');
 }
 rows.sort((a, b) => (a[2] < b[2] ? -1 : a[2] > b[2] ? 1 : a[0] < b[0] ? -1 : 1));
-const header = ['order_id', 'customer_id', 'order_date', 'product_id', 'product_name', 'category', 'brand', 'is_our_brand', 'quantity', 'list_price', 'unit_price', 'discount_pct', 'promo_id', 'promo_name', 'promo_mechanic', 'unit_cost', 'channel', 'min_spend'];
+const header = ['order_id', 'customer_id', 'order_date', 'product_id', 'product_name', 'category', 'brand', 'quantity', 'list_price', 'unit_price', 'discount_pct', 'promo_id', 'promo_name', 'promo_mechanic', 'unit_cost', 'channel', 'min_spend'];
 const csv = [header.join(','), ...rows.map((r) => r.join(','))].join('\n') + '\n';
 fs.mkdirSync(path.join(root, 'public/data'), { recursive: true });
 fs.mkdirSync(path.join(here, 'out'), { recursive: true });

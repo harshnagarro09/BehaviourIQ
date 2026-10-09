@@ -1,36 +1,26 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Download, Search } from 'lucide-react';
 import { useApp, useEngine } from '@/state';
+import type { Behaviour } from '@/engine/behaviour';
 import { Help, Lbl } from '@/components/Help';
-import { Btn, Card, CardTitle, Chip, FilterSelect, Meter, Panel, Tabs, TypeBadge, ViewToggle, WindowChip } from '@/components/ui';
-import { BarChart, HBars } from '@/components/charts';
+import { Btn, Card, CardTitle, Chip, FilterSelect, Meter, Panel, TypeBadge, ViewToggle, WindowChip } from '@/components/ui';
+import { BarChart } from '@/components/charts';
 import { PageTop } from '@/pages/Analytics';
-import { compareOptions, explain, promoOptions, shortOffer, type PromoOption } from '@/engine/options';
+import { behaviourSignals, compareOptions, promoOptions, shortOffer, type PromoOption } from '@/engine/options';
 import { activeAt, buildCtxs } from '@/engine/planner';
 import type { Expectation } from '@/engine/economics';
 import { TYPES, TYPE_BY_ID } from '@/engine/segments';
 import { isoOf } from '@/engine/data';
 import { inr, int, pct, shortDate } from '@/lib/fmt';
-import type { GlossaryKey } from '@/lib/glossary';
-import { PREDICTION_WINDOW_DAYS } from '@/engine/model';
+import { SIM_WINDOW_DAYS as PREDICTION_WINDOW_DAYS } from '@/engine/simulation';
 import { Takeaway } from '@/components/Takeaway';
-import { ModelSection } from '@/components/ModelPanels';
 import { customerTakeaway } from '@/lib/takeaways';
 
-type Tab = 'customers' | 'model';
 type Group = 'target' | 'light' | 'none' | 'stronger' | 'skip';
-const GROUPS: { id: Group; title: string; body: string; tone: 'green' | 'neutral' | 'amber' | 'red' }[] = [
-  { id: 'target', title: 'High-probability responders', body: 'Offer lifts purchase chance by 10+ points and pays for itself', tone: 'green' },
-  { id: 'light', title: 'Small but profitable lift', body: 'Pays off, but the lift is under 10 points', tone: 'neutral' },
-  { id: 'stronger', title: 'Need a stronger incentive', body: 'Only a deeper offer gets them to 50%+, and it costs more than it earns', tone: 'amber' },
-  { id: 'none', title: 'Do not need a discount', body: 'Already 35%+ likely to buy with no offer', tone: 'neutral' },
-  { id: 'skip', title: 'Not worth a discount', body: 'Low response and no offer earns money', tone: 'red' },
-];
 
 export function CustomerPrediction() {
   const e = useEngine();
   const { params, syncParams } = useApp();
-  const [tab, setTabState] = useState<Tab>(() => (params.tab === 'model' ? 'model' : 'customers'));
   const [category, setCategory] = useState('Beverages');
   const [persona, setPersona] = useState('all');
   const [channel, setChannel] = useState('all');
@@ -38,7 +28,6 @@ export function CustomerPrediction() {
   const [sort, setSort] = useState('id');
   const [limit, setLimit] = useState(12);
   const [sel, setSelState] = useState<string | null>(params.id ?? null);
-  const setTab = (t: Tab) => { setTabState(t); syncParams(t === 'model' ? { tab: t } : sel ? { id: sel } : {}); };
   const setSel = (id: string) => { setSelState(id); syncParams({ id }); };
 
   const cats = e.ds.categories;
@@ -48,7 +37,7 @@ export function CustomerPrediction() {
     const ctxs = buildCtxs(e.ds, activeAt(e.ds, e.asOf), category, e.asOf);
     const options = promoOptions(e.ds, category);
     const promos = options.filter((o) => o.family !== 'none');
-    const cmp = compareOptions(e.ds, e.model, ctxs, category, options);
+    const cmp = compareOptions(e.ds, ctxs, category, options, e.assumptions);
     const x = (cid: string, k: string) => cmp.exps.get(k)!.get(cid)!;
     const best = new Map<string, { o: PromoOption; e: Expectation } | null>();
     for (const c of ctxs) {
@@ -75,10 +64,10 @@ export function CustomerPrediction() {
   }, [rowsAll, persona, channel, query, sort]);
 
   const filters = (
-    <div className="flex flex-wrap items-center gap-2.5 border-b border-[var(--line)] bg-white px-6 py-2.5">
+    <div className="flex flex-wrap items-center gap-2 border-b border-[var(--line)] bg-white px-4 py-2">
       <span className="text-[10.5px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-3)]">Filters</span>
       <FilterSelect value={category} onChange={(v) => { setCategory(v); }} options={cats.map((c) => ({ value: c, label: `Category: ${c}` }))} />
-      <FilterSelect value={persona} onChange={setPersona} options={[{ value: 'all', label: 'All Customer Types' }, ...TYPES.map((t) => ({ value: t.id, label: t.name }))]} />
+      <span className="flex items-center"><FilterSelect value={persona} onChange={setPersona} options={[{ value: 'all', label: 'All Customer Types' }, ...TYPES.map((t) => ({ value: t.id, label: t.name }))]} /><Help term="allTypes" below /></span>
       <FilterSelect value={channel} onChange={setChannel} options={[{ value: 'all', label: 'All Channels' }, ...channels.map((c) => ({ value: c, label: c }))]} />
       <div className="flex h-8 items-center gap-1.5 rounded-md border border-[var(--line)] bg-white px-2.5"><Search className="h-3 w-3 text-[var(--ink-3)]" /><input value={query} onChange={(ev) => setQuery(ev.target.value)} placeholder="Customer ID" className="w-24 bg-transparent text-[12.5px] outline-none" /></div>
       <span className="ml-auto text-[12px] text-[var(--ink-3)]">{filtered.length} of {rowsAll.length} recently active customers</span>
@@ -87,16 +76,9 @@ export function CustomerPrediction() {
 
   return (
     <>
-      <PageTop title="Customer Prediction" sub="What promotion will this customer respond to? Behaviour in, predicted response out, one customer at a time"
-        tabs={<Tabs value={tab} onChange={setTab} options={[{ id: 'customers', label: 'Customers' }, { id: 'model', label: 'How customer behaviour is used for promotion prediction' }]} />} />
-      {tab === 'customers' ? (
-        <>
-          {filters}
-          <CustomerView S={S} filtered={filtered} sel={sel} setSel={setSel} sort={sort} setSort={setSort} limit={limit} setLimit={setLimit} category={category} />
-        </>
-      ) : (
-        <div className="p-6 pt-4"><ModelSection /></div>
-      )}
+      <PageTop title="Customer Prediction" sub="What promotion will this customer respond to? Behaviour in, simulated response out, one customer at a time" />
+      {filters}
+      <CustomerView S={S} filtered={filtered} sel={sel} setSel={setSel} sort={sort} setSort={setSort} limit={limit} setLimit={setLimit} category={category} />
     </>
   );
 }
@@ -104,22 +86,23 @@ export function CustomerPrediction() {
 type Props = { S: { ctxs: ReturnType<typeof buildCtxs>; options: PromoOption[]; promos: PromoOption[]; x: (cid: string, k: string) => Expectation; best: Map<string, { o: PromoOption; e: Expectation } | null> }; filtered: { cid: string; r: ReturnType<typeof useEngine>['records'][number]; b: { o: PromoOption; e: Expectation } | null; p0: number }[]; category: string };
 
 function CustomerView({ S, filtered, sel, setSel, sort, setSort, limit, setLimit, category }: Props & { sel: string | null; setSel: (s: string) => void; sort: string; setSort: (s: string) => void; limit: number; setLimit: (n: number) => void }) {
-  const cid = sel && filtered.some((x) => x.cid === sel) ? sel : filtered[0]?.cid;
+  const DEFAULT_CUSTOMER = 'C0407'; // shown in the detail panels until another customer is clicked
+  const cid = sel && filtered.some((x) => x.cid === sel) ? sel : filtered.some((x) => x.cid === DEFAULT_CUSTOMER) ? DEFAULT_CUSTOMER : filtered[0]?.cid;
   const pick = cid ? S.best.get(cid) : null;
   return (
-    <>
-    {cid ? <div className="px-6 pt-4"><Takeaway>{customerTakeaway({ cid, p0: S.x(cid, 'none').p0, best: pick ? { label: pick.o.label, p1: pick.e.p1, net: pick.e.net } : null })}</Takeaway></div> : null}
-    <div className="grid gap-4 p-6 pt-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
-      <div className="min-w-0 space-y-4">
+    <div className="space-y-3 p-4">
+    {cid ? <div><Takeaway>{customerTakeaway({ cid, p0: S.x(cid, 'none').p0, best: pick ? { label: pick.o.label, p1: pick.e.p1, net: pick.e.net } : null })}</Takeaway></div> : null}
+    <div className="grid items-stretch gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
+      <div className="flex min-w-0 flex-col gap-3 [&>*:last-child]:flex-1">
       <Card pad={false} className="h-fit">
         <div className="flex items-start justify-between gap-3 px-4 pt-4 pb-3">
           <div><CardTitle title="Customers" sub={`Best promotion for ${category}, customer by customer`} /><div className="mt-1"><WindowChip /></div></div>
-          <FilterSelect value={sort} onChange={setSort} options={[{ value: 'id', label: 'Sort: Customer ID' }, { value: 'net', label: 'Sort: expected profit' }, { value: 'resp', label: 'Sort: predicted response' }, { value: 'uplift', label: 'Sort: uplift' }, { value: 'recency', label: 'Sort: longest silent' }]} />
+          <FilterSelect value={sort} onChange={setSort} options={[{ value: 'id', label: 'Sort: Customer ID' }, { value: 'net', label: 'Sort: expected profit' }, { value: 'resp', label: 'Sort: simulated response' }, { value: 'uplift', label: 'Sort: uplift' }, { value: 'recency', label: 'Sort: longest silent' }]} />
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[470px] text-[12.5px]">
             <thead><tr className="border-y border-[var(--line)] text-left text-[10.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">
-              {['Customer', 'Customer type', 'Best promotion', 'Response', `Profit (${PREDICTION_WINDOW_DAYS}d)`].map((h, i, a) => <th key={h} className={`whitespace-nowrap py-2 ${i === 0 ? 'pl-4 pr-2.5' : i === a.length - 1 ? 'pl-2.5 pr-4' : 'px-2.5'}`}><Lbl t={h} /></th>)}
+              {['Customer', 'Type', 'Best promotion', 'Response', `Profit (${PREDICTION_WINDOW_DAYS}d)`].map((h, i, a) => <th key={h} className={`whitespace-nowrap py-2 ${i === 0 ? 'pl-4 pr-2.5' : i === a.length - 1 ? 'pl-2.5 pr-4' : 'px-2.5'}`}><Lbl t={h} /></th>)}
             </tr></thead>
             <tbody>
               {filtered.slice(0, limit).map((x) => (
@@ -140,11 +123,13 @@ function CustomerView({ S, filtered, sel, setSel, sort, setSort, limit, setLimit
         </div>
       </Card>
       <TargetSummary S={S} filtered={filtered} category={category} />
-      <Insights S={S} filtered={filtered} category={category} />
       </div>
-      {cid ? <Detail key={cid + category} cid={cid} S={S} category={category} /> : <Card><p className="py-10 text-center text-[13px] text-[var(--ink-3)]">No customers match these filters.</p></Card>}
+      <div className="flex min-w-0 flex-col gap-3 [&>*:last-child]:flex-1">
+        {cid ? <Detail key={cid + category} cid={cid} S={S} category={category} /> : <Card><p className="py-10 text-center text-[13px] text-[var(--ink-3)]">No customers match these filters.</p></Card>}
+      </div>
     </div>
-    </>
+    {cid && <SignalsChart key={'s' + cid + category} cid={cid} S={S} category={category} />}
+    </div>
   );
 }
 
@@ -153,53 +138,63 @@ function Detail({ cid, S, category }: { cid: string; S: Props['S']; category: st
   const r = e.recById.get(cid)!;
   const b = r.b;
   const best = S.best.get(cid);
-  const ctx = S.ctxs.find((c) => c.cid === cid)!;
   const [optKey, setOptKey] = useState<string | null>(null);
   const [pView, setPView] = useState<'chart' | 'table'>('chart');
   const shown = S.promos.find((o) => o.key === (optKey ?? best?.o.key)) ?? S.promos[1];
-  const fx = useMemo(() => explain(e.model, ctx, shown.depth, shown.mechanic, category).sort((a, c) => Math.abs(c.effect) - Math.abs(a.effect)), [e, ctx, shown, category]);
-  const maxAbs = Math.max(...fx.map((f) => Math.abs(f.effect)), 0.01);
   const none = S.x(cid, 'none');
   const topCats = Object.entries(b.catShare).sort((a, c) => c[1] - a[1]).slice(0, 2).map(([c, s]) => `${c} ${pct(s)}`).join(', ');
   const feats: [string, string][] = [
     ['Orders / month', b.ordersPerMonth.toFixed(1)], ['Last order', `${b.recencyDays}d ago`], ['Total spend', inr(b.totalSpend)], ['Order value', inr(b.avgOrderValue, 0)],
     ['Items / order', b.linesPerOrder.toFixed(1)], ['Top categories', topCats], ['On promotion', pct(b.promoReliance)], ['Avg discount taken', b.avgDiscAccepted ? `${b.avgDiscAccepted.toFixed(0)}%` : 'none yet'],
-    ['Promo response', `${b.respondedCampaigns} of ${b.activeCampaigns}`], ['Our-brand share', pct(b.ourShareFull)], ['Weekend orders', pct(b.weekendShare)], ['Preferred channel', `${b.topChannel} ${pct(b.channelShare[b.topChannel] ?? 0)}`],
+    ['Promo response', `${b.respondedCampaigns} of ${b.activeCampaigns}`], ['Full-price buys / month', b.fullPriceBuysPerMonth.toFixed(1)], ['Weekend orders', pct(b.weekendShare)], ['Preferred channel', `${b.topChannel} ${pct(b.channelShare[b.topChannel] ?? 0)}`],
   ];
-  const ups = fx.filter((f) => f.effect > 0.05).slice(0, 2);
-  const downs = fx.filter((f) => f.effect < -0.05).slice(0, 1);
 
   return (
-    <div className="min-w-0 space-y-4 xl:sticky xl:top-4 xl:h-fit">
+    <div className="flex min-w-0 flex-col gap-3 [&>*:last-child]:flex-1">
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-2.5"><p className="text-[16px] font-bold">{cid}</p><Chip tone="navy">Customer type</Chip><TypeBadge type={r.type} /><Help term={r.type as GlossaryKey} /><span className="text-[11.5px] text-[var(--ink-3)]">{TYPE_BY_ID[r.type].tagline}</span></div>
+          <div className="flex flex-wrap items-center gap-2.5"><p className="text-[16px] font-bold">{cid}</p><Chip tone="navy">Customer type</Chip><TypeBadge type={r.type} /><span className="text-[11.5px] text-[var(--ink-3)]">{TYPE_BY_ID[r.type].tagline}</span></div>
           <span className="text-[11.5px] text-[var(--ink-3)]">customer since {shortDate(isoOf(b.firstDay))} · {b.nOrders} orders</span>
         </div>
         <p className="mb-2 mt-4 text-[10.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">Behavioural features</p>
         <dl className="grid grid-cols-2 gap-x-6 gap-y-2.5 sm:grid-cols-3">
           {feats.map(([l, v]) => <div key={l}><dt className="text-[11px] text-[var(--ink-3)]">{l}</dt><dd className="num text-[13px] font-semibold">{v}</dd></div>)}
         </dl>
-        <p className="mt-3 border-t border-[var(--line)] pt-2.5 text-[11.5px] text-[var(--ink-2)]"><b>Why this type:</b> {r.reasons.join('. ')}.</p>
+        <div className="mt-4 border-t border-[var(--line)] pt-3">
+          <p className="mb-2 text-[10.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">From behaviour to decision</p>
+          <ol className="grid gap-2 sm:grid-cols-4">
+            {([
+              ['1 Behaviour', '#2a78d6', r.reasons.join('. ') + '.'],
+              ['2 Insight', '#8a63d2', `${TYPE_BY_ID[r.type].name}: ${TYPE_BY_ID[r.type].tagline.toLowerCase()}.`],
+              ['3 Decision', '#eb6834', best ? `Offer ${best.o.label}. ${TYPE_BY_ID[r.type].play}` : `No discount. ${TYPE_BY_ID[r.type].play}`],
+              ['4 Outcome', 'var(--green)', best ? `Chance of buying ${pct(none.p1)} → ${pct(best.e.p1)}; net profit about ${inr(best.e.net, 0)} over ${PREDICTION_WINDOW_DAYS} days.` : `Keeps margin: ${pct(none.p1)} chance of buying anyway, and no offer adds profit.`],
+            ] as [string, string, string][]).map(([t, c, x]) => (
+              <li key={t} className="rounded-lg bg-[var(--page)] p-2.5" style={{ borderTop: `3px solid ${c}` }}>
+                <p className="text-[10.5px] font-semibold uppercase tracking-wider" style={{ color: c }}>{t}</p>
+                <p className="mt-1 text-[11.5px] leading-snug text-[var(--ink-2)]">{x}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
       </Card>
 
-      <Panel flush title={`What will ${cid} respond to?`} what={`Predicted chance of buying ${category} in the next ${PREDICTION_WINDOW_DAYS} days and what each promotion would earn from this customer over the same ${PREDICTION_WINDOW_DAYS} days.`}
+      <Panel flush title={`What will ${cid} respond to?`} what={`Simulated chance of buying ${category} in the next ${PREDICTION_WINDOW_DAYS} days and what each promotion would earn from this customer over the same ${PREDICTION_WINDOW_DAYS} days.`}
         right={<ViewToggle value={pView} onChange={setPView} />}
         legend={[
           { label: 'Grey bar / None', color: '#94a3b8', text: 'Chance of buying with no promotion at all.' },
           { label: 'Green bar', color: 'var(--green)', text: 'The promotion that earns the most from this customer.' },
           { label: 'Navy bars', color: 'var(--navy)', text: 'Other promotions.' },
-          { label: 'Profit chart', text: 'Expected net profit per customer for each promotion. Red means the discount costs more than it earns. Click a row in the table to see why in the next card.' },
+          { label: 'Profit chart', text: 'Simulated net profit per customer for each promotion. Red means the discount costs more than it earns. Click a row in the table to see why in the next card.' },
         ]}>
         {pView === 'chart' ? (
           <div className="grid gap-4 px-4 pb-3 pt-1 sm:grid-cols-2">
             <div>
-              <p className="mb-1 text-[11.5px] font-semibold">Predicted chance of buying</p>
+              <p className="mb-1 text-[11.5px] font-semibold">Simulated chance of buying</p>
               <BarChart height={190} format={(v) => pct(v)} showValues color="var(--navy)"
                 data={[{ label: 'None', value: none.p1, color: '#94a3b8' }, ...S.promos.map((o) => ({ label: shortOffer(o.label), value: S.x(cid, o.key).p1, color: best?.o.key === o.key ? 'var(--green)' : 'var(--navy)' }))]} />
             </div>
             <div>
-              <p className="mb-1 text-[11.5px] font-semibold">{`Expected profit over ${PREDICTION_WINDOW_DAYS} days`}</p>
+              <p className="mb-1 text-[11.5px] font-semibold">{`Simulated profit over ${PREDICTION_WINDOW_DAYS} days`}</p>
               <BarChart height={190} format={(v) => inr(v, 0)} showValues posColor="var(--navy)" negColor="var(--red)"
                 data={S.promos.map((o) => ({ label: shortOffer(o.label), value: S.x(cid, o.key).net, color: best?.o.key === o.key ? 'var(--green)' : undefined }))} />
             </div>
@@ -207,7 +202,7 @@ function Detail({ cid, S, category }: { cid: string; S: Props['S']; category: st
         ) : (<div className="overflow-x-auto">
           <table className="w-full min-w-[620px] text-[12.5px]">
             <thead><tr className="border-y border-[var(--line)] text-right text-[10.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">
-              <th className="px-4 py-2 text-left">Promotion</th><th className="px-3 py-2 text-left">Predicted response</th>{['Uplift', 'Revenue', 'Margin', 'Cost', 'Net profit', 'ROI'].map((h) => <th key={h} className="px-3 py-2"><Lbl t={h} /></th>)}
+              <th className="px-4 py-2 text-left">Promotion</th><th className="px-3 py-2 text-left">Simulated response</th>{['Uplift', 'Revenue', 'Margin', 'Cost', 'Net profit', 'ROI'].map((h) => <th key={h} className="px-3 py-2"><Lbl t={h} /></th>)}
             </tr></thead>
             <tbody>
               <tr className="border-b border-[var(--line-2)] text-right"><td className="px-4 py-2 text-left font-medium">No promotion</td><td className="px-3 text-left"><Meter value={none.p1} color="#94a3b8" width={70} /> <span className="num ml-1.5 font-semibold">{pct(none.p1)}</span></td><td colSpan={6} /></tr>
@@ -234,31 +229,6 @@ function Detail({ cid, S, category }: { cid: string; S: Props['S']; category: st
             : <>Recommended: <b>no discount</b>. {none.p1 >= 0.35 ? 'This customer is already likely to buy without any offer, so a discount would mostly give margin away.' : 'No promotion earns more from this customer than it costs.'}</>}
         </p>
       </Panel>
-
-      <Panel title="Why the model predicts this" what={`Behaviour factors behind the response to ${shown.label}.`} defaultOpen={false}
-        legend={[
-          { label: 'Right (green)', color: 'var(--green)', text: 'This behaviour raises the predicted response compared with an average customer.' },
-          { label: 'Left (orange)', color: 'var(--amber)', text: 'This behaviour holds the response back.' },
-          { label: 'Length', text: 'Strength of the effect. The sentences below put the top factors in the customer’s own numbers.' },
-        ]}>
-        <div className="space-y-1.5">
-          {fx.map((f) => (
-            <div key={f.factor} className="flex items-center gap-2.5 text-[12px]">
-              <span className="w-[170px] shrink-0 truncate font-medium">{f.factor}</span>
-              <div className="relative h-3.5 flex-1">
-                <div className="absolute inset-y-0 left-1/2 w-px bg-[var(--line)]" />
-                <div className="absolute inset-y-0.5 rounded-sm" style={{ left: f.effect >= 0 ? '50%' : `${50 - (Math.abs(f.effect) / maxAbs) * 50}%`, width: `${(Math.abs(f.effect) / maxAbs) * 50}%`, background: f.effect >= 0 ? 'var(--green)' : 'var(--amber)' }} />
-              </div>
-              <span className="num w-10 text-right text-[11.5px] text-[var(--ink-3)]">{f.effect >= 0 ? '+' : ''}{f.effect.toFixed(2)}</span>
-            </div>
-          ))}
-        </div>
-        <ul className="mt-3 space-y-1 border-t border-[var(--line)] pt-3 text-[12px] leading-snug text-[var(--ink-2)]">
-          {ups.map((f) => <li key={f.factor}>• <b>{f.factor}</b> raises the response: {f.reading}.</li>)}
-          {downs.map((f) => <li key={f.factor}>• <b>{f.factor}</b> holds it back: {f.reading}.</li>)}
-        </ul>
-      </Panel>
-
     </div>
   );
 }
@@ -325,25 +295,67 @@ function TargetSummary({ S, filtered, category }: Props) {
   );
 }
 
-/** Roll-ups for the customers currently in view: fills the space under the list and answers "what does this group respond to?" */
-function Insights({ S, filtered, category }: Props) {
-  const [view, setView] = useState('mix');
-  const mix = new Map<string, number>();
-  filtered.forEach((x) => { const k = x.b ? shortOffer(x.b.o.label) : 'No discount'; mix.set(k, (mix.get(k) ?? 0) + 1); });
-  const mixRows = [...mix.entries()].sort((a, b) => b[1] - a[1]);
-  const groupRows = GROUPS.map((g) => {
-    const rs = targetRows(S, filtered).filter((r) => r.g === g.id);
-    const avg = (fn: (r: (typeof rs)[number]) => number) => (rs.length ? rs.reduce((a, r) => a + fn(r), 0) / rs.length : 0);
-    return { title: g.title, n: rs.length, p0: avg((r) => r.p0), p1: avg((r) => r.x?.p1 ?? r.p0), color: g.tone === 'green' ? 'var(--green)' : g.tone === 'amber' ? 'var(--amber)' : g.tone === 'red' ? 'var(--red)' : '#94a3b8' };
-  });
+const TONE = {
+  up: { color: 'var(--green)', label: 'Supports response' },
+  down: { color: 'var(--amber)', label: 'Holds back / buys anyway' },
+  flat: { color: '#94a3b8', label: 'Neutral' },
+} as const;
+
+// numeric behaviour behind each signal, used to rank the customer against everyone else
+const METRIC: Record<string, (b: Behaviour) => number> = {
+  'Previous promotion response': (b) => b.respRate,
+  'Purchase frequency': (b) => b.ordersPerMonth,
+  'Product affinity': (b) => b.topCategoryShare,
+  'Price sensitivity': (b) => b.promoReliance,
+  'Recency': (b) => b.recencyDays,
+  'Existing buying of our brand': (b) => b.fullPriceBuysPerMonth,
+  'Timing preference': (b) => b.avgInterval,
+  'Basket behaviour': (b) => b.linesPerOrder,
+};
+
+/** The behaviours as one chart: each bar is where this customer ranks among all customers; hover a row for details */
+function SignalsChart({ cid, S, category }: { cid: string; S: Props['S']; category: string }) {
+  const e = useEngine();
+  const ctx = S.ctxs.find((c) => c.cid === cid)!;
+  const signals = useMemo(() => behaviourSignals(ctx, category), [ctx, category]);
+  const [hover, setHover] = useState<string | null>(null);
+  const rank = (name: string) => {
+    const f = METRIC[name];
+    const mine = f(ctx.b);
+    const all = e.records.map((r) => f(r.b));
+    return all.filter((v) => v < mine).length / Math.max(1, all.length - 1);
+  };
   return (
-    <Panel title="Summary of the customers in view" what={`Roll-ups for the ${filtered.length} customers matching the filters. Pick a view from the dropdown.`}
-      right={<FilterSelect value={view} onChange={setView} options={[{ value: 'mix', label: 'Best promotion mix' }, { value: 'groups', label: 'Who to contact, by group' }]} />}
-      legend={view === 'mix' ? [{ label: 'Bar', text: `Number of customers for whom each ${category} promotion earns the most. No discount means nothing pays off.` }]
-        : view === 'groups' ? GROUPS.map((g) => ({ label: g.title, text: g.body }))
-        : []}>
-      {view === 'groups' && <HBars labelW={170} format={(v) => String(v)} rows={groupRows.map((g) => ({ label: g.title, value: g.n, color: g.color, note: `${pct(g.p0)} → ${pct(g.p1)} avg chance` }))} />}
-      {view === 'mix' && <HBars labelW={110} format={(v) => String(v)} rows={mixRows.map(([l, v]) => ({ label: l, value: v, color: l === 'No discount' ? '#94a3b8' : 'var(--navy)' }))} />}
+    <Panel title="Behaviour signals behind this simulation" what={`Where ${cid} ranks among all customers on each behaviour. Hover a bar for the details.`} defaultOpen={false}>
+      <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[var(--ink-3)]">
+        {(Object.keys(TONE) as (keyof typeof TONE)[]).map((k) => <span key={k} className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: TONE[k].color }} />{TONE[k].label}</span>)}
+      </div>
+      <div className="space-y-1">
+        {signals.map((f) => {
+          const r = rank(f.factor);
+          return (
+            <div key={f.factor} className="relative" onMouseEnter={() => setHover(f.factor)} onMouseLeave={() => setHover(null)}>
+              <div className={`flex items-center gap-3 rounded-md px-2 py-1.5 ${hover === f.factor ? 'bg-[var(--page)]' : ''}`}>
+                <span className="w-[178px] shrink-0 truncate text-[12px] font-medium">{f.factor}</span>
+                <div className="relative h-3 flex-1 rounded-full bg-[var(--line-2)]">
+                  <div className="h-full rounded-full" style={{ width: `${Math.max(3, r * 100)}%`, background: TONE[f.tone].color }} />
+                  <span className="absolute inset-y-[-2px] left-1/2 w-px bg-[var(--ink-3)] opacity-50" />
+                </div>
+                <span className="num w-9 shrink-0 text-right text-[11.5px] font-semibold">{Math.round(r * 100)}%</span>
+              </div>
+              {hover === f.factor && (
+                <div className="absolute left-[190px] top-full z-20 mt-0.5 w-[300px] rounded-md bg-[var(--navy)] px-3 py-2 text-[12px] leading-snug text-white shadow-lg">
+                  <p className="font-semibold">{f.factor}</p>
+                  <p className="mt-0.5 first-letter:uppercase">{f.reading}.</p>
+                  <p className="mt-1 text-white/70">{f.use}</p>
+                  <p className="mt-1 text-[11px] font-semibold" style={{ color: f.tone === 'up' ? '#6ee7b7' : f.tone === 'down' ? '#fcd34d' : '#cbd5e1' }}>{TONE[f.tone].label}</p>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <p className="mt-2 border-t border-[var(--line)] pt-2 text-[11px] leading-snug text-[var(--ink-3)]">Bar length = share of customers this one is above (the line marks the typical customer). A long bar is a lot of that behaviour, not necessarily a good thing; the colour says how it affects the response to an offer.</p>
     </Panel>
   );
 }

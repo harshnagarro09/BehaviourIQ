@@ -1,7 +1,7 @@
 import { useMemo, useState, type ComponentProps, type ReactNode } from 'react';
 import { Takeaway } from '@/components/Takeaway';
 import { behaviourTakeaway, pastResultsTakeaway } from '@/lib/takeaways';
-import { ChevronDown, RotateCcw, SlidersHorizontal } from 'lucide-react';
+import { ChevronDown, RotateCcw } from 'lucide-react';
 import { useApp, useEngine } from '@/state';
 import { Help, Lbl } from '@/components/Help';
 import { Chip, FilterSelect, Kpi, Meter, Panel, Tabs, Toggle, ViewToggle } from '@/components/ui';
@@ -14,11 +14,12 @@ import {
 } from '@/lib/analytics';
 import { inr, int, pct, dateLabel, shortDate } from '@/lib/fmt';
 import { isoOf, type Campaign } from '@/engine/data';
+import { TypeCards } from '@/components/AnalyticsStory';
 
 const VERDICT = { Scale: 'var(--green)', Optimise: 'var(--amber)', Stop: 'var(--red)' } as const;
 const offerOfCampaign = (c: Campaign) => offerName(c.mechanic, c.depth, c.flat, c.minSpend);
 
-type FeatRow = { n: number; freq: number; rec: number; spend: number; aov: number; basket: number; promo: number; resp: number; weekend: number; ourShare: number; a: Agg };
+type FeatRow = { n: number; freq: number; rec: number; spend: number; aov: number; basket: number; promo: number; resp: number; weekend: number; fullPrice: number; a: Agg };
 const FEAT_METRICS: { key: string; label: string; get: (g: FeatRow) => number; fmt: (v: number) => string }[] = [
   { key: 'resp', label: 'Promo response', get: (g) => g.resp, fmt: (v) => pct(v) },
   { key: 'roi', label: 'Promo ROI', get: (g) => roiOf(g.a), fmt: (v) => v.toFixed(2) },
@@ -26,9 +27,9 @@ const FEAT_METRICS: { key: string; label: string; get: (g: FeatRow) => number; f
   { key: 'promo', label: 'Purchases on promo', get: (g) => g.promo, fmt: (v) => pct(v) },
   { key: 'freq', label: 'Orders per month', get: (g) => g.freq, fmt: (v) => v.toFixed(1) },
   { key: 'aov', label: 'Order value', get: (g) => g.aov, fmt: (v) => inr(v, 0) },
-  { key: 'ourShare', label: 'Our-brand share', get: (g) => g.ourShare, fmt: (v) => pct(v) },
+  { key: 'fullPrice', label: 'Full-price buys per month', get: (g) => g.fullPrice, fmt: (v) => v.toFixed(1) },
 ];
-const shortName = (n: string) => n.replace(' Buyers', '').replace(' Buyer', '').replace(' Promotions', '').replace('Competitor ', '');
+const shortName = (n: string) => n;
 
 type Tab = 'results' | 'behaviour';
 
@@ -38,7 +39,6 @@ export function Analytics() {
   const { params, syncParams } = useApp();
   const [tab, setTabState] = useState<Tab>(() => (params.tab === 'behaviour' ? 'behaviour' : 'results'));
   const setTab = (t: Tab) => { setTabState(t); syncParams({ tab: t }); };
-  const [more, setMore] = useState(false);
   const [featView, setFeatView] = useState<'chart' | 'table'>('chart');
   const [featMetric, setFeatMetric] = useState('roi');
   const [perfView, setPerfView] = useState<'chart' | 'table'>('chart');
@@ -82,7 +82,7 @@ export function Analytics() {
     const av = (fn: (b: (typeof rs)[number]['b']) => number) => (rs.length ? rs.reduce((s, r) => s + fn(r.b), 0) / rs.length : 0);
     return {
       id: t.id as string, name: t.name, n: rs.length, freq: av((b) => b.ordersPerMonth), rec: av((b) => b.recencyDays), spend: av((b) => b.totalSpend), aov: av((b) => b.avgOrderValue),
-      basket: av((b) => b.linesPerOrder), promo: av((b) => b.promoReliance), resp: av((b) => b.respRate), weekend: av((b) => b.weekendShare), ourShare: av((b) => b.ourShareFull),
+      basket: av((b) => b.linesPerOrder), promo: av((b) => b.promoReliance), resp: av((b) => b.respRate), weekend: av((b) => b.weekendShare), fullPrice: av((b) => b.fullPriceBuysPerMonth),
       a: aggregate(e, cur, (cid) => ids.has(cid)),
     };
   }).filter((g) => g.n > 0), [e, ok, cur]);
@@ -124,6 +124,8 @@ export function Analytics() {
     tab === 'results' ? pastResultsTakeaway({ campaigns: A.campaigns, lost: rows.filter((r) => r.agg.net < 0).length, incShare: incShareOf(A), units: A.units })
     : behaviourTakeaway(feat.map((g) => ({ name: g.name, n: g.n, net: g.a.net })));
 
+  const typeRows = feat.map((g) => { const st = e.stats.find((x) => x.type === g.id); return { id: g.id, n: g.n, share: st?.share ?? 0, spendShare: st?.spendShare ?? 0, a: g.a }; });
+
   const typeKey = TYPES.map((t) => ({ label: t.name, color: t.color, text: t.tagline }));
 
   return (
@@ -131,24 +133,18 @@ export function Analytics() {
       <PageTop
         tabs={<Tabs value={tab} onChange={setTab} options={[{ id: 'results', label: 'Past results' }, { id: 'behaviour', label: 'Customer behaviour' }]} />}
         title="Behaviour Analytics"
-        sub={`How customer behaviour predicts promotion response, and whether acting on it pays · ${dateLabel(isoOf(e.ds.minDay))} – ${dateLabel(isoOf(e.ds.maxDay))}`}
+        sub={`How customer behaviour links to promotion response, and whether acting on it pays · ${dateLabel(isoOf(e.ds.minDay))} – ${dateLabel(isoOf(e.ds.maxDay))}`}
         right={<Toggle value={f.period} onChange={(v) => setF({ ...f, period: v })} options={[{ id: '3m', label: 'Last 3 months' }, { id: '6m', label: 'Last 6 months' }, { id: 'all', label: 'All time' }]} />}
       />
-      <div className="flex flex-wrap items-center gap-2.5 border-b border-[var(--line)] bg-white px-6 py-2.5">
+      <div className="flex flex-wrap items-center gap-2 border-b border-[var(--line)] bg-white px-4 py-2">
         <FilterSelect value={f.category} onChange={set('category')} options={[{ value: 'all', label: 'All Categories' }, ...cats.map((c) => ({ value: c, label: c }))]} />
         <FilterSelect value={f.promo} onChange={set('promo')} options={[
           { value: 'all', label: 'All Promotion Types' }, { value: 'pct10', label: '10% Discount' }, { value: 'pct20', label: '20% Discount' },
           { value: 'flat', label: '₹ Off on Minimum Spend' }, { value: 'bogo', label: 'BOGO' }, { value: 'bundle', label: 'Bundle / Combo Offer' },
         ]} />
-        <FilterSelect value={f.persona} onChange={set('persona')} options={[{ value: 'all', label: 'All Customer Types' }, ...TYPES.map((t) => ({ value: t.id, label: t.name }))]} />
+        <span className="flex items-center"><FilterSelect value={f.persona} onChange={set('persona')} options={[{ value: 'all', label: 'All Customer Types' }, ...TYPES.map((t) => ({ value: t.id, label: t.name }))]} /><Help term="allTypes" below /></span>
         <FilterSelect value={f.channel} onChange={set('channel')} options={[{ value: 'all', label: 'All Channels' }, ...channels.map((c) => ({ value: c, label: c }))]} />
-        <button onClick={() => setMore(!more)} className={`flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[12.5px] font-medium ${more ? 'border-[var(--navy)] bg-[var(--navy)] text-white' : 'border-[var(--line)] text-[var(--ink-2)] hover:bg-[var(--page)]'}`}><SlidersHorizontal className="h-3 w-3" />More filters</button>
-        {more && (
-          <>
-            <FilterSelect value={f.loyalty} onChange={set('loyalty')} options={[{ value: 'all', label: 'All Brand Loyalty' }, { value: 'ours', label: 'Mostly our brand' }, { value: 'mixed', label: 'Mixed brands' }, { value: 'rival', label: 'Mostly competitors' }]} />
             <FilterSelect value={f.frequency} onChange={set('frequency')} options={[{ value: 'all', label: 'All Frequencies' }, { value: 'high', label: 'Frequent (3+/mo)' }, { value: 'mid', label: 'Regular (1.5-3)' }, { value: 'low', label: 'Occasional (<1.5)' }]} />
-          </>
-        )}
         {filtered && <button onClick={() => setF({ ...DEFAULT_FILTERS, period: f.period })} className="flex items-center gap-1 text-[12px] font-medium text-[var(--ink-2)] hover:text-[var(--ink)]"><RotateCcw className="h-3 w-3" />Reset</button>}
       </div>
 
@@ -209,13 +205,13 @@ export function Analytics() {
                   </div>
                 )}
               </Panel>
-              <Panel title={<>Incrementality<Help term="incrementality" /></>} what="Of the units sold during promotions, how many would have sold anyway and how many were extra."
-                legend={[{ label: 'Navy', color: 'var(--navy)', text: 'all units sold during the promotions' }, { label: 'Grey', color: '#94a3b8', text: 'would have been bought anyway at full price' }, { label: 'Green', color: 'var(--green)', text: 'extra units the promotion brought in' }]}>
+              <Panel title={<>Incrementality<Help term="incrementality" /></>} what="Of the units sold during promotions, how many are baseline (would have sold anyway) and how many are uplift (extra from the promotion)."
+                legend={[{ label: 'Total promo sales', color: 'var(--navy)', text: 'all units sold during the promotions (baseline + uplift)' }, { label: 'Baseline', color: '#94a3b8', text: 'units that would have been bought anyway at full price' }, { label: 'Uplift', color: 'var(--green)', text: 'extra units the promotion brought in' }]}>
                 <BarChart height={250} maxW={460} showValues yLabel="Units sold" yTitle="Units sold" xTitle="Promoted sales, split" format={(v) => int(v)}
                   data={[
-                    { label: 'All promo sales', value: A.units, color: 'var(--navy)' },
-                    { label: 'Would sell anyway', value: A.base, color: '#94a3b8' },
-                    { label: 'Extra from promo', value: A.units - A.base, color: 'var(--green)' },
+                    { label: 'Total promo sales', value: A.units, color: 'var(--navy)' },
+                    { label: 'Baseline', value: A.base, color: '#94a3b8' },
+                    { label: 'Uplift', value: A.units - A.base, color: 'var(--green)' },
                   ]} />
                 <details className="group mt-3 rounded-lg bg-[var(--page)] text-[12.5px] leading-snug">
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-3 text-[12px] font-semibold text-[var(--ink)] [&::-webkit-details-marker]:hidden">
@@ -224,13 +220,13 @@ export function Analytics() {
                   </summary>
                   <div className="space-y-2 px-3 pb-3">
                   <p className="num flex flex-wrap items-center gap-x-1.5 gap-y-1">
-                    <Chip tone="navy">{int(A.units)} sold</Chip>−<span className="rounded-full bg-[#e2e8f0] px-2 py-0.5 font-semibold">{int(A.base)} anyway</span>=<Chip tone="green">{int(A.units - A.base)} extra</Chip>
+                    <Chip tone="navy">{int(A.units)} total</Chip>−<span className="rounded-full bg-[#e2e8f0] px-2 py-0.5 font-semibold">{int(A.base)} baseline</span>=<Chip tone="green">{int(A.units - A.base)} uplift</Chip>
                   </p>
-                  <p><b>{pct(incShareOf(A))} extra</b> = {int(A.units - A.base)} extra ÷ {int(A.units)} sold.</p>
-                  <p><b>{pct(leakOf(A))} of the discount wasted</b> = {inr(A.leak, 0)} ÷ {inr(A.cost, 0)}. {inr(A.leak, 0)} is the discount handed out on the "would sell anyway" units. Those customers would have paid full price.</p>
+                  <p><b>{pct(incShareOf(A))} uplift</b> = {int(A.units - A.base)} uplift ÷ {int(A.units)} total promo sales.</p>
+                  <p><b>{pct(leakOf(A))} of the discount is subsidy</b> = {inr(A.leak, 0)} ÷ {inr(A.cost, 0)}. {inr(A.leak, 0)} is the discount handed out on baseline units. Those customers would have paid full price.</p>
                   </div>
                 </details>
-                <p className="mt-2 text-[11.5px] leading-snug text-[var(--ink-3)]">An estimate: each customer's own usual full-price buying is the baseline. There was no test group.</p>
+                <p className="mt-2 text-[11.5px] leading-snug text-[var(--ink-3)]">An estimate: each customer's own usual full-price buying is the baseline. There was no control group.</p>
               </Panel>
             </div>
             <Panel title="Promotion type performance" what="Which kinds of promotion earned their discount back."
@@ -255,9 +251,10 @@ export function Analytics() {
         ))}
 
         {/* ------------------------------------------------------------ CUSTOMER BEHAVIOUR */}
+        {tab === 'behaviour' && <TypeCards rows={typeRows} />}
         {tab === 'behaviour' && (
           <div className="grid gap-4 xl:grid-cols-2">
-            <Panel className="min-w-0" title="How each customer type behaves and responds" what="The five customer types, grouped by how they react to promotions. Behaviours are the model's inputs; results show what each type earned."
+            <Panel className="min-w-0" title="How each customer type behaves and responds" what="The four customer types, grouped by how they react to promotions. Behaviour columns show how each type buys; results show what promotions earned from it."
               right={<>
                 {featView === 'chart' && <FilterSelect value={featMetric} onChange={setFeatMetric} options={FEAT_METRICS.map((m) => ({ value: m.key, label: m.label }))} />}
                 <ViewToggle value={featView} onChange={setFeatView} />
@@ -271,7 +268,7 @@ export function Analytics() {
                   <table className="w-full min-w-[900px] text-[12.5px]">
                     <thead><tr className="border-y border-[var(--line)] text-right text-[10.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">
                       <th className="px-4 py-2 text-left">Customer type</th>
-                      {['Customers', 'Orders / mo', 'Days since order', 'Avg spend', 'Order value', 'Items / order', 'On promo', 'Our-brand share', 'Promo response', 'Discount', 'Net profit', 'ROI'].map((h) => <th key={h} className="px-3 py-2">{h}</th>)}
+                      {['Customers', 'Orders / mo', 'Days since order', 'Avg spend', 'Order value', 'Items / order', 'On promo', 'Full-price buys / mo', 'Promo response', 'Discount', 'Net profit', 'ROI'].map((h) => <th key={h} className="px-3 py-2">{h}</th>)}
                     </tr></thead>
                     <tbody>
                       {feat.map((g) => (
@@ -279,7 +276,7 @@ export function Analytics() {
                           <td className="px-4 py-2.5 text-left font-semibold">{g.name}</td>
                           <td className="num px-3">{int(g.n)}</td><td className="num px-3">{g.freq.toFixed(1)}</td><td className="num px-3">{g.rec.toFixed(0)}</td>
                           <td className="num px-3">{inr(g.spend)}</td><td className="num px-3">{inr(g.aov, 0)}</td><td className="num px-3">{g.basket.toFixed(1)}</td>
-                          <td className="num px-3">{pct(g.promo)}</td><td className="num px-3">{pct(g.ourShare)}</td><td className="num px-3 font-semibold">{pct(g.resp)}</td>
+                          <td className="num px-3">{pct(g.promo)}</td><td className="num px-3">{g.fullPrice.toFixed(1)}</td><td className="num px-3 font-semibold">{pct(g.resp)}</td>
                           <td className="num px-3">{inr(g.a.cost)}</td><td className="num px-3" style={{ color: g.a.net < 0 ? 'var(--red)' : undefined }}>{inr(g.a.net)}</td>
                           <td className="num px-3 font-semibold" style={{ color: g.a.net < 0 ? 'var(--red)' : 'var(--green-dark)' }}>{roiOf(g.a).toFixed(2)}</td>
                         </tr>

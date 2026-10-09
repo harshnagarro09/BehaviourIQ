@@ -1,9 +1,8 @@
 // Customer behaviour profile: purchasing, price, promotion, brand, basket and timing signals,
-// all computed strictly from order lines dated before `asOf` (so the same code can build
-// training features for the model without leaking the future).
+// all computed from the retailer's own order lines dated before `asOf` (point-in-time, no leakage).
 import type { Campaign, Dataset, Line } from './data.ts';
 
-export type TypeId = 'anyways' | 'deal' | 'stockup' | 'switcher' | 'ignores';
+export type TypeId = 'persuadable' | 'sure' | 'lost' | 'dog';
 
 export interface Behaviour {
   cid: string;
@@ -22,18 +21,21 @@ export interface Behaviour {
   avgDiscAccepted: number; // mean % off on promoted lines bought
   minDiscAccepted: number;
   fullPriceShare: number; // share of our-brand lines bought at list price
+  fullPriceBuysPerMonth: number; // full-price purchases of our brand per month
   // brand
   ourLines: number;
-  compLines: number;
   fullOurLines: number;
   promoOurLines: number;
-  ourShareFull: number; // our share of (full-price our + competitor) lines
   promoReliance: number; // share of our-brand lines bought on promo
-  compPerMonth: number;
   // promotion
   activeCampaigns: number;
   respondedCampaigns: number;
   respRate: number;
+  /** observed discount sensitivity: campaigns shown / bought, split by depth (up to 15% off vs 20%+ off) */
+  shallowShown: number;
+  shallowBought: number;
+  deepShown: number;
+  deepBought: number;
   lift: number; // our units in promo windows / baseline expectation
   qtyRatio: number; // units per promo line / units per normal line (percent-off promos only)
   dipRatio: number; // category units in 21d after responding vs baseline (1 = no dip)
@@ -119,7 +121,7 @@ export function profile(ds: Dataset, cid: string, asOf: number): Behaviour {
   const orders = new Map<string, { day: number; value: number; channel: string }>();
   let qtySum = 0;
   let spend = 0;
-  let ourLines = 0, compLines = 0, fullOur = 0, promoOur = 0;
+  let ourLines = 0, fullOur = 0, promoOur = 0;
   const promoDiscs: number[] = [];
   const catCount: Record<string, number> = {};
   for (const l of lines) {
@@ -136,7 +138,7 @@ export function profile(ds: Dataset, cid: string, asOf: number): Behaviour {
         promoOur++;
         promoDiscs.push(l.disc);
       } else fullOur++;
-    } else compLines++;
+    }
   }
   const nOrders = orders.size;
   const firstDay = lines.length ? lines[0].day : asOf;
@@ -153,6 +155,7 @@ export function profile(ds: Dataset, cid: string, asOf: number): Behaviour {
   // promotion response
   const active = activeCampaignsFor(lines, camps);
   let responded = 0;
+  let shallowShown = 0, shallowBought = 0, deepShown = 0, deepBought = 0;
   let aSum = 0;
   let bSum = 0;
   const dips: number[] = [];
@@ -166,6 +169,7 @@ export function profile(ds: Dataset, cid: string, asOf: number): Behaviour {
   for (const c of active) {
     const resp = respondedTo(lines, c);
     if (resp) responded++;
+    if (c.depth <= 15) { shallowShown++; if (resp) shallowBought++; } else { deepShown++; if (resp) deepBought++; }
     const len = c.end - c.start + 1;
     let a = 0;
     for (const l of lines) {
@@ -218,16 +222,15 @@ export function profile(ds: Dataset, cid: string, asOf: number): Behaviour {
     avgDiscAccepted: mean(promoDiscs),
     minDiscAccepted: promoDiscs.length ? Math.min(...promoDiscs) : 0,
     fullPriceShare: ourLines ? fullOur / ourLines : 0,
+    fullPriceBuysPerMonth: fullOur / spanMonths,
     ourLines,
-    compLines,
     fullOurLines: fullOur,
     promoOurLines: promoOur,
-    ourShareFull: fullOur + compLines > 0 ? fullOur / (fullOur + compLines) : 0,
     promoReliance: ourLines ? promoOur / ourLines : 0,
-    compPerMonth: compLines / spanMonths,
     activeCampaigns: active.length,
     respondedCampaigns: responded,
     respRate: active.length ? responded / active.length : 0,
+    shallowShown, shallowBought, deepShown, deepBought,
     lift: (aSum + 0.5) / (bSum + 0.5),
     qtyRatio: promoQty.length >= 2 && normQty.length >= 3 ? mean(promoQty) / mean(normQty) : 1,
     dipRatio: dips.length ? mean(dips) : 1,

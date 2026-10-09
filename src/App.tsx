@@ -18,7 +18,7 @@ const NAV: { group: string; items: { id: PageId; label: string; icon: React.Reac
       { id: 'simulation', label: 'Simulation', icon: <SlidersHorizontal className="h-3.5 w-3.5" /> },
     ],
   },
-  { group: 'Intelligence', items: [{ id: 'advisor', label: 'AI Advisor', icon: <MessageSquareText className="h-3.5 w-3.5" /> }] },
+  { group: 'Intelligence', items: [{ id: 'advisor', label: 'Advisor', icon: <MessageSquareText className="h-3.5 w-3.5" /> }] },
 ];
 
 function Shell() {
@@ -91,7 +91,7 @@ function Loading() {
         <div className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--line)] border-t-[var(--green)]" />
         <div>
           <p className="text-[13px] font-semibold">Analysing customer behaviour…</p>
-          <p className="text-[12px] text-[var(--ink-3)]">Profiling customers, training the response model and scoring campaigns.</p>
+          <p className="text-[12px] text-[var(--ink-3)]">Profiling customers, applying the customer-type rules and simulating campaigns.</p>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
