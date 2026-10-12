@@ -73,7 +73,9 @@ const PAIRS = {
 // ---------------------------------------------------------------- campaigns (14-day windows)
 const CAMPAIGNS = [
   // id, name, start, category, mechanic, typical depth %, flat rupees off, minimum spend (FLAT_OFF only)
-  // Promotion types: 10% Discount, 20% Discount, flat Rs off on Rs min spend, BOGO, Bundle / Combo (3 for 2)
+  // Mechanics: PCT_OFF (10/15/20/25%), FLAT_OFF (Rs off on a minimum spend), BOGO (buy 1 get 1 free), MULTIBUY_3FOR2,
+  // B1G1_50 (second unit half price), TIERED (buy 2+ save 15%), COMBO (two different products together, 20% off each),
+  // CASHBACK (10% back as loyalty points; shelf price unchanged, the reward is written to reward_value)
   ['PRM01', 'Breakfast Bonanza', '2025-09-08', 'Breakfast', 'PCT_OFF', 20, 0, 0],
   ['PRM02', 'Soap Saver', '2025-09-29', 'Personal Care', 'BOGO', 50, 0, 0],
   ['PRM03', 'Pre-Diwali Clean-Up', '2025-10-06', 'Household', 'PCT_OFF', 20, 0, 0],
@@ -104,10 +106,22 @@ const CAMPAIGNS = [
   ['PRM28', 'Cheese Carnival', '2026-08-17', 'Dairy', 'PCT_OFF', 20, 0, 0],
   ['PRM29', 'Back-to-Work Fizz', '2026-08-24', 'Beverages', 'FLAT_OFF', 15, 10, 100],
   ['PRM30', 'Snack Festival', '2026-09-07', 'Snacks', 'FLAT_OFF', 18, 10, 100],
+  // second wave of mechanics (added for the wider promotion catalogue)
+  ['PRM31', 'Breakfast Combo Week', '2025-11-03', 'Breakfast', 'COMBO', 20, 0, 0],
+  ['PRM32', 'Winter Snack Tiers', '2025-12-22', 'Snacks', 'TIERED', 15, 0, 0],
+  ['PRM33', 'Fresh Rewards Cashback', '2026-01-05', 'Dairy', 'CASHBACK', 10, 0, 0],
+  ['PRM34', 'Second Bottle Half Price', '2026-01-19', 'Beverages', 'B1G1_50', 25, 0, 0],
+  ['PRM35', 'Clean Home Volume Deal', '2026-03-30', 'Household', 'TIERED', 15, 0, 0],
+  ['PRM36', 'Snack 15% Saver', '2026-03-23', 'Snacks', 'PCT_OFF', 15, 0, 0],
+  ['PRM37', 'Glow Combo Pack', '2026-05-11', 'Personal Care', 'COMBO', 20, 0, 0],
+  ['PRM38', 'Cashback Home Care', '2026-09-14', 'Household', 'CASHBACK', 10, 0, 0],
+  ['PRM39', 'Milk Mega Saver', '2026-09-14', 'Dairy', 'PCT_OFF', 25, 0, 0],
 ].map(([id, name, start, category, mechanic, depth, flat, minSpend]) => {
   const s = new Date(start + 'T00:00:00Z').getTime();
   return { id, name, category, mechanic, depth, flat, minSpend, s, e: s + 13 * 864e5, festive: /Diwali|Holi|Independence/.test(name) };
 });
+
+const VOLUME = new Set(['BOGO', 'MULTIBUY_3FOR2', 'B1G1_50', 'TIERED']);
 
 const START = new Date('2025-07-01T00:00:00Z').getTime();
 const END = new Date('2026-09-30T00:00:00Z').getTime();
@@ -166,7 +180,7 @@ for (let i = 1; i <= N; i++) {
   const meanW = Object.values(catW).reduce((s, w) => s + w, 0) / CATS.length;
   let active0 = START;
   let active1 = END;
-  if (rng() < 0.1) active0 = START + Math.floor(U(60, 330)) * DAY;
+  if (rng() < 0.16) active0 = START + Math.floor(U(60, 450)) * DAY; // late joiners, some within the last 90 days (new customers)
   if (rng() < 0.07) active1 = END - Math.floor(U(70, 240)) * DAY;
   const parkUntil = {};
   const promoTrips = {};
@@ -175,9 +189,16 @@ for (let i = 1; i <= N; i++) {
   for (const cp of CAMPAIGNS) {
     if (cp.e < active0 || cp.s > active1) continue;
     const aff = catW[cp.category] / meanW;
-    let p = maxP * sigmoid((cp.depth - thr) / 3.2) * clamp(0.55 + 0.45 * aff, 0.5, 1.25);
+    // a points reward is worth less to a shopper than the same money off at the till
+    const felt = cp.mechanic === 'CASHBACK' ? cp.depth * 0.7 : cp.depth;
+    let p = maxP * sigmoid((felt - thr) / 3.2) * clamp(0.55 + 0.45 * aff, 0.5, 1.25);
     if (cp.festive) p *= 1.15;
     if (cp.mechanic !== 'PCT_OFF') p *= 1.05;
+    // mechanic fit by behaviour: stock-up shoppers like volume mechanics, deal seekers want instant savings,
+    // frequent shoppers are the ones who come back to spend points
+    if (VOLUME.has(cp.mechanic)) p *= parks ? 1.3 : type === 'switcher' ? 0.85 : 1;
+    if (cp.mechanic === 'CASHBACK') p *= (type === 'deal' ? 0.6 : type === 'switcher' ? 0.75 : 1) * (tripsPerMonth >= 2 ? 1.2 : 0.85);
+    if (cp.mechanic === 'COMBO') p *= type === 'deal' || type === 'switcher' ? 1.1 : 0.95;
     p = clamp(p, 0, 0.93);
     if (rng() < p) {
       const ts = cp.s + Math.floor(rng() * 14) * DAY;
@@ -220,13 +241,21 @@ for (let i = 1; i <= N; i++) {
       for (const c of chosen) if (!lines.find((l) => l.cat === c)) lines.push({ cat: c, forced: null });
     }
     const oid = 'O' + String(orderSeq++).padStart(6, '0');
+    // a combo is bought as a pair: the forced line pulls in the other product of the category
+    for (const ln of [...lines]) {
+      if (ln.forced && ln.forced.mechanic === 'COMBO') {
+        const [a, b] = byCat(ln.cat);
+        ln.prod = a;
+        lines.push({ cat: ln.cat, forced: ln.forced, prod: b });
+      }
+    }
     for (const ln of lines) {
       const cp = CAMPAIGNS.find((x) => x.category === ln.cat && t >= x.s && t <= x.e);
       // Sleeping Dogs are put off by offers: they largely stop buying the promoted brand while it is on promotion
       const dogOff = type === 'dog' && CAMPAIGNS.some((x) => x.category === ln.cat && t >= x.s && t <= x.e + 14);
       // a basket line is only visible to the retailer if the customer bought our brand; otherwise there is no record
       if (!ln.forced && !(rng() < (dogOff ? pOur * 0.2 : pOur))) continue;
-      const prod = pick(byCat(ln.cat));
+      const prod = ln.prod ?? pick(byCat(ln.cat));
       let qty = wpick([1, 2, 3], [0.7, 0.24, 0.06]) * (hhQty > 1 && rng() < 0.4 ? 2 : 1);
       qty = clamp(qty, 1, 4);
       let disc = 0;
@@ -241,8 +270,17 @@ for (let i = 1; i <= N; i++) {
         if (cp.mechanic === 'FLAT_OFF' && ln.forced) qty = Math.max(qty, Math.ceil(cp.minSpend / prod.price));
         if (cp.mechanic === 'BOGO') qty = Math.max(2, qty + (qty % 2));
         if (cp.mechanic === 'MULTIBUY_3FOR2') qty = Math.max(3, Math.ceil(qty / 3) * 3);
+        if (cp.mechanic === 'B1G1_50') qty = Math.max(2, qty + (qty % 2));
+        if (cp.mechanic === 'TIERED' && ln.forced) qty = Math.max(2, qty);
+        if (cp.mechanic === 'CASHBACK') disc = 0; // paid at shelf price, rewarded in points
       }
       qty = clamp(qty, 1, 12);
+      let reward = 0;
+      if (promo && promo.mechanic === 'CASHBACK') reward = Math.round(prod.price * qty * promo.depth) / 100;
+      if (promo && (promo.mechanic === 'TIERED' && qty < 2 || promo.mechanic === 'COMBO' && !ln.forced)) {
+        disc = 0; // volume tier or combo pair not met: full price, not a promoted line
+        promo = null;
+      }
       let unit = Math.round(prod.price * (1 - disc / 100) * 100) / 100;
       if (promo && promo.mechanic === 'FLAT_OFF') {
         if (prod.price * qty >= promo.minSpend) {
@@ -256,7 +294,7 @@ for (let i = 1; i <= N; i++) {
       }
       rows.push([
         oid, cid, fmt(t), prod.id, prod.name, prod.category, prod.brand,
-        qty, prod.price, unit, disc, promo ? promo.id : '', promo ? promo.name : '', promo ? promo.mechanic : '', prod.cost,
+        qty, prod.price, unit, disc, promo ? promo.id : '', promo ? promo.name : '', promo ? promo.mechanic : '', prod.cost, reward,
       ]);
     }
   }
@@ -271,13 +309,32 @@ function hash01(str) {
 const CHANNELS = ['Store', 'App', 'Online'];
 const prefOf = (cid) => { const u = hash01('pref' + cid); return u < 0.45 ? 'Store' : u < 0.8 ? 'App' : 'Online'; };
 for (const r of rows) {
+  const reward = r.pop();
   const pref = prefOf(r[1]);
   const u = hash01('ch' + r[0]);
   r.push(u < 0.8 ? pref : CHANNELS.filter((c) => c !== pref)[u < 0.9 ? 0 : 1]);
   r.push(r[13] === 'FLAT_OFF' ? CAMPAIGNS.find((c) => c.id === r[11]).minSpend : '');
+  r.push(reward || '');
+}
+// Own-label ranges: the retailer sells each product under three of its own labels (core, premium, value). Assigned by hashing
+// ids AFTER the simulation, so the random stream, prices, costs, promotions and every number the app reports are unchanged;
+// only brand / SKU detail is added. A customer mostly sticks to one label (80%), the rest of the time it varies by order.
+const LABELS = [
+  { brand: OUR_BRAND_NAME, tag: '', w: 0.5 },
+  { brand: 'Good Life', tag: 'G', w: 0.3 },
+  { brand: 'Fresh Basics', tag: 'B', w: 0.2 },
+];
+const labelOf = (u) => { let r = u; for (const l of LABELS) { if (r < l.w) return l; r -= l.w; } return LABELS[0]; };
+for (const r of rows) {
+  const loyal = hash01("lab" + r[1] + r[5]);
+  const l = labelOf(hash01('mix' + r[0] + r[3]) < 0.8 ? loyal : hash01('alt' + r[0] + r[3]));
+  const base = r[4].startsWith(OUR_BRAND_NAME + ' ') ? r[4].slice(OUR_BRAND_NAME.length + 1) : r[4];
+  r[3] = r[3] + l.tag;
+  r[4] = `${l.brand} ${base}`;
+  r[6] = l.brand;
 }
 rows.sort((a, b) => (a[2] < b[2] ? -1 : a[2] > b[2] ? 1 : a[0] < b[0] ? -1 : 1));
-const header = ['order_id', 'customer_id', 'order_date', 'product_id', 'product_name', 'category', 'brand', 'quantity', 'list_price', 'unit_price', 'discount_pct', 'promo_id', 'promo_name', 'promo_mechanic', 'unit_cost', 'channel', 'min_spend'];
+const header = ['order_id', 'customer_id', 'order_date', 'product_id', 'product_name', 'category', 'brand', 'quantity', 'list_price', 'unit_price', 'discount_pct', 'promo_id', 'promo_name', 'promo_mechanic', 'unit_cost', 'channel', 'min_spend', 'reward_value'];
 const csv = [header.join(','), ...rows.map((r) => r.join(','))].join('\n') + '\n';
 fs.mkdirSync(path.join(root, 'public/data'), { recursive: true });
 fs.mkdirSync(path.join(here, 'out'), { recursive: true });

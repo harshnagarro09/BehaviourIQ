@@ -21,7 +21,11 @@ export interface Line {
   cost: number;
   channel: string;
   minSpend: number;
+  reward: number; // Rs of loyalty points issued on the line (cashback offers); the shelf price is unchanged
 }
+
+/** Share of issued loyalty points that customers redeem (the rest is breakage). Assumption, not in the data. */
+export const POINTS_REDEMPTION = 0.7;
 
 export interface Campaign {
   id: string;
@@ -68,7 +72,7 @@ const REQUIRED = [
 export function parseCsv(text: string): Line[] {
   const rows = text.split(/\r?\n/);
   const head = rows[0].trim().split(',');
-  const ix: Record<string, number> = { channel: head.indexOf('channel'), min_spend: head.indexOf('min_spend'), is_our_brand: head.indexOf('is_our_brand') };
+  const ix: Record<string, number> = { channel: head.indexOf('channel'), min_spend: head.indexOf('min_spend'), reward_value: head.indexOf('reward_value'), is_our_brand: head.indexOf('is_our_brand') };
   REQUIRED.forEach((c) => {
     const i = head.indexOf(c);
     if (i < 0) throw new Error(`CSV is missing required column "${c}"`);
@@ -100,6 +104,7 @@ export function parseCsv(text: string): Line[] {
       cost: +f[ix.unit_cost],
       channel: ix.channel >= 0 ? f[ix.channel] : 'Unknown',
       minSpend: ix.min_spend >= 0 && f[ix.min_spend] ? +f[ix.min_spend] : 0,
+      reward: ix.reward_value >= 0 && f[ix.reward_value] ? +f[ix.reward_value] : 0,
     });
   }
   return out;
@@ -131,12 +136,14 @@ export function buildDataset(lines: Line[]): Dataset {
       if (!c) {
         camp.set(l.promoId, {
           id: l.promoId, name: l.promoName, category: l.category, mechanic: l.mechanic,
-          depth: l.disc, flat: l.list - l.unit, minSpend: l.minSpend, start: l.day, end: l.day, idx: 0,
+          depth: l.reward > 0 ? Math.round((l.reward / (l.list * l.qty)) * 100) : l.disc, flat: l.list - l.unit, minSpend: l.minSpend, start: l.day, end: l.day, idx: 0,
         });
       } else {
         if (l.day < c.start) c.start = l.day;
         if (l.day > c.end) c.end = l.day;
         if (l.disc > c.depth) c.depth = l.disc;
+        // cashback: the depth is the reward as a share of the shelf price
+        if (l.reward > 0) c.depth = Math.max(c.depth, Math.round((l.reward / (l.list * l.qty)) * 100));
         if (l.list - l.unit > c.flat) c.flat = l.list - l.unit;
         if (l.minSpend && !c.minSpend) c.minSpend = l.minSpend;
       }

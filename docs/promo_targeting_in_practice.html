@@ -1,0 +1,420 @@
+<title>Promo Targeting in Practice</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: single reading column; explainer sections first, then case entries laid out like coupon stubs (dashed tear line between company and detail). */
+:root {
+  --bg: #f6f7f5;
+  --surface: #ffffff;
+  --fg: #1c2421;
+  --muted: #5d6b66;
+  --line: #d9dfdc;
+  --accent: #0d6b57;
+  --accent-soft: #e2f1ec;
+  --warn: #9a5b12;
+  --warn-soft: #f8ecdc;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121715; --surface: #1a211e; --fg: #e4ebe8; --muted: #9aaba4; --line: #2c3632;
+    --accent: #5cc7a8; --accent-soft: #183129; --warn: #e3a95c; --warn-soft: #33281a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121715; --surface: #1a211e; --fg: #e4ebe8; --muted: #9aaba4; --line: #2c3632;
+  --accent: #5cc7a8; --accent-soft: #183129; --warn: #e3a95c; --warn-soft: #33281a;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 17px; line-height: 1.6;
+  padding-inline: 16px; padding-block: 40px 64px;
+}
+.wrap { max-width: 880px; margin-inline: auto; display: grid; gap: 56px; }
+
+header { display: grid; gap: 12px; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(32px, 6vw, 48px); line-height: 1.08; margin: 0; text-wrap: balance; }
+.lede { color: var(--muted); max-width: 64ch; margin: 0; }
+
+nav.toc { display: flex; flex-wrap: wrap; gap: 8px; }
+nav.toc a { font-family: var(--font-mono); font-size: 12.5px; text-decoration: none; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 4px 12px; }
+nav.toc a:hover { border-color: var(--accent); }
+
+h2 { font-family: var(--font-display); font-weight: 600; font-size: 26px; margin: 0; text-wrap: balance; }
+h3 { margin: 0; font-size: 17px; font-weight: 600; }
+.section { display: grid; gap: 18px; scroll-margin-top: 16px; }
+.prose { display: grid; gap: 12px; max-width: 68ch; }
+.prose p { margin: 0; }
+.muted { color: var(--muted); }
+
+/* Pipeline steps: a real sequence, so numbered */
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; counter-reset: step; }
+.steps li { counter-increment: step; display: grid; grid-template-columns: 36px 1fr; gap: 12px; align-items: start; }
+.steps li::before {
+  content: counter(step); font-family: var(--font-mono); font-size: 14px; color: var(--accent);
+  border: 1px dashed var(--accent); background: var(--accent-soft); border-radius: 50%;
+  width: 32px; height: 32px; display: grid; place-items: center;
+}
+.steps li div { min-width: 0; }
+.steps li p { margin: 2px 0 0; color: var(--muted); }
+
+/* Method explainers */
+.methods { display: grid; gap: 14px; }
+.method { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 20px; display: grid; gap: 10px; }
+.method .q { font-family: var(--font-mono); font-size: 13px; color: var(--accent); }
+.method p { margin: 0; }
+.example { background: var(--bg); border-radius: 8px; padding: 12px 14px; font-size: 15.5px; }
+.example strong { font-weight: 600; }
+
+/* Uplift quadrant */
+.quad { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.quad div { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font-size: 15px; background: var(--surface); }
+.quad div.hit { border: 1px dashed var(--accent); background: var(--accent-soft); }
+.quad div.bad { border: 1px dashed var(--warn); background: var(--warn-soft); }
+.quad b { display: block; font-weight: 600; }
+
+/* Coupon-stub case entries */
+.cases { display: grid; gap: 16px; }
+.case {
+  display: grid; grid-template-columns: 210px 1fr;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+}
+.stub { padding: 18px; border-right: 2px dashed var(--line); display: grid; gap: 8px; align-content: start; }
+.stub .co { font-family: var(--font-display); font-weight: 700; font-size: 20px; line-height: 1.2; }
+.stub .sector { font-size: 14px; color: var(--muted); }
+.tag {
+  justify-self: start; font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .03em;
+  color: var(--accent); background: var(--accent-soft); border: 1px dashed var(--accent);
+  padding: 2px 8px; border-radius: 4px;
+}
+.tag.critical { color: var(--warn); background: var(--warn-soft); border-color: var(--warn); }
+.body { padding: 18px 20px; display: grid; gap: 12px; min-width: 0; }
+.body p { margin: 0; }
+dl.facts { margin: 0; display: grid; grid-template-columns: 120px 1fr; gap: 8px 14px; }
+dl.facts dt { font-family: var(--font-mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding-top: 4px; }
+dl.facts dd { margin: 0; min-width: 0; }
+.stat { font-family: var(--font-mono); font-size: 14px; background: var(--bg); border-radius: 6px; padding: 2px 8px; font-variant-numeric: tabular-nums; }
+.links { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; border-top: 1px solid var(--line); padding-top: 12px; }
+.links li { display: flex; gap: 8px; align-items: baseline; min-width: 0; }
+.links .kind { flex: none; font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); width: 64px; }
+a { color: var(--accent); text-underline-offset: 3px; overflow-wrap: anywhere; }
+a:hover { text-decoration-thickness: 2px; }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+
+/* Comparison table */
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 15px; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-family: var(--font-mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 500; }
+tr:last-child td { border-bottom: 0; }
+
+/* Glossary */
+dl.gloss { margin: 0; display: grid; gap: 12px; max-width: 70ch; }
+dl.gloss dt { font-weight: 600; }
+dl.gloss dd { margin: 2px 0 0; color: var(--muted); }
+
+.path { border-left: 3px solid var(--accent); padding: 4px 0 4px 16px; display: grid; gap: 10px; max-width: 70ch; }
+.path p { margin: 0; }
+footer { color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); padding-top: 16px; }
+
+@media (max-width: 640px) {
+  .case { grid-template-columns: 1fr; }
+  .stub { border-right: 0; border-bottom: 2px dashed var(--line); }
+  dl.facts { grid-template-columns: 1fr; gap: 2px; }
+  dl.facts dd { margin-bottom: 8px; }
+  .quad { grid-template-columns: 1fr; }
+}
+</style>
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Field guide · Customer behaviour → promotions</div>
+  <h1>How real companies decide who gets which promotion</h1>
+  <p class="lede">Retailers and delivery apps no longer send the same discount to everyone. They use what customers buy, when they shop and how they react to past offers to decide who gets a promotion, which one, and when. This page explains how that works and links to first-hand sources from companies that do it.</p>
+  <nav class="toc" aria-label="Sections">
+    <a href="#why">Why target</a>
+    <a href="#pipeline">How it works</a>
+    <a href="#methods">Three methods</a>
+    <a href="#engineering">Engineering cases</a>
+    <a href="#grocery">Grocery loyalty</a>
+    <a href="#app">App rewards</a>
+    <a href="#compare">Comparison</a>
+    <a href="#critical">Risks</a>
+    <a href="#glossary">Glossary</a>
+  </nav>
+</header>
+
+<section class="section" id="why">
+  <h2>Why companies target promotions</h2>
+  <div class="prose">
+    <p>A blanket discount is expensive. Much of the money goes to customers who would have bought anyway, so the company gives away margin without gaining any sales. Some customers also learn to wait for discounts, which trains them to stop paying full price.</p>
+    <p>Targeting tries to spend the promotion budget only where it changes behaviour: bringing back a lapsing customer, getting someone to try a new category, or nudging a basket over a spend threshold. The goal is <strong>incremental</strong> sales, meaning sales that would not have happened without the offer.</p>
+    <p>To do this, companies need two things: detailed behaviour data (usually from a loyalty card or app login) and a way to predict how each customer will respond to each possible offer.</p>
+  </div>
+</section>
+
+<section class="section" id="pipeline">
+  <h2>How it works end to end</h2>
+  <p class="muted" style="margin:0;max-width:68ch">The details differ by company, but most systems in this guide follow the same sequence.</p>
+  <ol class="steps">
+    <li><div><h3>Collect behaviour data</h3><p>Every transaction is tied to a customer through a loyalty card, app account or login. This gives purchase history, visit frequency, basket size, preferred categories, channel and time of day, plus how the customer responded to past offers.</p></div></li>
+    <li><div><h3>Turn it into features</h3><p>Raw transactions become signals a model can use: days since last purchase, spend trend, share of spend on promotion, category affinity, price sensitivity, likely next visit date.</p></div></li>
+    <li><div><h3>Predict the response to each offer</h3><p>A model estimates, for each customer and each candidate offer, how likely they are to redeem it and, ideally, how much extra they will buy because of it.</p></div></li>
+    <li><div><h3>Choose offers within a budget</h3><p>An optimiser or bandit picks the best offer for each customer while keeping total discount cost under the campaign budget and respecting business rules (one offer per category, brand-funded offers, and so on).</p></div></li>
+    <li><div><h3>Deliver at the right moment</h3><p>Offers go out by app, email, mailer or receipt, often timed to when the customer is expected to shop next.</p></div></li>
+    <li><div><h3>Measure against a control group</h3><p>A random holdout group gets no offer (or a standard one). Comparing the two groups shows the true incremental effect, and those results train the next round of models.</p></div></li>
+  </ol>
+</section>
+
+<section class="section" id="methods">
+  <h2>The three methods you will see</h2>
+  <p class="muted" style="margin:0;max-width:68ch">Almost every case below combines these building blocks. Older programmes also rely on simpler customer segmentation and redemption-probability scoring, which are covered in the grocery cases.</p>
+  <div class="methods">
+
+    <div class="method">
+      <h3>1. Uplift modelling</h3>
+      <p class="q">Who buys because of the promotion?</p>
+      <p>A normal model predicts <em>whether</em> a customer will buy. An uplift model predicts the <em>difference</em> the offer makes: the chance they buy with the offer minus the chance they buy without it. It is trained on past experiments where some customers randomly got an offer and others did not.</p>
+      <p>This splits customers into four groups:</p>
+      <div class="quad">
+        <div class="hit"><b>Persuadables</b>Buy only if they get the offer. This is where the budget should go.</div>
+        <div><b>Sure things</b>Buy anyway. An offer here is wasted margin.</div>
+        <div><b>Lost causes</b>Will not buy either way. An offer here is wasted too.</div>
+        <div class="bad"><b>Sleeping dogs</b>Buy less if contacted, for example by being reminded to cancel. Leave them alone.</div>
+      </div>
+      <div class="example"><strong>Example:</strong> two customers each have a 60% chance of ordering this week. For one, a ₹100 discount raises it to 62%; for the other, to 85%. A response model treats them the same. An uplift model gives the discount only to the second.</div>
+    </div>
+
+    <div class="method">
+      <h3>2. Budget optimisation</h3>
+      <p class="q">Who gets which offer, within budget?</p>
+      <p>Once you know the expected lift and cost of every customer–offer pair, you still have to choose. Each customer can get at most one offer, and total spend has a limit. This is a classic <em>knapsack problem</em>: fill a bag of fixed size with the items worth the most. Companies solve it with linear programming or constraint solvers, often with a pacer that spreads spend evenly across a campaign.</p>
+      <div class="example"><strong>Example:</strong> with a ₹10 lakh budget, giving 20% off to 5,000 high-uplift customers may beat 10% off to 10,000 medium-uplift customers. The optimiser compares these options across millions of customers at once.</div>
+    </div>
+
+    <div class="method">
+      <h3>3. Contextual bandits</h3>
+      <p class="q">Which offer works for this person, right now?</p>
+      <p>Uplift models need historical experiments. A bandit learns while running: it mostly shows the offer it currently thinks is best for a customer's context, but sometimes tries alternatives to keep learning. Over time it shifts towards offers that get redeemed. "Contextual" means it takes the customer's features into account instead of finding one best offer for everyone.</p>
+      <div class="example"><strong>Example:</strong> a "spend $50, get $10" offer works for frequent shoppers, while "spend $30, get $5" works for occasional ones. The bandit discovers this split by testing, without anyone defining the segments in advance.</div>
+    </div>
+
+  </div>
+</section>
+
+<section class="section" id="engineering">
+  <h2>Engineering blogs and papers</h2>
+  <p class="muted" style="margin:0;max-width:68ch">Written by the teams that built the systems. These are the best sources for understanding the methods in practice.</p>
+  <div class="cases">
+
+    <article class="case">
+      <div class="stub"><div class="co">DoorDash</div><div class="sector">Food delivery, US</div><span class="tag">uplift · causal ML</span></div>
+      <div class="body">
+        <dl class="facts">
+          <dt>Problem</dt><dd>Uniform discounts (the same amount for everyone) cost a lot and give much of the money to customers who would order anyway.</dd>
+          <dt>Data</dt><dd>Order history and past promotion experiments, where users randomly received different offers.</dd>
+          <dt>How it works</dt><dd>Uses Double Machine Learning, a causal inference technique, to estimate how much each user's likelihood of ordering would change under each specific offer. Discount amounts are then personalised per user based on that estimated lift.</dd>
+          <dt>Result</dt><dd>Higher order-rate lift while improving cost efficiency compared with uniform discount amounts.</dd>
+          <dt>Takeaway</dt><dd>A clear real-world example of uplift modelling replacing "who is likely to order" with "who orders more because of the discount".</dd>
+        </dl>
+        <ul class="links">
+          <li><span class="kind">Blog</span><a href="https://careersatdoordash.com/blog/doordash-smarter-promotions-with-causal-machine-learning/">Smarter promotions with causal machine learning</a></li>
+        </ul>
+      </div>
+    </article>
+
+    <article class="case">
+      <div class="stub"><div class="co">Uber / Uber Eats</div><div class="sector">Rides &amp; food delivery, global</div><span class="tag">uplift + knapsack</span></div>
+      <div class="body">
+        <dl class="facts">
+          <dt>Problem</dt><dd>Many incentive types (rider promos, Eats discounts, driver incentives) compete for one budget, and each user can receive only a limited number.</dd>
+          <dt>Data</dt><dd>Trip and order history, plus results from past incentive experiments.</dd>
+          <dt>How it works</dt><dd>Uplift models forecast the incremental effect of each incentive on metrics such as Eats orders and trips. The system then treats allocation as a Multiple Knapsack Problem and uses a constraint solver (CP-SAT) to pick incentives, with a budget pacer controlling spend over time.</dd>
+          <dt>Takeaway</dt><dd>Shows the second half of the pipeline: prediction alone is not enough, you also need an optimiser to turn predictions into decisions under a budget.</dd>
+        </dl>
+        <ul class="links">
+          <li><span class="kind">Blog</span><a href="https://www.uber.com/us/en/blog/solving-multiple-knapsack/">Solving the Multiple Knapsack Problem at Scale: How Uber Optimizes Incentives</a></li>
+          <li><span class="kind">Code</span><a href="https://github.com/uber/causalml">CausalML, Uber's open-source uplift library (usable for your own experiments)</a></li>
+        </ul>
+      </div>
+    </article>
+
+    <article class="case">
+      <div class="stub"><div class="co">Target</div><div class="sector">General retail, US</div><span class="tag">contextual bandit</span></div>
+      <div class="body">
+        <dl class="facts">
+          <dt>Problem</dt><dd>Target Circle members get "spend X, get Y" bonus offers. Set the threshold too high and nobody redeems; too low and Target pays for spend that would have happened anyway.</dd>
+          <dt>Data</dt><dd>Transactions, past promotions and guest behaviour from the Target Circle loyalty programme.</dd>
+          <dt>How it works</dt><dd>CORE (Contextual Offer Recommendations Engine) is a contextual multi-armed bandit that chooses the spend threshold and reward amount for each member, optimising for offer adds and redemptions. A separate deep learning model, TargetRun, predicts when each guest will shop next so offers are timed for that trip.</dd>
+          <dt>Takeaway</dt><dd>Personalisation is not only about <em>which</em> product: the offer's size, threshold and timing are tuned per person too.</dd>
+        </dl>
+        <ul class="links">
+          <li><span class="kind">Blog</span><a href="https://tech.target.com/blog/contextual-offer-recommendation-engine">Contextual Offer Recommendations Engine at Target</a></li>
+          <li><span class="kind">Blog</span><a href="https://tech.target.com/blog/targetrun-shopping-offers">TargetRun: AI-Powered Trip Prediction for Delivering Timely Offers</a></li>
+        </ul>
+      </div>
+    </article>
+
+    <article class="case">
+      <div class="stub"><div class="co">Booking.com</div><div class="sector">Online travel, global</div><span class="tag">uplift + knapsack</span></div>
+      <div class="body">
+        <dl class="facts">
+          <dt>Problem</dt><dd>Run promotions that pay for themselves: the extra bookings must cover the cost of the discounts.</dd>
+          <dt>Data</dt><dd>Booking behaviour from large randomised promotion experiments.</dd>
+          <dt>How it works</dt><dd>Uplift models estimate each customer's incremental response to each promotion. An online multiple-choice knapsack algorithm then allocates promotions in real time while keeping spend within the budget.</dd>
+          <dt>Result</dt><dd><span class="stat">+162% sales</span> while meeting a zero-net-budget constraint, according to their published paper.</dd>
+          <dt>Takeaway</dt><dd>With uplift and budget control together, promotions can become self-funding long-running campaigns rather than one-off costs.</dd>
+        </dl>
+        <ul class="links">
+          <li><span class="kind">Paper</span><a href="https://dl.acm.org/doi/10.1145/3511808.3557100">E-Commerce Promotions Personalization via Online Multiple-Choice Knapsack with Uplift Modeling</a></li>
+          <li><span class="kind">Paper</span><a href="https://arxiv.org/pdf/2008.06293">Free Lunch! Retrospective Uplift Modeling for Dynamic Promotions Recommendation within ROI Constraints</a></li>
+          <li><span class="kind">Talk</span><a href="https://www.youtube.com/watch?v=NsgK1rC5s-I">Converted data is enough for most promotion uplift modeling problems</a></li>
+        </ul>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+<section class="section" id="grocery">
+  <h2>Grocery loyalty programmes</h2>
+  <p class="muted" style="margin:0;max-width:68ch">Grocery is where personalised couponing started, because shoppers visit weekly and loyalty cards link every basket to a household. These sources read best as business case studies.</p>
+  <div class="cases">
+
+    <article class="case">
+      <div class="stub"><div class="co">Kroger / 84.51°</div><div class="sector">Grocery, US</div><span class="tag">propensity scoring</span></div>
+      <div class="body">
+        <dl class="facts">
+          <dt>Background</dt><dd>84.51° is Kroger's in-house data science company, built from dunnhumby's former US operations. It is named after the longitude of Kroger's Cincinnati headquarters.</dd>
+          <dt>Data</dt><dd>First-party loyalty data from over 60 million US households and around 2 billion transactions a year.</dd>
+          <dt>How it works</dt><dd>For every eligible household, the system computes the probability of redeeming each of roughly 2,000 possible offers. The best combination goes into personalised mailers and digital-only coupons. Models also detect when a customer is likely to stock up on a product.</dd>
+          <dt>Result</dt><dd>Some targeted coupons reach <span class="stat">~65% redemption</span> against a national average of about <span class="stat">5%</span>.</dd>
+          <dt>Takeaway</dt><dd>Matching offers to products a household already buys or is about to need gives very high redemption. Kroger also sells this targeting to brands, which fund many of the offers.</dd>
+        </dl>
+        <ul class="links">
+          <li><span class="kind">Article</span><a href="https://www.8451.com/knowledge-hub/data-science/personalizing-the-customer-experience/">Personalizing the Customer Experience (84.51°)</a></li>
+          <li><span class="kind">Article</span><a href="https://www.8451.com/knowledge-hub/loyalty/customer-communications-18-years-strong/">Customer communications: 18 years strong</a></li>
+          <li><span class="kind">Product</span><a href="https://www.krogerprecisionmarketing.com/our-solutions/loyalty-marketing/">Kroger Precision Marketing: Incentives</a></li>
+          <li><span class="kind">Case</span><a href="https://d3.harvard.edu/platform-digit/submission/kroger-doubling-down-on-data-in-the-face-of-hungry-competition/">Harvard D3: Kroger doubling down on data</a></li>
+        </ul>
+      </div>
+    </article>
+
+    <article class="case">
+      <div class="stub"><div class="co">Tesco Clubcard / dunnhumby</div><div class="sector">Grocery, UK</div><span class="tag">segmentation</span></div>
+      <div class="body">
+        <dl class="facts">
+          <dt>Background</dt><dd>Clubcard launched in 1995 with analytics from dunnhumby and is often cited as the programme that showed loyalty data could drive promotions at scale.</dd>
+          <dt>Data</dt><dd>Basket-level shopping history from more than 23 million UK households.</dd>
+          <dt>How it works</dt><dd>Early on, customers were grouped into detailed segments, and each segment received different vouchers. By 1997 this had become close to one-to-one couponing. Today Tesco issues individual digital coupons and personalised spending challenges designed to get members to try new products, spend more in a category or raise their overall spend.</dd>
+          <dt>Result</dt><dd><span class="stat">289M personalised coupons</span> to about <span class="stat">8M customers</span> in one year.</dd>
+          <dt>Takeaway</dt><dd>The same data also drives pricing, range and category decisions, so the loyalty programme becomes a strategic data asset, not just a discount scheme.</dd>
+        </dl>
+        <ul class="links">
+          <li><span class="kind">Feature</span><a href="https://www.computerweekly.com/feature/Clubcard-at-30-the-evolution-of-retail-loyalty">Computer Weekly: Clubcard at 30</a></li>
+          <li><span class="kind">Feature</span><a href="https://www.thegrocer.co.uk/analysis-and-features/can-tesco-take-clubcard-personalisation-to-new-heights/690992.article">The Grocer: Can Tesco take Clubcard personalisation to new heights?</a></li>
+          <li><span class="kind">Case</span><a href="https://www.slideshare.net/slideshow/the-loyalty-guide-5-tesco-dunnhumby-case-study/16921762">The Loyalty Guide: Tesco &amp; dunnhumby case study</a></li>
+        </ul>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+<section class="section" id="app">
+  <h2>App-based rewards</h2>
+  <div class="cases">
+    <article class="case">
+      <div class="stub"><div class="co">Starbucks Deep Brew</div><div class="sector">Coffee chain, global</div><span class="tag">recommender + RL</span></div>
+      <div class="body">
+        <dl class="facts">
+          <dt>Problem</dt><dd>Personalise offers for tens of millions of Rewards members while keeping offers relevant to what each store can actually serve.</dd>
+          <dt>Data</dt><dd>Order history from the Starbucks app and Rewards programme, combined with context such as time of day, weather and local store inventory.</dd>
+          <dt>How it works</dt><dd>Deep Brew combines collaborative filtering (people like you ordered this), content-based filtering (similar to what you order) and reinforcement learning to choose personalised offers and suggestions, such as challenges to visit more often or try a new item.</dd>
+          <dt>Takeaway</dt><dd>A feedback loop: more app use gives more data, which gives better offers, which drives more app use. Context (weather, inventory) matters as much as the customer's history.</dd>
+        </dl>
+        <ul class="links">
+          <li><span class="kind">News</span><a href="https://www.pymnts.com/news/loyalty-and-rewards-news/2024/starbucks-uses-artificial-intelligence-powered-personalized-rewards-boost-frequency-check-size/">PYMNTS: Starbucks uses AI-powered personalised rewards to boost frequency and spend</a></li>
+          <li><span class="kind">Analysis</span><a href="https://marketerintheloop.com/p/starbucks-ai-powered-hyper-personalization-with-deep-brew">Marketer in the Loop: Starbucks' hyper-personalisation with Deep Brew</a></li>
+        </ul>
+      </div>
+    </article>
+  </div>
+</section>
+
+<section class="section" id="compare">
+  <h2>Side-by-side comparison</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Company</th><th>Main method</th><th>What gets personalised</th><th>Main data source</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>DoorDash</td><td>Uplift (causal ML)</td><td>Discount amount</td><td>Orders, promo experiments</td></tr>
+        <tr><td>Uber / Uber Eats</td><td>Uplift + knapsack solver</td><td>Which incentive, under budget</td><td>Trips, orders, experiments</td></tr>
+        <tr><td>Target</td><td>Contextual bandit</td><td>Spend threshold, reward, timing</td><td>Target Circle transactions</td></tr>
+        <tr><td>Booking.com</td><td>Uplift + online knapsack</td><td>Which promotion, self-funding</td><td>Randomised experiments</td></tr>
+        <tr><td>Kroger / 84.51°</td><td>Redemption scoring</td><td>Coupon selection per household</td><td>Loyalty card baskets</td></tr>
+        <tr><td>Tesco Clubcard</td><td>Segmentation → individual</td><td>Coupons, spending challenges</td><td>Loyalty card baskets</td></tr>
+        <tr><td>Starbucks</td><td>Recommender + RL</td><td>Offers, challenges, suggestions</td><td>App orders + context</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section" id="critical">
+  <h2>Risks and criticism</h2>
+  <div class="prose">
+    <p><strong>Privacy.</strong> The same loyalty data used for coupons is often sold or shared with brands and advertisers. Customers may not realise how much their shopping history reveals or where it goes.</p>
+    <p><strong>Fairness.</strong> Personalised offers mean different customers effectively pay different prices for the same product. Regulators and the press increasingly ask whether this disadvantages certain groups.</p>
+    <p><strong>Discount dependency.</strong> Poorly targeted promotions train customers to wait for offers, which lowers full-price sales over time. Uplift modelling and control groups exist partly to catch this.</p>
+  </div>
+  <div class="cases">
+    <article class="case">
+      <div class="stub"><div class="co">Loyalty data resale</div><span class="tag critical">privacy</span></div>
+      <div class="body">
+        <p>Investigation into how supermarket loyalty-card data, including Kroger's, is packaged and sold beyond promotions.</p>
+        <ul class="links">
+          <li><span class="kind">Report</span><a href="https://www.codastory.com/authoritarian-tech/supermarkets-kroger-discount-cards-data/">Coda Story: Supermarkets are having a fire sale on data about you</a></li>
+        </ul>
+      </div>
+    </article>
+  </div>
+</section>
+
+<section class="section" id="glossary">
+  <h2>Glossary</h2>
+  <dl class="gloss">
+    <dt>Incremental sales (lift)</dt><dd>Sales that happened because of the promotion, measured against a group that did not receive it.</dd>
+    <dt>Control / holdout group</dt><dd>A random set of customers deliberately left out of a campaign so its true effect can be measured.</dd>
+    <dt>Propensity model</dt><dd>Predicts how likely a customer is to do something, such as redeem a coupon. It does not say whether the coupon caused it.</dd>
+    <dt>Uplift model</dt><dd>Predicts the change in behaviour caused by an action, by comparing treated and untreated customers.</dd>
+    <dt>Double Machine Learning (DML)</dt><dd>A causal inference method that uses machine learning models to remove the effect of other factors and isolate the effect of the treatment, here the discount.</dd>
+    <dt>Knapsack problem</dt><dd>An optimisation problem: choose items with the highest total value without exceeding a fixed capacity, here the promotion budget.</dd>
+    <dt>Multi-armed bandit</dt><dd>An algorithm that balances trying new options (exploration) with using the best-known option (exploitation). Contextual bandits also use customer features.</dd>
+    <dt>Redemption rate</dt><dd>The share of issued offers that customers actually use.</dd>
+    <dt>First-party data</dt><dd>Data a company collects directly from its own customers, such as loyalty card transactions, rather than buying it from others.</dd>
+  </dl>
+</section>
+
+<section class="section">
+  <h2>Where to start</h2>
+  <div class="path">
+    <p><strong>Building a model?</strong> Read DoorDash first for uplift, then Uber for budget allocation, then Target for bandits. Try Uber's CausalML library on your own data.</p>
+    <p><strong>Making the business case?</strong> Read the Kroger/84.51° and Tesco Clubcard sources. They show the scale and redemption gains that personalised offers can reach.</p>
+    <p><strong>Writing about ethics or regulation?</strong> Start with the Coda Story report and the risks section above.</p>
+  </div>
+</section>
+
+<footer>Sources collected October 2026. Figures are as reported by each company or publication. No first-party engineering write-ups on promotion targeting were found for Swiggy, Zomato or Flipkart, so they are not listed.</footer>
+
+</div>

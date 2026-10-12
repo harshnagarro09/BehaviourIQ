@@ -11,11 +11,16 @@ export function useWidth<T extends HTMLElement>(maxW = Infinity): [React.RefObje
   const ref = useRef<T>(null);
   const [w, setW] = useState(0);
   useLayoutEffect(() => {
-    if (!ref.current) return;
-    setW(ref.current.clientWidth);
-    const ro = new ResizeObserver((e) => setW(Math.round(e[0].contentRect.width)));
-    ro.observe(ref.current);
-    return () => ro.disconnect();
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => setW(Math.floor(el.getBoundingClientRect().width));
+    measure();
+    // layout can still shift after the first paint (scrollbar, fonts, grid columns): measure again once it settles
+    const raf = requestAnimationFrame(() => requestAnimationFrame(measure));
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    window.addEventListener('resize', measure);
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); window.removeEventListener('resize', measure); };
   }, []);
   return [ref as React.RefObject<T>, Math.min(w, maxW)];
 }
@@ -37,7 +42,13 @@ function useTip() {
   const el = tip && (
     <div
       className="pointer-events-none absolute z-30 rounded-lg bg-[#0b1c2f] px-2.5 py-1.5 text-[12px] leading-snug text-white shadow-lg"
-      style={{ left: Math.min(tip.x + 12, (box.current?.clientWidth ?? 300) - 190), top: Math.max(0, tip.y - 8), transform: 'translateY(-100%)', maxWidth: 220 }}
+      style={{
+        left: Math.max(4, Math.min(tip.x + 12, (box.current?.clientWidth ?? 300) - 232)),
+        // Flip below the cursor when there is no room above, so long tooltips are never cut off.
+        top: tip.y < 130 ? tip.y + 14 : tip.y - 8,
+        transform: tip.y < 130 ? undefined : 'translateY(-100%)',
+        width: 'max-content', maxWidth: 220,
+      }}
     >
       {tip.node}
     </div>
@@ -466,7 +477,7 @@ export function Stack({ parts, height = 14 }: { parts: { label: string; value: n
 export function Waterfall({
   steps, height = 230, format,
 }: {
-  steps: { label: string; value: number; kind: 'total' | 'delta'; note?: string }[]; height?: number; format: (v: number) => string;
+  steps: { label: string; value: number; kind: 'total' | 'delta'; note?: string; color?: string }[]; height?: number; format: (v: number) => string;
 }) {
   const [ref, w] = useWidth<HTMLDivElement>(capFor(steps.length, 150, 340, 700));
   const { box, show, hide, el } = useTip();
@@ -501,7 +512,7 @@ export function Waterfall({
               const x = m.l + bw * i + bw * 0.18;
               const top = Math.min(Y(b.from), Y(b.to));
               const h = Math.max(1.5, Math.abs(Y(b.from) - Y(b.to)));
-              const fill = b.kind === 'total' ? 'var(--ink)' : b.value >= 0 ? 'var(--t-stockup)' : 'var(--bad)';
+              const fill = b.color ?? (b.kind === 'total' ? 'var(--ink)' : b.value >= 0 ? 'var(--t-stockup)' : 'var(--bad)');
               return (
                 <g key={b.label} onMouseMove={(e) => show(e, <><b>{b.label}</b><br />{format(b.value)}{b.note && <div className="opacity-70">{b.note}</div>}</>)} onMouseLeave={hide}>
                   <rect x={x} y={top} width={bw * 0.64} height={h} rx={3} fill={fill} />
@@ -543,4 +554,66 @@ export function useInView<T extends HTMLElement>() {
     return () => io.disconnect();
   }, []);
   return [ref, seen] as const;
+}
+
+/* ---------------------------------------------------------------- budget frontier (value vs budget, with markers) */
+export function Frontier({
+  points, marks, height = 240, xFormat, yFormat, yLabel,
+}: {
+  points: { x: number; y: number }[]; marks: { x: number; label: string; color: string }[]; height?: number;
+  xFormat: (v: number) => string; yFormat: (v: number) => string; yLabel: string;
+}) {
+  const [ref, w] = useWidth<HTMLDivElement>(1000);
+  const { box, show, hide, el } = useTip();
+  const [hx, setHx] = useState<number | null>(null);
+  const m = { t: 18, r: 16, b: 36, l: 58 };
+  const xmax = Math.max(1, ...points.map((p) => p.x));
+  const yt = ticks(0, Math.max(1e-6, ...points.map((p) => p.y)));
+  const xt = ticks(0, xmax);
+  const iw = Math.max(10, w - m.l - m.r);
+  const ih = height - m.t - m.b;
+  const X = (v: number) => m.l + (v / xt.hi) * iw;
+  const Y = (v: number) => m.t + ih - ((v - yt.lo) / (yt.hi - yt.lo)) * ih;
+  const at = (x: number) => points.reduce((a, b) => (Math.abs(b.x - x) < Math.abs(a.x - x) ? b : a), points[0]);
+  const d = points.map((p, i) => `${i ? 'L' : 'M'}${X(p.x).toFixed(1)},${Y(p.y).toFixed(1)}`).join('');
+  return (
+    <div ref={box} className="relative">
+      <div ref={ref} className="flex w-full justify-center [contain:inline-size]">
+        {w > 0 && points.length > 1 && (
+          <svg width={w} height={height} role="img" aria-label={`${yLabel} by budget`}
+            onMouseMove={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              const v = ((e.clientX - r.left - m.l) / iw) * xt.hi;
+              const p = at(Math.max(0, v));
+              setHx(p.x);
+              show(e, <><b>Budget {xFormat(p.x)}</b><div>{yLabel}: {yFormat(p.y)}</div></>);
+            }}
+            onMouseLeave={() => { setHx(null); hide(); }}>
+            {yt.vals.map((t) => (
+              <g key={t}>
+                <line x1={m.l} x2={w - m.r} y1={Y(t)} y2={Y(t)} className="chart-grid" />
+                <text x={m.l - 6} y={Y(t) + 4} textAnchor="end" className="chart-text">{yFormat(t)}</text>
+              </g>
+            ))}
+            {xt.vals.map((t) => <text key={t} x={X(t)} y={height - m.b + 16} textAnchor="middle" className="chart-text">{xFormat(t)}</text>)}
+            <text x={m.l + iw / 2} y={height - 4} textAnchor="middle" className="chart-text" style={{ fill: 'var(--ink-2)', fontWeight: 600 }}>Budget</text>
+            <path d={`${d}L${X(points[points.length - 1].x)},${Y(0)}L${X(points[0].x)},${Y(0)}Z`} fill="var(--navy)" opacity={0.06} />
+            <path d={d} fill="none" stroke="var(--navy)" strokeWidth={2} strokeLinejoin="round" />
+            {marks.map((mk, i) => {
+              const p = at(mk.x);
+              return (
+                <g key={mk.label}>
+                  <line x1={X(mk.x)} x2={X(mk.x)} y1={m.t} y2={m.t + ih} stroke={mk.color} strokeDasharray="4 3" strokeWidth={1.5} />
+                  <circle cx={X(mk.x)} cy={Y(p.y)} r={5} fill={mk.color} stroke="var(--card)" strokeWidth={2} />
+                  <text x={Math.min(w - m.r - 4, X(mk.x) + 6)} y={m.t + 10 + i * 13} textAnchor={X(mk.x) > w - 160 ? 'end' : 'start'} className="chart-text" style={{ fill: 'var(--ink-2)', fontWeight: 600 }}>{mk.label}</text>
+                </g>
+              );
+            })}
+            {hx !== null && <line x1={X(hx)} x2={X(hx)} y1={m.t} y2={m.t + ih} stroke="var(--ink-3)" strokeDasharray="3 3" />}
+          </svg>
+        )}
+      </div>
+      {el}
+    </div>
+  );
 }

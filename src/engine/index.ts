@@ -4,22 +4,8 @@ import { basketPairs, monthlyTrend, timingBehaviour, typeStats, TYPE_IDS, type C
 import { cachedProfile, DEFAULT_ASSUMPTIONS, type Assumptions } from './simulation.ts';
 import { recommend, watchdog, type Alert, type Recommendation } from './planner.ts';
 import { classify } from './segments.ts';
-import { assignSegments, SEGMENTS, type SegId } from './groups.ts';
+import { responseProfiles, type RespProfile } from './response.ts';
 import type { TypeId } from './behaviour.ts';
-
-export interface SegStat {
-  seg: SegId;
-  n: number;
-  share: number;
-  spendShare: number;
-  avgOrdersPerMonth: number;
-  avgOrderValue: number;
-  respRate: number;
-  promoReliance: number;
-  pastCost: number;
-  pastNet: number;
-  roi: number;
-}
 
 export interface Engine {
   ds: Dataset;
@@ -29,7 +15,7 @@ export interface Engine {
   recById: Map<string, CustomerRecord>;
   typeOf: Map<string, TypeId>;
   stats: TypeStat[];
-  segStats: SegStat[];
+  resp: Map<string, RespProfile>; // incremental responsiveness per customer (shared by prediction and planning)
   assumptions: Assumptions; // business assumptions behind the simulated numbers
   results: CampaignResult[];
   perCustomer: Map<string, CustomerCampaign[]>;
@@ -50,7 +36,7 @@ export interface Engine {
     discountCost: number;
     leakage: number;
     leakagePct: number;
-    netProfit: number;
+    incMargin: number;
     roi: number;
   };
 }
@@ -60,31 +46,18 @@ export function buildEngine(csvText: string, assumptions: Assumptions = DEFAULT_
   const asOf = ds.maxDay + 1;
 
   const profiles = ds.customers.map((cid) => cachedProfile(ds, cid, asOf));
-  const segOf = assignSegments(profiles, ds.maxDay);
   const records: CustomerRecord[] = profiles.map((b) => {
     const c = classify(b);
-    return { cid: b.cid, b, type: c.type, confidence: c.confidence, reasons: c.reasons, seg: segOf.get(b.cid)! };
+    return { cid: b.cid, b, type: c.type, confidence: c.confidence, reasons: c.reasons };
   });
   const typeOf = new Map(records.map((r) => [r.cid, r.type]));
 
   const { results, perCustomer } = evaluateCampaigns(ds, typeOf);
   const strategies = replayStrategies(perCustomer, typeOf);
   const stats = typeStats(records, results);
-  const recommendations = recommend(ds, records, asOf, assumptions);
+  const resp = responseProfiles(ds, perCustomer, asOf, (cid) => cachedProfile(ds, cid, asOf).avgQty);
+  const recommendations = recommend(ds, records, asOf, resp, assumptions);
   const alerts = watchdog(ds, results, records, asOf);
-
-  const totalSpend = records.reduce((s, r) => s + r.b.totalSpend, 0);
-  const segStats: SegStat[] = SEGMENTS.map((sg) => {
-    const rs = records.filter((r) => r.seg === sg.id);
-    const avg = (f: (r: CustomerRecord) => number) => (rs.length ? rs.reduce((s, r) => s + f(r), 0) / rs.length : 0);
-    let cost = 0, net = 0;
-    for (const r of rs) for (const x of perCustomer.get(r.cid) ?? []) { cost += x.discountCost; net += x.net; }
-    return {
-      seg: sg.id, n: rs.length, share: rs.length / records.length, spendShare: rs.reduce((s, r) => s + r.b.totalSpend, 0) / totalSpend,
-      avgOrdersPerMonth: avg((r) => r.b.ordersPerMonth), avgOrderValue: avg((r) => r.b.avgOrderValue), respRate: avg((r) => r.b.respRate),
-      promoReliance: avg((r) => r.b.promoReliance), pastCost: cost, pastNet: net, roi: cost ? net / cost : 0,
-    };
-  });
 
   const orders = new Set<string>();
   let revenue = 0;
@@ -97,10 +70,10 @@ export function buildEngine(csvText: string, assumptions: Assumptions = DEFAULT_
   const incUnits = sum((r) => r.incUnits);
   const discountCost = sum((r) => r.discountCost);
   const leakage = sum((r) => r.leakage);
-  const netProfit = sum((r) => r.netProfit);
+  const incMargin = sum((r) => r.incMargin);
 
   return {
-    ds, asOf, asOfIso: isoOf(asOf - 1), assumptions, segStats, records, recById: new Map(records.map((r) => [r.cid, r])), typeOf, stats,
+    ds, asOf, asOfIso: isoOf(asOf - 1), assumptions, records, recById: new Map(records.map((r) => [r.cid, r])), typeOf, stats, resp,
     results, perCustomer, strategies,
     basket: basketPairs(ds),
     timing: timingBehaviour(ds, records),
@@ -109,8 +82,8 @@ export function buildEngine(csvText: string, assumptions: Assumptions = DEFAULT_
     totals: {
       customers: ds.customers.length, orders: orders.size, revenue, lines: ds.lines.length,
       promoUnits, incUnits, incShare: promoUnits ? incUnits / promoUnits : 0,
-      discountCost, leakage, leakagePct: discountCost ? leakage / discountCost : 0, netProfit,
-      roi: discountCost ? netProfit / discountCost : 0,
+      discountCost, leakage, leakagePct: discountCost ? leakage / discountCost : 0, incMargin,
+      roi: discountCost ? incMargin / discountCost : 0,
     },
   };
 }

@@ -5,7 +5,6 @@ import { Btn, Card, CardTitle, Chip, Kpi, Meter, FilterSelect, Panel } from '@/c
 import { HBars, Stack } from '@/components/charts';
 import { PageTop } from '@/pages/Analytics';
 import { dayOf } from '@/engine/data';
-import { shortOffer } from '@/engine/options';
 import { type Recommendation, type Scenario } from '@/engine/planner';
 import { TYPES, TYPE_BY_ID } from '@/engine/segments';
 import { TYPE_IDS } from '@/engine/insights';
@@ -57,16 +56,16 @@ export function Planning() {
         <div className={`grid ${COLS} items-center gap-3 px-4 py-3.5`}>
           <div className="min-w-0">
             <p className="text-[13px] font-semibold">{r.candidate.name} <span className="font-normal text-[var(--ink-3)]">— {sc ? sc.option.label : 'No offer'}</span></p>
-            <p className="text-[11.5px] font-medium text-[var(--green-dark)]">{r.candidate.category} · {sc ? `${sc.audience.targeted} of ${sc.audience.total} customers` : 'no profitable audience'}</p>
+            <p className="text-[11.5px] font-medium text-[var(--green-dark)]">{r.candidate.category} · {sc ? `${sc.audience.targeted} of ${sc.audience.total} customers` : 'no audience with a positive uplift'}</p>
             <p className="mt-0.5 text-[11.5px] leading-snug text-[var(--ink-3)]" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }} title={r.rationale[0]}>{r.rationale[0]}</p>
           </div>
           <div><Chip tone="navy">{objectiveOf(sc)}</Chip></div>
           <div><p className="text-[12.5px] font-medium">{windowOf(r)}</p><p className="text-[11px] text-[var(--ink-3)]">{r.candidate.days} days</p></div>
           <p className="num text-[13px] font-semibold">{sc ? inr(sc.discountCost) : '–'}</p>
           <div>
-            <p className="num text-[12.5px] font-semibold">{sc ? `${Math.round(sc.incrementalBuyers)} extra buyers` : '–'}</p>
-            {sc && <p className="num text-[11.5px] font-semibold" style={{ color: sc.roi < 0.3 ? 'var(--amber)' : 'var(--green-dark)' }}>ROI {sc.roi.toFixed(2)} · {inr(sc.net)}</p>}
-            {sc && <p className="num text-[11px] text-[var(--ink-3)]">{pct(sc.buyers / Math.max(1, sc.audience.targeted))} response</p>}
+            <p className="num text-[12.5px] font-semibold">{sc ? `${Math.round(sc.incrementalBuyers)} incremental buyers` : '–'}</p>
+            {sc && <p className="num text-[11.5px] font-semibold" style={{ color: sc.roi < 0.3 ? 'var(--amber)' : 'var(--green-dark)' }}>ROI {sc.roi.toFixed(2)} · {inr(sc.incMargin)}</p>}
+            {sc && <p className="num text-[11px] text-[var(--ink-3)]">{pct(sc.buyers / Math.max(1, sc.audience.targeted))} purchase probability</p>}
           </div>
           <p className="num text-[13px] font-medium">{r.confidence}%</p>
           <div className="flex flex-wrap items-center gap-1.5">
@@ -90,18 +89,18 @@ export function Planning() {
 
   const header = (
     <div className={`grid ${COLS} gap-3 px-4 py-2 text-[10.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]`}>
-      {['Campaign & offer', 'Objective', 'Week / duration', 'Budget', 'Predicted', 'Confidence', 'Actions'].map((h) => <span key={h} title={h === 'Confidence' ? 'How much past campaign history in this category the recommendation draws on' : undefined}>{h}</span>)}
+      {['Campaign & offer', 'Objective', 'Week / duration', 'Investment', 'Predicted uplift', 'Confidence', 'Actions'].map((h) => <span key={h} title={h === 'Confidence' ? 'How much past campaign history in this category the recommendation draws on' : undefined}>{h}</span>)}
     </div>
   );
 
   return (
     <>
-      <PageTop title="Planning" sub="Recommended promotion calendar for the next quarter, built from simulated customer response" />
+      <PageTop title="Planning" sub="Recommended promotion calendar for the next quarter: which promotion, and which customer types, built from predicted uplift" />
       <div className="space-y-4 p-6">
-        <Takeaway>{planningTakeaway({ campaigns: e.recommendations.length, net: e.recommendations.reduce((s, r) => s + (r.best?.net ?? 0), 0), flagged: attention.length })}</Takeaway>
+        <Takeaway>{planningTakeaway({ campaigns: e.recommendations.length, margin: e.recommendations.reduce((s, r) => s + (r.best?.incMargin ?? 0), 0), flagged: attention.length })}</Takeaway>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Kpi label="Total upcoming" value={`${e.recommendations.length} campaigns`} note={`${accepted.length} accepted`} />
-          <Kpi label="Budget committed" value={inr(budget)} note="discount spend on accepted campaigns" />
+          <Kpi label="Budget committed" value={inr(budget)} note="promo investment on accepted campaigns" />
           <Kpi label="Needing action" value={`${attention.length} campaigns`} tone={attention.length ? 'bad' : undefined} note="flagged for review" />
           <Kpi label="Budget at risk" value={inr(atRisk)} tone={atRisk ? 'bad' : undefined} note="in flagged campaigns" />
         </div>
@@ -187,29 +186,29 @@ function Gap({ title, body }: { title: string; body: string }) {
 function Detail({ r, onSimulate }: { r: Recommendation; onSimulate: () => void }) {
   const { decisions, decide } = useApp();
   const d = decisions[r.candidate.id];
-  const [key, setKey] = useState(d?.optionKey || r.best?.option.key || r.scenarios[0].option.key);
-  const sc = r.scenarios.find((s) => s.option.key === key)!;
+  const [key, setKey] = useState(d?.optionKey || r.best?.option.key || r.scenarios[0]?.option.key);
+  const sc = r.scenarios.find((s) => s.option.key === key) ?? r.best ?? r.scenarios[0];
 
   const maxResp = Math.max(...r.scenarios.map((s) => s.buyers / Math.max(1, s.audience.targeted)), 0.01);
   return (
     <div className="grid gap-6 border-t border-dashed border-[var(--line)] bg-[#f8fafc] px-5 py-4 lg:grid-cols-3">
       <div>
-        <p className="mb-2 text-[10.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">Simulated response by promotion</p>
+        <p className="mb-2 text-[10.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">Predicted purchase probability by promotion</p>
         <div className="space-y-1.5">
           {r.scenarios.map((s) => {
             const resp = s.buyers / Math.max(1, s.audience.targeted);
             const sel = s.option.key === key;
             return (
               <button key={s.option.key} onClick={() => setKey(s.option.key)} className={`flex w-full items-center gap-2 rounded px-1.5 py-1 text-left ${sel ? 'bg-white ring-1 ring-[var(--navy)]' : 'hover:bg-white'}`}>
-                <span className="w-[68px] shrink-0 text-[11.5px] font-medium">{shortOffer(s.option.label)}</span>
-                <Meter value={resp / maxResp} color={s.net > 0 ? 'var(--navy)' : '#cbd5e1'} width={90} />
+                <span className="w-[68px] shrink-0 text-[11.5px] font-medium">{s.option.short}</span>
+                <Meter value={resp / maxResp} color={s.incMargin > 0 ? 'var(--navy)' : '#cbd5e1'} width={90} />
                 <span className="num w-8 text-[11.5px] font-semibold">{s.audience.targeted ? pct(resp) : '–'}</span>
-                <span className="num w-14 text-right text-[11.5px]" style={{ color: s.net < 0 ? 'var(--red)' : 'var(--ink-2)' }}>{inr(s.net)}</span>
+                <span className="num w-14 text-right text-[11.5px]" style={{ color: s.incMargin < 0 ? 'var(--red)' : 'var(--ink-2)' }}>{inr(s.incMargin)}</span>
               </button>
             );
           })}
         </div>
-        <p className="mt-2 text-[11px] text-[var(--ink-3)]">Response among the customers worth targeting, and the net profit for each offer.</p>
+        <p className="mt-2 text-[11px] text-[var(--ink-3)]">Purchase probability among the targeted customer types, and the incremental margin for each offer.</p>
       </div>
 
       <div>
@@ -223,7 +222,7 @@ function Detail({ r, onSimulate }: { r: Recommendation; onSimulate: () => void }
           {TYPES.map((t) => <span key={t.id} className="flex items-center gap-1.5 rounded-full bg-white px-2 py-0.5 text-[11.5px] font-medium ring-1 ring-[var(--line)]"><span className="h-2 w-2 rounded-full" style={{ background: t.color }} />{t.short} {sc.audience.byType[t.id].targeted}/{sc.audience.byType[t.id].total}</span>)}
         </div>
         <dl className="mb-3 grid grid-cols-3 gap-2 text-[11.5px]">
-          {[['Customers', int(sc.audience.targeted)], ['Net profit', inr(sc.net)], ['ROI', sc.roi.toFixed(2)], ['Discount', inr(sc.discountCost)], ['Subsidy', inr(sc.leakage)], ['If sent to all', inr(sc.blanket.net)]].map(([l, v]) => <div key={l}><dt className="text-[var(--ink-3)]"><Lbl t={l} /></dt><dd className="num text-[13px] font-semibold">{v}</dd></div>)}
+          {[['Customers', int(sc.audience.targeted)], ['Incremental margin', inr(sc.incMargin)], ['ROI', sc.roi.toFixed(2)], ['Investment', inr(sc.discountCost)], ['Subsidy rate', pct(sc.discountCost ? sc.leakage / sc.discountCost : 0)], ['If sent to all', inr(sc.blanket.incMargin)]].map(([l, v]) => <div key={l}><dt className="text-[var(--ink-3)]"><Lbl t={l} /></dt><dd className="num text-[13px] font-semibold">{v}</dd></div>)}
         </dl>
         <div className="flex gap-2">
           <Btn variant="navy" disabled={!sc.audience.targeted} onClick={() => decide(r.candidate.id, { status: 'accepted', optionKey: key })}>Accept this version</Btn>

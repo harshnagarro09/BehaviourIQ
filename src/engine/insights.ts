@@ -3,7 +3,6 @@ import { dowOf, type Behaviour, type TypeId } from './behaviour.ts';
 import type { CampaignResult } from './campaigns.ts';
 import type { Dataset } from './data.ts';
 import { isoOf } from './data.ts';
-import type { SegId } from './groups.ts';
 
 export const TYPE_IDS: TypeId[] = ['persuadable', 'sure', 'lost', 'dog'];
 
@@ -13,7 +12,6 @@ export interface CustomerRecord {
   type: TypeId;
   confidence: number;
   reasons: string[];
-  seg: SegId;
 }
 
 export interface TypeStat {
@@ -36,7 +34,7 @@ export interface TypeStat {
   discountCost: number;
   incUnits: number;
   leakage: number;
-  netProfit: number;
+  incMargin: number;
   roi: number;
 }
 
@@ -47,13 +45,13 @@ export function typeStats(recs: CustomerRecord[], results: CampaignResult[]): Ty
   return TYPE_IDS.map((t) => {
     const rs = recs.filter((r) => r.type === t);
     const bs = rs.map((r) => r.b);
-    let cost = 0, inc = 0, leak = 0, net = 0;
+    let cost = 0, inc = 0, leak = 0, margin = 0;
     for (const r of results) {
       const s = r.byType[t];
       cost += s.discountCost;
       inc += s.incUnits;
       leak += s.leakage;
-      net += s.netProfit;
+      margin += s.incMargin;
     }
     return {
       type: t,
@@ -75,8 +73,8 @@ export function typeStats(recs: CustomerRecord[], results: CampaignResult[]): Ty
       discountCost: cost,
       incUnits: inc,
       leakage: leak,
-      netProfit: net,
-      roi: cost ? net / cost : 0,
+      incMargin: margin,
+      roi: cost ? margin / cost : 0,
     };
   });
 }

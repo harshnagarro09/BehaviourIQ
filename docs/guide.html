@@ -1,0 +1,1187 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Promotion Response — A Plain Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+  /* ============================================================
+     NAGARRO BRAND PALETTE — light
+     Sourced from the corporate theme in
+     Downloads/Barclays_Transforming Business with Scalable AI for Success.pptx
+     (ppt/theme/theme1.xml -> a:clrScheme):
+       accent1 #47D7AC   dk2 #06041F      accent2 #2E008B   accent3 #C4C9D1
+       accent4 #13294B   accent5 #FBD872  accent6 #F8485E   lt2     #8893A5
+
+     Four tokens are DARKENED for legibility on white, because the brand mint,
+     red, amber and grey are graphic colours rather than body-text colours.
+     Contrast against white in brackets:
+       --accent #1A7A62  mint darkened    (5.2:1, was 2.8:1)
+       --bad    #AE2233  accent6 darkened (6.8:1, was 3.5:1)
+       --mixed  #8A6206  accent5 darkened (5.5:1)
+       --muted  #626C7A  lt2 darkened     (5.3:1, was 3.1:1)
+
+     Mint stays at FULL strength as --mint for rules, stripes and fills.
+     ============================================================ */
+  :root {
+    color-scheme: light;
+
+    --bg:        #F1F5F4;   /* faint mint-grey ground */
+    --card:      #FFFFFF;
+    --card-2:    #F2F8F6;   /* mint tint, matches the decks' card fill */
+    --ink:       #06041F;   /* dk2 */
+    --ink-2:     #13294B;   /* accent4 */
+    --muted:     #626C7A;   /* lt2, darkened */
+    --line:      #C9D0D6;   /* accent3, softened */
+    --line-2:    #E3E8EA;
+    --mint:      #47D7AC;   /* accent1 - graphics only, never body text */
+    --accent:    #1A7A62;   /* mint darkened, for text and links */
+    --accent-2:  #E4F6EF;   /* mint tint, callout ground */
+    --good:      #1A7A62;
+    --good-bg:   #E4F6EF;
+    --mixed:     #8A6206;   /* accent5 darkened */
+    --mixed-bg:  #FDF3DC;
+    --bad:       #AE2233;   /* accent6 darkened */
+    --bad-bg:    #FCECEE;
+
+    --f: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --fm: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+    --measure: 72ch;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: var(--f); font-size: 17px; line-height: 1.68;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1140px; margin: 0 auto; padding: 0 20px 100px; }
+
+  /* ---------- masthead ---------- */
+  header.top { padding: 64px 0 34px; border-bottom: 1px solid var(--line); margin-bottom: 40px; }
+  .kicker {
+    font-family: var(--fm); font-size: 12px; font-weight: 600; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--accent); margin: 0 0 16px;
+  }
+  h1 {
+    font-size: clamp(34px, 5.4vw, 52px); line-height: 1.08; letter-spacing: -.028em;
+    font-weight: 700; margin: 0 0 18px; max-width: 20ch; text-wrap: balance;
+  }
+  .sub { font-size: 19px; line-height: 1.55; color: var(--ink-2); max-width: 62ch; margin: 0; }
+
+  /* ---------- layout ---------- */
+  .cols { display: grid; grid-template-columns: 1fr; gap: 0 48px; }
+  nav.toc { margin-bottom: 40px; }
+  nav.toc p {
+    font-family: var(--fm); font-size: 11px; font-weight: 600; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 10px;
+  }
+  nav.toc ol { list-style: none; margin: 0; padding: 0; }
+  nav.toc li { margin: 0; }
+  nav.toc a {
+    display: block; padding: 7px 0 7px 12px; text-decoration: none; font-size: 14.5px;
+    color: var(--ink-2); border-left: 2px solid var(--line);
+  }
+  nav.toc a:hover { color: var(--accent); border-left-color: var(--accent); }
+  nav.toc a.on { color: var(--accent); border-left-color: var(--mint); font-weight: 600; }
+
+  main { min-width: 0; }
+  section { margin-bottom: 72px; scroll-margin-top: 24px; }
+
+  /* ---------- headings ---------- */
+  .sec-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 8px;
+              border-top: 3px solid var(--mint); padding-top: 16px; }
+  .sec-n { font-family: var(--fm); font-size: 13px; font-weight: 600; color: var(--accent); }
+  h2 { font-size: 30px; line-height: 1.18; letter-spacing: -.02em; font-weight: 700; margin: 0;
+       text-wrap: balance; }
+  .sec-sub { color: var(--muted); font-size: 16px; margin: 0 0 30px; max-width: var(--measure); }
+  h3 { font-size: 21px; line-height: 1.3; letter-spacing: -.012em; font-weight: 650;
+       margin: 44px 0 12px; max-width: var(--measure); }
+  h4 { font-size: 16.5px; font-weight: 650; margin: 28px 0 8px; max-width: var(--measure); }
+  p { margin: 0 0 16px; max-width: var(--measure); }
+  ul, ol { margin: 0 0 18px; padding-left: 22px; max-width: var(--measure); }
+  li { margin-bottom: 9px; }
+  strong { font-weight: 650; }
+  a { color: var(--accent); }
+  code { font-family: var(--fm); font-size: .87em; background: var(--card-2);
+         border: 1px solid var(--line-2); border-radius: 3px; padding: 1px 5px; }
+
+  /* ---------- tl;dr cards ---------- */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(235px, 1fr));
+           gap: 14px; margin: 0 0 28px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+          padding: 18px 20px; }
+  .card h5 { font-family: var(--fm); font-size: 10.5px; font-weight: 600; letter-spacing: .12em;
+             text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+  .card p { font-size: 15.5px; line-height: 1.55; margin: 0; color: var(--ink-2); }
+  .card b { color: var(--ink); }
+
+  /* ---------- plain-English callout ---------- */
+  .plain { background: var(--accent-2); border-left: 3px solid var(--mint);
+           border-radius: 0 8px 8px 0; padding: 16px 20px; margin: 22px 0; max-width: var(--measure); }
+  .plain .lab { font-family: var(--fm); font-size: 10.5px; font-weight: 600; letter-spacing: .12em;
+                text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 7px; }
+  .plain p { margin: 0; font-size: 16px; }
+  .plain p + p { margin-top: 10px; }
+
+  .warn { background: var(--bad-bg); border-left: 3px solid var(--bad);
+          border-radius: 0 8px 8px 0; padding: 16px 20px; margin: 22px 0; max-width: var(--measure); }
+  .warn .lab { font-family: var(--fm); font-size: 10.5px; font-weight: 600; letter-spacing: .12em;
+               text-transform: uppercase; color: var(--bad); display: block; margin-bottom: 7px; }
+  .warn p { margin: 0; font-size: 16px; }
+  .warn p + p { margin-top: 10px; }
+
+  /* ---------- model card ---------- */
+  .mc { background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+        margin: 24px 0; overflow: hidden; }
+  .mc-h { padding: 15px 20px; border-bottom: 1px solid var(--line-2); background: var(--card-2);
+          display: flex; align-items: center; justify-content: space-between; gap: 14px;
+          flex-wrap: wrap; }
+  .mc-h .q { font-weight: 650; font-size: 16.5px; line-height: 1.35; }
+  .mc-h .q span { display: block; font-family: var(--fm); font-size: 10.5px; font-weight: 500;
+                  letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+                  margin-bottom: 4px; }
+  .badge { font-family: var(--fm); font-size: 10.5px; font-weight: 600; letter-spacing: .1em;
+           text-transform: uppercase; padding: 5px 10px; border-radius: 20px; white-space: nowrap; }
+  .b-good { background: var(--good-bg); color: var(--good); }
+  .b-mixed { background: var(--mixed-bg); color: var(--mixed); }
+  .b-bad { background: var(--bad-bg); color: var(--bad); }
+  .mc-b { padding: 4px 20px 16px; margin: 0; }
+  .mc-row { display: grid; grid-template-columns: 116px 1fr; gap: 10px 18px;
+            padding: 12px 0; border-bottom: 1px solid var(--line-2); align-items: baseline; }
+  .mc-row:last-child { border-bottom: 0; }
+  .mc-row dt { font-family: var(--fm); font-size: 10.5px; font-weight: 600; letter-spacing: .1em;
+               text-transform: uppercase; color: var(--muted); }
+  .mc-row dd { margin: 0; font-size: 15.5px; line-height: 1.6; color: var(--ink-2); }
+  .mc-row dd strong { color: var(--ink); }
+  @media (max-width: 560px) { .mc-row { grid-template-columns: 1fr; gap: 3px; } }
+
+  /* ---------- tables ---------- */
+  .tw { overflow-x: auto; margin: 22px 0; border: 1px solid var(--line);
+        border-radius: 10px; background: var(--card); }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; }
+  caption { caption-side: top; text-align: left; font-family: var(--fm); font-size: 10.5px;
+            font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--muted);
+            padding: 13px 16px; border-bottom: 1px solid var(--line-2); background: var(--card-2); }
+  th { text-align: left; font-family: var(--fm); font-size: 10.5px; font-weight: 600;
+       letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+       padding: 11px 16px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td { padding: 11px 16px; border-bottom: 1px solid var(--line-2); color: var(--ink-2);
+       vertical-align: top; }
+  tbody tr:last-child td { border-bottom: 0; }
+  .n { text-align: right; font-family: var(--fm); font-variant-numeric: tabular-nums;
+       white-space: nowrap; color: var(--ink); }
+  td em { font-style: normal; color: var(--accent); font-weight: 600; }
+  td.g { color: var(--good); font-weight: 600; }
+  td.r { color: var(--bad); font-weight: 600; }
+  td.m { color: var(--mixed); font-weight: 600; }
+
+  /* ---------- worked example ---------- */
+  .ex { background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+        margin: 22px 0; overflow: hidden; }
+  .ex-h { font-family: var(--fm); font-size: 10.5px; font-weight: 600; letter-spacing: .12em;
+          text-transform: uppercase; color: var(--muted); padding: 12px 18px;
+          border-bottom: 1px solid var(--line-2); background: var(--card-2); }
+  .ex pre { font-family: var(--fm); font-size: 13.5px; line-height: 1.8; margin: 0;
+            padding: 16px 18px; overflow-x: auto; color: var(--ink-2); }
+  .ex pre b { color: var(--accent); font-weight: 500; }
+  .ex pre i { color: var(--muted); font-style: normal; }
+  .ex pre u { text-decoration: none; color: var(--good); font-weight: 600; }
+
+  /* ---------- key number ---------- */
+  .kn { display: flex; flex-wrap: wrap; gap: 12px; margin: 22px 0; }
+  .kn div { flex: 1 1 165px; background: var(--card); border: 1px solid var(--line);
+            border-radius: 10px; padding: 15px 17px; }
+  .kn b { display: block; font-family: var(--fm); font-size: 23px; font-weight: 600;
+          letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ink);
+          margin-bottom: 5px; }
+  .kn span { font-size: 13.5px; line-height: 1.45; color: var(--muted); display: block; }
+
+  /* ---------- dictionary ---------- */
+  .dict { margin: 0; }
+  .dict dt { font-weight: 650; font-size: 16px; margin-top: 22px; color: var(--ink); }
+  .dict dd { margin: 4px 0 0; color: var(--ink-2); max-width: var(--measure); }
+
+  /* ---------- timeline ---------- */
+  .tl { background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+        padding: 20px; margin: 22px 0; }
+  .tl-bar { display: flex; height: 40px; border-radius: 6px; overflow: hidden;
+            border: 1px solid var(--line); }
+  .tl-bar div { display: flex; align-items: center; justify-content: center;
+                font-family: var(--fm); font-size: 11px; font-weight: 600; text-align: center;
+                padding: 0 6px; overflow: hidden; white-space: nowrap; }
+  .t1 { background: var(--card-2); color: var(--muted); flex: 26; }
+  .t2 { background: var(--mint); color: var(--ink); flex: 18; }
+  .t3 { background: var(--mixed-bg); color: var(--mixed); flex: 9; }
+  .tl-cap { display: flex; justify-content: space-between; font-family: var(--fm);
+            font-size: 11px; color: var(--muted); margin-top: 8px; }
+
+  hr.soft { border: 0; border-top: 1px solid var(--line); margin: 40px 0; max-width: var(--measure); }
+
+  @media (min-width: 1000px) {
+    .cols { grid-template-columns: 210px minmax(0, 1fr); }
+    nav.toc { position: sticky; top: 28px; align-self: start; margin-bottom: 0;
+              max-height: calc(100vh - 56px); overflow-y: auto; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+<header class="top">
+  <p class="kicker">Plain guide · dunnhumby Complete Journey</p>
+  <h1>Does past shopping behaviour predict how a customer reacts to a promotion?</h1>
+  <p class="sub">A step-by-step explanation of the data, every model that was tried, which ones worked, which ones did not, and what you can and cannot conclude. No prior statistics knowledge assumed — every technical term is explained the first time it appears.</p>
+</header>
+
+<div class="cols">
+
+<nav class="toc">
+  <p>Contents</p>
+  <ol>
+    <li><a href="#summary">0 · Summary</a></li>
+    <li><a href="#data">1 · The data</a></li>
+    <li><a href="#question">2 · The question</a></li>
+    <li><a href="#models">3 · Every model</a></li>
+    <li><a href="#best">4 · What worked best</a></li>
+    <li><a href="#drawbacks">5 · Drawbacks</a></li>
+    <li><a href="#remember">6 · Five takeaways</a></li>
+    <li><a href="#dictionary">7 · Dictionary</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<!-- ================= 0 ================= -->
+<section id="summary">
+  <div class="sec-head"><span class="sec-n">00</span><h2>The whole thing on one screen</h2></div>
+  <p class="sec-sub">If you read nothing else, read this.</p>
+
+  <div class="cards">
+    <div class="card">
+      <h5>The question</h5>
+      <p>If we know how a household has shopped for the last few months, can we predict <b>how strongly it will react to a promotion?</b></p>
+    </div>
+    <div class="card">
+      <h5>The data</h5>
+      <p><b>2,469 households</b>, one full year (2017), <b>1.46 million</b> purchase lines at a US grocery chain — plus a record of which products were promoted, where and when.</p>
+    </div>
+    <div class="card">
+      <h5>The answer</h5>
+      <p><b>Yes, but only just.</b> We can reliably separate the top 20% of responders from the bottom 20%. We cannot rank everyone in between.</p>
+    </div>
+    <div class="card">
+      <h5>The catch</h5>
+      <p>This works for <b>in-store displays</b> only. For mailed <b>campaigns</b>, the effect cannot be measured at all from this data — no model fixes that.</p>
+    </div>
+  </div>
+
+  <h3>What was built</h3>
+  <p>Fourteen programs run one after another. Each one answers a small question and hands its answer to the next. Together they climb a ladder, from "what does the data look like" up to "who should we target".</p>
+
+  <div class="tw">
+    <table>
+      <caption>The five steps of the ladder</caption>
+      <thead><tr><th>Step</th><th>Question it answers</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td><strong>1. Describe</strong></td><td>What does this data actually look like?</td><td class="g">Clear</td></tr>
+        <tr><td><strong>2. Predict</strong></td><td>Can we predict whether a household shops next week?</td><td class="g">Yes — works well</td></tr>
+        <tr><td><strong>3. Measure a real effect</strong></td><td>How much does a promotion actually <em>cause</em> sales to rise?</td><td class="m">Displays yes, campaigns no</td></tr>
+        <tr><td><strong>4. Simulate</strong></td><td>Can we combine models to forecast a promotion?</td><td class="m">Only after a bug was found</td></tr>
+        <tr><td><strong>5. Target</strong></td><td>Who responds most?</td><td class="m">Weak but real signal</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>The four headline numbers</h3>
+
+  <div class="kn">
+    <div><b>+24.4%</b><span>How much an in-store display raises unit sales. This is the most trustworthy number in the project.</span></div>
+    <div><b>+6%</b><span>How much a display raises the chance a shopper buys the category at all. Two separate methods agreed on this.</span></div>
+    <div><b>+1.19pp</b><span>How much more the top 20% of households respond than the bottom 20%. Confirmed on data the model had never seen.</span></div>
+    <div><b>?</b><span>The effect of a mailed campaign. Genuinely unknown — see section 5.</span></div>
+  </div>
+
+  <div class="plain">
+    <span class="lab">What "pp" means</span>
+    <p><b>pp</b> stands for <b>percentage points</b>. If something goes from 7% to 8%, that is a rise of <b>1pp</b>. It is <em>not</em> a rise of 1% — in relative terms it is a rise of about 14%. The two are easy to confuse, so this guide always says which one it means.</p>
+  </div>
+</section>
+
+<!-- ================= 1 ================= -->
+<section id="data">
+  <div class="sec-head"><span class="sec-n">01</span><h2>The data</h2></div>
+  <p class="sec-sub">What we had to work with, what each piece contains, and what was missing.</p>
+
+  <h3>1.1 Where it comes from</h3>
+  <p>The dataset is called <strong>the Complete Journey</strong>, published by dunnhumby (a retail analytics company) for researchers. It follows <strong>2,469 households</strong> that all shop at the same US grocery chain, for the whole of <strong>2017</strong>.</p>
+  <p>Every household in it carries a loyalty card, so every purchase is linked to a specific household. That is what makes the project possible — and it is also a limitation, which section 5 comes back to.</p>
+  <p>It installs as a Python package, so there is no download and no login needed.</p>
+
+  <div class="kn">
+    <div><b>2,469</b><span>households</span></div>
+    <div><b>1,458,032</b><span>purchase lines (after cleaning)</span></div>
+    <div><b>155,368</b><span>shopping trips</span></div>
+    <div><b>53</b><span>weeks of 2017</span></div>
+    <div><b>457</b><span>stores</span></div>
+    <div><b>68,509</b><span>different products bought</span></div>
+  </div>
+
+  <h3>1.2 What one row of data looks like</h3>
+  <p>The main table is called <code>transactions</code>. One row = <strong>one product in one shopping trip</strong>. If you buy milk, bread and cola, that trip produces three rows.</p>
+
+  <div class="ex">
+    <div class="ex-h">A real row from the dataset — a bag of tortilla chips, New Year's Day 2017</div>
+<pre>household_id                 1873        <i>which household</i>
+store_id                      361        <i>which store</i>
+basket_id             31198640134        <i>which trip</i>
+product_id                5568378        <i>which product (12.5 oz tortilla chips)</i>
+quantity                        1        <i>how many units</i>
+sales_value                  1.88        <i>what the retailer actually received, in dollars</i>
+retail_disc                  0.87        <i>store's own discount (the store pays for this)</i>
+coupon_disc                  0.00        <i>manufacturer coupon (the brand pays for this)</i>
+coupon_match_disc            0.00        <i>store matching a coupon (the store pays)</i>
+week                            1        <i>which week of 2017</i>
+transaction_timestamp  2017-01-01 13:47:20</pre>
+  </div>
+
+  <div class="warn">
+    <span class="lab">There is no price column</span>
+    <p>Notice what is missing: <strong>the shelf price</strong>. The data tells you what the store received and what discounts applied, but never what the ticket said. So the price has to be rebuilt by hand:</p>
+    <p><code>normal price = (1.88 + 0.87 + 0.00) / 1 = <strong>$2.75</strong></code><br>
+       <code>price paid&nbsp;&nbsp;&nbsp;= (1.88 + 0.00) / 1 = <strong>$1.88</strong></code><br>
+       <code>discount&nbsp;&nbsp;&nbsp;&nbsp;= 1 − 1.88/2.75 = <strong>31.6%</strong></code></p>
+    <p>The manufacturer's coupon is deliberately left out of this sum. It changes <em>who pays</em>, not the price the shopper saw on the shelf. This reconstruction is a reasonable convention, not a fact — and it turns out to cause real problems later (section 5.1).</p>
+  </div>
+
+  <h3>1.3 The eight tables</h3>
+
+  <div class="tw">
+    <table>
+      <caption>Everything that ships with the dataset</caption>
+      <thead><tr><th>Table</th><th class="n">Rows</th><th>One row is…</th><th>Used?</th></tr></thead>
+      <tbody>
+        <tr><td><strong>transactions</strong></td><td class="n">1,469,307</td><td>one product in one trip</td><td class="g">Yes — the backbone</td></tr>
+        <tr><td><strong>promotions</strong></td><td class="n">20,940,529</td><td>one product, in one store, in one week — and whether it was promoted</td><td class="g">Yes — this is the treatment</td></tr>
+        <tr><td><strong>products</strong></td><td class="n">92,331</td><td>one product and its category</td><td class="g">Yes</td></tr>
+        <tr><td><strong>campaigns</strong></td><td class="n">6,589</td><td>one household receiving one campaign</td><td class="g">Yes</td></tr>
+        <tr><td><strong>campaign_descriptions</strong></td><td class="n">27</td><td>one campaign, its type and dates</td><td class="g">Yes</td></tr>
+        <tr><td>coupons</td><td class="n">116,204</td><td>one coupon linked to a product</td><td class="r">No — out of scope</td></tr>
+        <tr><td>coupon_redemptions</td><td class="n">2,102</td><td>one coupon actually used</td><td class="r">No</td></tr>
+        <tr><td>demographics</td><td class="n">801</td><td>age, income, family type</td><td class="r">No — see below</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="plain">
+    <span class="lab">Why demographics were not used</span>
+    <p>Demographics exist for only <strong>801 of the 2,469 households (32%)</strong>. Using them would mean either throwing away two thirds of the data, or guessing the missing values for most people.</p>
+    <p>There is also a subtler problem. The households who filled in a survey are probably not typical of the ones who did not, so the results would be biased in a way that is hard to detect. <strong>Shopping behaviour is recorded for everyone. Demographics are recorded for a self-selected third.</strong> The project uses behaviour only.</p>
+  </div>
+
+  <h3>1.4 The two kinds of promotion (this matters more than anything else)</h3>
+  <p>The dataset contains two completely different ways of promoting something, and the difference between them decides what questions can be answered.</p>
+
+  <div class="tw">
+    <table>
+      <caption>Displays vs campaigns</caption>
+      <thead><tr><th>&nbsp;</th><th>In-store display</th><th>Mailed campaign</th></tr></thead>
+      <tbody>
+        <tr><td>What it is</td><td>Product put on an end-cap, a stack, a special shelf</td><td>A mailer or coupon booklet sent to named households</td></tr>
+        <tr><td><strong>Who decides who gets it</strong></td><td>Nobody — whoever walks into the store</td><td class="r">The retailer picks the households</td></tr>
+        <tr><td>Decided at the level of</td><td><strong>store × week</strong></td><td class="r"><strong>household</strong></td></tr>
+        <tr><td>Can we measure its effect?</td><td class="g">Yes</td><td class="r">No</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="plain">
+    <span class="lab">Why this difference is everything</span>
+    <p>A display is set up in a store for a week. The store manager has no idea which households will walk in. So if two households with very different shopping habits both visit <em>the same store in the same week</em>, they saw <strong>exactly the same promotions</strong>. Any difference in what they bought is a difference in how they <em>respond</em>.</p>
+    <p>A mailed campaign is the opposite. The retailer chose who to send it to, and it chose well — it sent it to its best customers. So when those households then spend more, you cannot tell whether the mailer worked or whether they were always going to spend more. <strong>Good targeting destroys your ability to measure the thing you targeted.</strong></p>
+  </div>
+
+  <h3>1.5 How the year is split</h3>
+  <p>Any model that is tested on the same data it learned from will look better than it is. So the year is cut into three parts, <strong>in time order</strong>.</p>
+
+  <div class="tl">
+    <div class="tl-bar">
+      <div class="t1">Weeks 1–26 · warm-up</div>
+      <div class="t2">Weeks 27–44 · training</div>
+      <div class="t3">45–53 · test</div>
+    </div>
+    <div class="tl-cap"><span>Jan 2017</span><span>Jul</span><span>Nov</span><span>Jan 2018</span></div>
+  </div>
+
+  <ul>
+    <li><strong>Warm-up (weeks 1–26).</strong> Used only to build history. A model needs to know "how often did this household shop over the last 26 weeks", and that requires 26 weeks to have already happened.</li>
+    <li><strong>Training (weeks 27–44).</strong> 43,726 household-weeks. This is what models learn from.</li>
+    <li><strong>Test (weeks 45–53).</strong> 22,168 household-weeks. Models never see this while learning. Every result quoted in this guide is measured here.</li>
+  </ul>
+
+  <div class="plain">
+    <span class="lab">Why split by time and not at random</span>
+    <p>A random split would let a model learn from a household's December to predict its March. In real life you never have the future, so a random split gives you a score you can never reproduce in production. Splitting by time simulates the real situation: learn from the past, predict the future.</p>
+  </div>
+
+  <h3>1.6 Cleaning: what was removed and why</h3>
+
+  <div class="tw">
+    <table>
+      <caption>Every cleaning decision</caption>
+      <thead><tr><th>Problem</th><th class="n">How many</th><th>What was done</th></tr></thead>
+      <tbody>
+        <tr><td>Refunds and voided lines (negative or zero quantity)</td><td class="n">11,275</td><td>Removed. They are real events, but they are not purchase decisions.</td></tr>
+        <tr><td>Items sold by weight (quantity is in grams, not units)</td><td class="n">13,519</td><td>Kept, but excluded from price calculations. A "price per gram" of deli meat is meaningless next to a price per bottle.</td></tr>
+        <tr><td>Weeks where a household did not shop at all</td><td class="n">many</td><td>Filled in as zero-activity weeks, not deleted. "Did not shop" is information.</td></tr>
+        <tr><td>Ratios that cannot be computed (e.g. discount share when the household spent nothing)</td><td class="n">838 – 11,426</td><td>Left blank, <strong>never filled with zero</strong>. "Unknown" and "zero" are different things, and the model is told which is which.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>1.7 What the data does <em>not</em> have</h3>
+  <p>This list explains most of the disappointing results later on.</p>
+
+  <div class="tw">
+    <table>
+      <caption>Missing information, and what it cost</caption>
+      <thead><tr><th>Missing</th><th>Why it hurts</th></tr></thead>
+      <tbody>
+        <tr><td class="r"><strong>The actual shelf price</strong></td><td>Price has to be worked out backwards from what people paid. That means the "price" moves when the <em>mix of buyers</em> changes, not just when the store changes the ticket. This single gap ruins one of the results completely.</td></tr>
+        <tr><td class="r"><strong>Any randomised test</strong></td><td>No campaign ever held back a random group of households as a comparison. This is why campaign effects cannot be measured, and no clever statistics fixes it.</td></tr>
+        <tr><td>Whether a shopper actually walked past the display</td><td>We only know the display existed in the store that week. So the effect measured is "a display was up somewhere in the store", not "this person saw it".</td></tr>
+        <tr><td>Shoppers without a loyalty card</td><td>Every basket here is identified. Real retailers typically identify 30–70% of baskets, and the unidentified ones behave differently.</td></tr>
+        <tr><td>Competitor prices and promotions</td><td>If a rival runs a deal, sales here fall, and the model blames our own promotion.</td></tr>
+        <tr><td>Stock-outs</td><td>Zero sales might mean "nobody wanted it" or "there was none left". We cannot tell.</td></tr>
+        <tr><td>Spending at other shops</td><td>A household that "disappears" may have simply switched supermarket.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ================= 2 ================= -->
+<section id="question">
+  <div class="sec-head"><span class="sec-n">02</span><h2>The question, and why it is hard</h2></div>
+  <p class="sec-sub">Before the models, it is worth being precise about what is being asked.</p>
+
+  <h3>2.1 The goal</h3>
+  <p style="font-size:20px;line-height:1.5;color:var(--ink)"><strong>Using only how a household shopped in the past, predict how much a promotion will change what it buys.</strong></p>
+  <p>If that works, promotions can be aimed at the households that react most, instead of being sent to everybody.</p>
+
+  <h3>2.2 The hard part: you only ever see one version of reality</h3>
+  <p>To know the effect of a promotion on a household, you would need to see two things:</p>
+  <ol>
+    <li>What that household bought <strong>with</strong> the promotion running.</li>
+    <li>What the same household would have bought <strong>without</strong> it, in the same week.</li>
+  </ol>
+  <p>You can never see both. One of the two always has to be guessed by looking at <em>other</em> households or <em>other</em> weeks. And that comparison is only fair if those others were otherwise similar.</p>
+
+  <div class="plain">
+    <span class="lab">The everyday version</span>
+    <p>Imagine a shop gives loyalty vouchers to its 500 best customers. Those customers then spend far more than everyone else. Did the voucher work? You cannot say — they were the best customers <em>before</em> the voucher arrived. That is exactly the situation with the campaigns in this data.</p>
+  </div>
+
+  <h3>2.3 How bad the problem is here — a worked case</h3>
+  <p>Campaign 13 was a targeted mailing sent to 1,077 households over weeks 32–39. Comparing who got it against who did not:</p>
+
+  <div class="tw">
+    <table>
+      <caption>Campaign 13 — 636 households who got it vs 1,274 who did not</caption>
+      <thead><tr><th>Measured <em>before</em> the campaign started</th><th class="n">Got the mailer</th><th class="n">Did not</th></tr></thead>
+      <tbody>
+        <tr><td>Spend over the previous 26 weeks</td><td class="n">$1,169</td><td class="n">$413</td></tr>
+        <tr><td>Number of shopping trips</td><td class="n">44.2</td><td class="n">15.0</td></tr>
+        <tr><td>Different categories bought</td><td class="n">83.7</td><td class="n">44.2</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>The households that were mailed had already spent <strong>2.8 times more</strong> before the campaign existed. They are not comparable. Seven of the nine things measured were badly out of balance.</p>
+
+  <h3>2.4 The way out</h3>
+  <p>In-store displays escape this problem entirely. Nobody chooses which households see a display. So the project pivots: <strong>stop trying to measure campaigns, and measure displays instead.</strong></p>
+
+  <div class="plain">
+    <span class="lab">The trick used over and over</span>
+    <p>Compare <strong>like with like</strong>. Instead of comparing all displayed products against all non-displayed products, compare <em>the same product, in the same week, in a store that displayed it, against a store that did not</em>.</p>
+    <p>Everything that could confuse the comparison — the season, the national price, the fact that the retailer chose to promote this product now — is identical on both sides, so it cancels out. Statisticians call this using <strong>fixed effects</strong>. It appears in almost every model below.</p>
+  </div>
+
+  <h3>2.5 The question becomes four questions</h3>
+  <ol>
+    <li><strong>Will this household shop at all next week?</strong> Without a shopping trip there is nothing to promote to.</li>
+    <li><strong>How big is a promotion's effect on average?</strong> Needed as a yardstick before asking about individuals.</li>
+    <li><strong>Can we forecast a promotion by combining models?</strong> Useful for planning.</li>
+    <li><strong>Does that effect differ by household, in a way past behaviour predicts?</strong> The actual goal.</li>
+  </ol>
+</section>
+
+<!-- ================= 3 ================= -->
+<section id="models">
+  <div class="sec-head"><span class="sec-n">03</span><h2>Every model that was tried</h2></div>
+  <p class="sec-sub">Twenty-nine models were fitted. Here they are, grouped by the question they answer. Each card says what the model is, how it works in plain terms, what it found, and whether to trust it.</p>
+
+  <div class="plain">
+    <span class="lab">How to read the cards</span>
+    <p>The coloured tag on the right of each card is a verdict: <span class="badge b-good">works</span> means the result held up under testing, <span class="badge b-mixed">partly</span> means it works with an important caveat, and <span class="badge b-bad">fails</span> means it was tried and did not earn its place. Failures are included on purpose — a model that was tried and rejected tells you something about the data.</p>
+  </div>
+
+  <h3>Part A · Will this household shop next week?</h3>
+  <p>Before you can promote to somebody, they have to walk in. This is the foundation of everything above it.</p>
+
+  <div class="mc">
+    <div class="mc-h">
+      <div class="q"><span>The yardstick</span>Just use the household's own recent shopping rate</div>
+      <span class="badge b-mixed">useful benchmark</span>
+    </div>
+    <dl class="mc-b">
+      <div class="mc-row"><dt>What it does</dt><dd>No model at all. If a household shopped in 9 of the last 13 weeks, predict a 9/13 = 69% chance it shops this week.</dd></div>
+      <div class="mc-row"><dt>Why bother</dt><dd><strong>Every model must beat something free.</strong> If a complicated model cannot beat this, the complicated model is not worth running.</dd></div>
+      <div class="mc-row"><dt>Result</dt><dd>Ranks households surprisingly well (AUC 0.79), but its probabilities are badly wrong — it says 0% and 100% far too often.</dd></div>
+    </dl>
+  </div>
+
+  <div class="mc">
+    <div class="mc-h">
+      <div class="q"><span>Gradient boosting</span>Predict shopping from 34 behaviour features</div>
+      <span class="badge b-good">works</span>
+    </div>
+    <dl class="mc-b">
+      <div class="mc-row"><dt>How it works</dt><dd>Builds hundreds of small decision trees one after another. Each new tree focuses on the cases the previous trees got wrong. Adding them all up gives a probability. It is very good at spotting patterns like "recently active <em>and</em> buys a wide range of categories".</dd></div>
+      <div class="mc-row"><dt>What it uses</dt><dd>34 numbers per household per week, all describing the <strong>past only</strong>: how many trips in the last 4 / 13 / 26 weeks, how much spend, how many categories, how much was bought on discount, weeks since last visit, how long they have been a customer, and a "discount habit" score.</dd></div>
+      <div class="mc-row"><dt>Result</dt><dd>AUC <strong>0.826</strong> on the test weeks (0.847 on training — a small gap, meaning it learned real behaviour rather than memorising).<br>More importantly: <strong>log loss halved</strong> versus the free benchmark, 1.53 → 0.51.</dd></div>
+      <div class="mc-row"><dt>What matters</dt><dd>Two features dominate everything else: <strong>weeks since the last visit</strong>, and <strong>number of trips in the last 13 weeks</strong>. The fifth-most-useful feature is worth about a seventh of the first.</dd></div>
+    </dl>
+  </div>
+
+  <div class="plain">
+    <span class="lab">Why "calibration" mattered more than accuracy here</span>
+    <p><strong>AUC</strong> asks: does the model put the right people at the top of the list? <strong>Calibration</strong> asks a different question: when the model says 30%, does it actually happen 30% of the time?</p>
+    <p>The free benchmark ranks almost as well as the fancy model (0.79 vs 0.83), so on ranking alone it barely mattered which you used. But its probabilities were nonsense. Later stages <em>multiply these probabilities together</em>, so a probability that means what it says is essential and a good ranking is not enough. The final model is accurate to within <strong>0.45 of a percentage point</strong> on average.</p>
+  </div>
+
+  <h3>Part B · How big is a promotion's effect, on average?</h3>
+  <p>This is the part where most real-world analysis goes wrong, so it gets the most attention.</p>
+
+  <div class="mc">
+    <div class="mc-h">
+      <div class="q"><span>Campaigns · attempt 1</span>Compare spend of mailed vs non-mailed households</div>
+      <span class="badge b-bad">badly misleading</span>
+    </div>
+    <dl class="mc-b">
+      <div class="mc-row"><dt>How it works</dt><dd>Average spend of households who got campaign 13, minus average spend of those who did not.</dd></div>
+      <div class="mc-row"><dt>Result</dt><dd><strong>+$222.78 per household</strong>, a 161% lift. This is the number that would normally appear in a campaign report.</dd></div>
+      <div class="mc-row"><dt>Why it is wrong</dt><dd>The mailed households had already spent <strong>2.8× more</strong> before the campaign existed. The number measures who the retailer chose, not what the mailer did.</dd></div>
+    </dl>
+  </div>
+
+  <div class="mc">
+    <div class="mc-h">
+      <div class="q"><span>Campaigns · attempt 2</span>The same comparison, adjusted for prior behaviour</div>
+      <span class="badge b-mixed">better, still not enough</span>
+    </div>
+    <dl class="mc-b">
+      <div class="mc-row"><dt>How it works</dt><dd>Two steps. First, use a machine-learning model to predict each household's spend from its past behaviour alone, and another to predict how likely it was to be picked for the campaign. Then compare only <strong>the parts neither model could explain</strong> — the surprises. If a household spent more than its history predicted <em>and</em> was mailed more unexpectedly than its history predicted, that is evidence the mailer worked.</dd></div>
+      <div class="mc-row"><dt>Result</dt><dd>The effect drops from +$222.78 to <strong>+$16.00</strong>, and the range of uncertainty (−$6.66 to +$38.65) <strong>includes zero</strong>. In other words: adjustment wiped out <strong>93%</strong> of the apparent effect, and what survived could easily be nothing at all.</dd></div>
+    </dl>
+  </div>
+
+  <div class="mc">
+    <div class="mc-h">
+      <div class="q"><span>Campaigns · the check</span>Run the exact same method on spending that happened <em>before</em> the campaign</div>
+      <span class="badge b-bad">fails — and that is the finding</span>
+    </div>
+    <dl class="mc-b">
+      <div class="mc-row"><dt>The idea</dt><dd>A campaign cannot possibly change what people bought <em>before it was sent</em>. So if you run the adjusted method on pre-campaign spending, it must return zero. If it does not, the adjustment is still picking up differences between the households rather than the campaign's effect.</dd></div>
+      <div class="mc-row"><dt>Result</dt><dd><strong>−$23.41</strong>, and statistically significant. The method finds a confident "effect" on something that had already happened.</dd></div>
+      <div class="mc-row"><dt>What it means</dt><dd>The adjustment did not fully work. So even the modest +$16.00 cannot be trusted — it must be read as a ceiling, not an estimate. <strong>The honest answer for campaigns is: we do not know.</strong></dd></div>
+    </dl>
+  </div>
+
+  <div class="warn">
+    <span class="lab">The single most important lesson in the project</span>
+    <p><strong>When a retailer targets its campaigns well, the effect of those campaigns becomes impossible to measure afterwards.</strong> No statistical method rescues this. The only fix happens <em>before</em> the campaign: hold back a random 5–10% of the intended audience and send them nothing. Then the simple comparison is the right answer.</p>
+  </div>
+
+  <div class="mc">
+    <div class="mc-h">
+      <div class="q"><span>Campaigns · attempt 3</span>Find which households the campaign worked best on</div>
+      <span class="badge b-bad">measures the wrong thing</span>
+    </div>
+    <dl class="mc-b">
+      <div class="mc-row"><dt>How it works</dt><dd>A forest of decision trees, but the splits are chosen to separate households by <em>how differently they respond</em>, rather than by how much they spend.</dd></div>
+      <div class="mc-row"><dt>Result</dt><dd>It produces a neat ranking with a $25 spread from bottom to top group. But look at the top group: they had already spent $993 versus $591 in the bottom group. <strong>It is ranking households by how much they spend, and calling it responsiveness.</strong></dd></div>
+      <div class="mc-row"><dt>Verdict</dt><dd>Since the placebo above already failed, nothing built on top of it can be believed.</dd></div>
+    </dl>
+  </div>
+
+  <hr class="soft">
+
+  <p>So campaigns are a dead end. Now the same question for <strong>displays</strong>, where the comparison can be made fair.</p>
+
+  <div class="mc">
+    <div class="mc-h">
+      <div class="q"><span>Displays · the key result</span>Effect of an in-store display on units sold</div>
+      <span class="badge b-good">works — most trustworthy number here</span>
+    </div>
+    <dl class="mc-b">
+      <div class="mc-row"><dt>How it works</dt><dd>A <strong>Poisson regression</strong> — a model for counting things, where effects multiply rather than add (so the answer comes out as "×1.24" rather than "+3 units"). Crucially, it includes a separate adjustment for <strong>every product in every week</strong>, which forces the model to compare the <em>same product, in the same week</em>, across stores that displayed it and stores that did not.</dd></div>
+      <div class="mc-row"><dt>Data</dt><dd>284,021 combinations of product × store × week. Three quarters of them sold nothing, and those zeros are kept — a Poisson model can handle zeros, which is exactly why it was chosen.</dd></div>
+      <div class="mc-row"><dt>Result</dt><dd>A display multiplies unit sales by <strong>1.244×</strong> — a <strong>+24.4%</strong> lift, with a range of +17.6% to +31.6%.</dd></div>
+      <div class="mc-row"><dt>Where it comes from</dt><dd>1,299 product-weeks where the same product was displayed in some stores but not others. That is the "natural experiment" the whole project leans on.</dd></div>
+    </dl>
+  </div>
+
+  <div class="plain">
+    <span class="lab">The most surprising result in the project</span>
+    <p>Run the <em>same</em> model without the "same product, same week" restriction, and displays appear to make sales fall by <strong>36%</strong>. The sign flips completely.</p>
+    <p>Why? Because displays are given to products that are <em>struggling</em>, and in weeks when the category is quiet. Pooling everything together, "displayed" is a marker for "weak product". Once you compare like with like, the true positive effect appears.</p>
+    <p>This is worth sitting with: the unadjusted number was not merely imprecise or a bit off. <strong>It pointed in the opposite direction</strong>, and collecting more data would not have helped at all.</p>
+  </div>
+
+  <div class="mc">
+    <div class="mc-h">
+      <div class="q"><span>Price sensitivity · attempt 1</span>How much do sales rise when price falls?</div>
+      <span class="badge b-bad">fails — unusable</span>
+    </div>
+    <dl class="mc-b">
+      <div class="mc-row"><dt>How it works</dt><dd>Take logs of both sales and price, then fit a straight line. The slope reads directly as "a 1% price cut raises sales by X%".</dd></div>
+      <div class="mc-row"><dt>Result</dt><dd><strong>−0.079</strong>. That says a 10% price cut lifts sales by less than 1%, which is nonsense — published grocery figures are between −1 and −4.</dd></div>
+      <div class="mc-row"><dt>Why it fails</dt><dd>Remember there is no shelf price in the data. The "price" is total revenue divided by units, so it moves whenever the <em>mix of buyers</em> changes, not just when the store changes the ticket. A measurement that is mostly noise always drags its own effect towards zero.</dd></div>
+      <div class="mc-row"><dt>Handled how</dt><dd>Reported, and then explicitly flagged as not to be used. A later model recovers a sensible <strong>−1.19</strong> from a different angle.</dd></div>
+    </dl>
+  </div>
+
+  <div class="mc">
+    <div class="mc-h">
+      <div class="q"><span>Customer value · two models</span>Who is still a customer, and what are they worth?</div>
+      <span class="badge b-mixed">half works</span>
+    </div>
+    <dl class="mc-b">
+      <div class="mc-row"><dt>How they work</dt><dd>Two classic models. <strong>BG/NBD</strong> assumes each household shops at its own random rate and may silently stop being a customer at any point; from how recently and how often they shopped, it works out both. <strong>Gamma-Gamma</strong> then estimates what each trip is worth, sensibly trusting a household with 300 baskets more than one with 3.</dd></div>
+      <div class="mc-row"><dt>Tested how</dt><dd>Fitted on weeks 1–39, then asked to predict weeks 40–53, and compared to what actually happened.</dd></div>
+      <div class="mc-row"><dt>Works</dt><dd>Predicted vs actual trips correlate at <strong>0.785</strong>, and total predicted volume is only <strong>4.2%</strong> too high. Value estimates are within 2.8%. The top 20% of households hold <strong>52%</strong> of all expected future value.</dd></div>
+      <div class="mc-row"><dt>Does not work</dt><dd>The "have they stopped being a customer" part is <strong>useless here</strong>: 2,392 of 2,446 households come out as almost certainly still active. In a supermarket where people shop every few days, one year is nowhere near long enough for anyone to look lapsed.</dd></div>
+      <div class="mc-row"><dt>Bonus finding</dt><dd>Discount-seeking is almost <strong>identical</strong> across low, medium and high-value households (41–44%). Valuable customers are not the full-price ones. That is worth knowing before designing a strategy that assumes otherwise.</dd></div>
+    </dl>
+  </div>
+
+  <h3>Part C · Building a forecast by combining models</h3>
+  <p>To forecast a promotion properly you need to answer three questions at once, and then multiply them together.</p>
+
+  <div class="ex">
+    <div class="ex-h">How a promotion turns into sales — three separate effects</div>
+<pre>  expected units of a product  =   <u>chance the shopper buys the category at all</u>
+                               ×   <u>chance they pick THIS product</u>
+                               ×   <u>how many units they take</u>
+
+ <i>A display can move all three. Most simple models only look at the middle one,
+  which quietly assumes a display never brings in any NEW category buyers.</i></pre>
+  </div>
+
+  <div class="mc">
+    <div class="mc-h">
+      <div class="q"><span>Choice model · three versions</span>Which of the 8 soft drinks does the shopper pick?</div>
+      <span class="badge b-mixed">good coefficients, fails a fidelity check</span>
+    </div>
+    <dl class="mc-b">
+      <div class="mc-row"><dt>Scope</dt><dd>One category, <strong>SOFT DRINKS</strong>, chosen because 91.5% of households buy it and 70% of its sales move on discount. The top 8 products form the choice set.</dd></div>
+      <div class="mc-row"><dt>How it works</dt><dd>A <strong>conditional logit</strong>. Each product gets a "score" made of its price, whether it is on display, and how loyal this shopper is to it. The product with the highest score is most likely to be picked, and the model turns those scores into probabilities.</dd></div>
+      <div class="mc-row"><dt>Key input</dt><dd>A <strong>loyalty memory</strong>: each time you buy a product its score creeps up, and it fades if you stop. Without this, the model blames price for what is really habit.</dd></div>
+      <div class="mc-row"><dt>Result</dt><dd>Price <strong>−0.74</strong>, display <strong>+0.60</strong>, loyalty <strong>+3.33</strong>. <strong>Habit beats price by more than four to one</strong> — a famous 1983 result, reproduced here on 2017 data. The model picks the right product <strong>58%</strong> of the time, versus 12.5% for guessing.</dd></div>
+      <div class="mc-row"><dt>Also found</dt><dd>Households that buy a lot on discount are about <strong>37% more price-sensitive</strong> than the rest. This is a strong, clear effect — remember it, because it does <em>not</em> carry over to displays later.</dd></div>
+      <div class="mc-row"><dt>Fails</dt><dd>A check on whether the model reproduces real market shares comes out at <strong>28.8 against a pass mark of 14.07</strong>. Product shares drifted by up to 6 percentage points between the training and test periods and nothing in the data explains why. Two attempts to fix it — allowing products to drift over time, and allowing price sensitivity to vary randomly — both changed almost nothing and were reported as failures.</dd></div>
+    </dl>
+  </div>
+
+  <div class="mc">
+    <div class="mc-h">
+      <div class="q"><span>Category purchase</span>Does the shopper buy soft drinks at all on this trip?</div>
+      <span class="badge b-mixed">works, but breaks a theory rule</span>
+    </div>
+    <dl class="mc-b">
+      <div class="mc-row"><dt>Why it is needed</dt><dd>The choice model above only ever sees trips where a soft drink <em>was</em> bought — 9,695 of them. The other <strong>144,036 trips</strong>, where nobody bought one, hold exactly the information needed to tell whether a display attracts <em>new</em> buyers.</dd></div>
+      <div class="mc-row"><dt>How it works</dt><dd>The 8 product scores from the choice model are boiled down to a single "how attractive does this category look right now" number. If a display makes one product more attractive, that number rises, and so does the chance of buying the category at all.</dd></div>
+      <div class="mc-row"><dt>Result</dt><dd>A display raises the chance of buying the category by <strong>+5.96%</strong> on average. This is the "brings in new buyers" effect that simpler models assume is exactly zero.</dd></div>
+      <div class="mc-row"><dt>Problem</dt><dd>A parameter that theory says must sit between 0 and 1 comes out at <strong>1.27</strong>. That means the two models are being joined together in a way the underlying theory does not actually permit. It is reported honestly rather than quietly forced back into range — and a later stage tests whether it matters. <em>It turns out not to be the culprit.</em></dd></div>
+    </dl>
+  </div>
+
+  <div class="mc">
+    <div class="mc-h">
+      <div class="q"><span>Quantity · four models</span>How many units do they take?</div>
+      <span class="badge b-good">works — and corrected two wrong assumptions</span>
+    </div>
+    <dl class="mc-b">
+      <div class="mc-row"><dt>Expected</dt><dd>Two things were expected to be true, and both turned out false.</dd></div>
+      <div class="mc-row"><dt>Wrong assumption 1</dt><dd>Retail quantities are usually "overdispersed" — wildly variable, so a fancier count model is needed. <strong>Here they are not.</strong> A formal test showed the simple Poisson model was fine, and the fancier negative binomial model collapsed onto exactly the same answer.</dd></div>
+      <div class="mc-row"><dt>Wrong assumption 2</dt><dd>The straightforward model said displays raise quantity by <strong>+42.8%</strong> and price does nothing. Applying the same "same product, same week" discipline as the display model flips both: displays are worth only <strong>+2.2%</strong> and are not statistically distinguishable from zero, while price becomes a real and strong effect at <strong>−1.19</strong>.</dd></div>
+      <div class="mc-row"><dt>Conclusion</dt><dd><strong>Quantity responds to price, not to the display itself.</strong> A display changes <em>whether</em> and <em>which</em> — it barely changes <em>how many</em>. The naive model was wrong by a factor of 19.</dd></div>
+    </dl>
+  </div>
+
+  <div class="mc">
+    <div class="mc-h">
+      <div class="q"><span>Putting it all together</span>Combine all three and check against reality</div>
+      <span class="badge b-bad">fails the check</span>
+    </div>
+    <dl class="mc-b">
+      <div class="mc-row"><dt>The test</dt><dd>Multiply the three effects together and see if the answer matches the directly measured <strong>+24.4%</strong> — which was measured directly and used none of these models. This is a genuine external check, which is rare.</dd></div>
+      <div class="mc-row"><dt>Result</dt><dd>The combination predicts <strong>+55.9%</strong>. That is more than double the truth, and far outside its range of uncertainty.</dd></div>
+      <div class="mc-row"><dt>And worse</dt><dd>Rebuilt using the <em>naive</em> version of each model — each one individually plausible-looking — it predicts <strong>+117.8%</strong>, nearly <strong>five times</strong> the real answer.</dd></div>
+      <div class="mc-row"><dt>The lesson</dt><dd><strong>Small biases do not cancel out when you multiply models together. They compound.</strong> Four modest, individually defensible over-estimates became a forecast wrong by 5×, and no single model's own diagnostics would have caught it.</dd></div>
+    </dl>
+  </div>
+
+  <div class="mc">
+    <div class="mc-h">
+      <div class="q"><span>The detective work</span>Find out exactly why the combination was wrong</div>
+      <span class="badge b-good">solved — 96% explained</span>
+    </div>
+    <dl class="mc-b">
+      <div class="mc-row"><dt>Step 1</dt><dd>Check the suspect everyone assumed was guilty — the broken theory rule in the category model. Fixing it closes only <strong>13%</strong> of the gap. Deleting that whole effect still leaves most of the error. <strong>Hypothesis rejected.</strong></dd></div>
+      <div class="mc-row"><dt>Step 2</dt><dd>Work backwards: what would the display effect in the choice model have to be to give the right answer? Answer: <strong>0.27</strong>, versus the <strong>0.59</strong> the model actually produced — so it is roughly 2.2× too big. That is a specific, testable claim.</dd></div>
+      <div class="mc-row"><dt>Step 3</dt><dd>The choice model never accounted for <em>time</em> — exactly the flaw that made the display and quantity models go wrong. Nobody had tested it here. Re-running it with time properly accounted for drops the display effect from <strong>0.598 to 0.280</strong>, a factor of 2.14 — almost exactly the 2.20 predicted independently in step 2.</dd></div>
+      <div class="mc-row"><dt>Result</dt><dd>Put the corrected number back in, and the forecast moves from <strong>+55.9% to +25.6%</strong> against a true value of <strong>+24.4%</strong>. <strong>96% of the error came from one single coefficient.</strong></dd></div>
+      <div class="mc-row"><dt>Honest caveat</dt><dd>The corrected model gets the <em>price</em> effect wrong instead (it comes out positive, meaning "raise the price to sell more", which is absurd). That is the no-shelf-price problem again. So this is a <strong>diagnosis, not a ready-made fix</strong> — but it tells any future rebuild exactly what number to aim for.</dd></div>
+    </dl>
+  </div>
+
+  <h3>Part D · The actual question: who responds most?</h3>
+
+  <div class="mc">
+    <div class="mc-h">
+      <div class="q"><span>The targeting model</span>Does past behaviour predict display response?</div>
+      <span class="badge b-good">works, with limits</span>
+    </div>
+    <dl class="mc-b">
+      <div class="mc-row"><dt>The setup</dt><dd>One row per shopping trip (80,274 of them). The "treatment" is <strong>how many of the 8 soft drinks were on display in that store that week</strong> — a number from 0 to 8, averaging 1.87. The outcome is whether the shopper bought one.</dd></div>
+      <div class="mc-row"><dt>The behaviour</dt><dd>Eight numbers describing each household <em>before</em> the trip: discount share, how often they shop, trip size, whether spending is rising or falling, weeks since last visit, how long they have been a customer, discount habit, and range of categories bought.</dd></div>
+      <div class="mc-row"><dt>The clever part</dt><dd>The model compares <strong>only households that visited the same store in the same week</strong>. Everything about the promotional environment — which displays were up, the weather, the local holiday — is identical for both. The only thing left that can differ is the shopper.</dd></div>
+      <div class="mc-row"><dt>Average effect</dt><dd>Each extra displayed product raises the chance of buying the category by <strong>+0.46pp</strong>, which is <strong>+6.3%</strong> relative. The category model got +5.96% by a completely different route — <strong>two independent methods landing within half a point of each other</strong>.</dd></div>
+      <div class="mc-row"><dt>Is response the same for everyone?</dt><dd>No. A combined test across all eight behaviours rejects "everyone responds the same" (p = 0.029), and it still holds when the environment is held perfectly fixed (p = 0.023).</dd></div>
+    </dl>
+  </div>
+
+  <div class="plain">
+    <span class="lab">Why one combined test and not eight separate ones</span>
+    <p>If you test eight things separately at the usual 5% threshold, you will find at least one "significant" result by pure luck about a third of the time. You could then write a story about whichever one it was.</p>
+    <p>So the project runs <strong>one test across all eight at once</strong>, decided in advance. That test is the one the conclusion rests on. This kind of rule — set the bar before you see the number — is what separates a finding from a coincidence.</p>
+  </div>
+
+  <div class="mc">
+    <div class="mc-h">
+      <div class="q"><span>The placebo, again</span>Test the behaviours against <em>next week's</em> display</div>
+      <span class="badge b-good">passes — this is what makes it credible</span>
+    </div>
+    <dl class="mc-b">
+      <div class="mc-row"><dt>The idea</dt><dd>Nobody can react to a display that has not gone up yet. If the eight behaviours "predict" a response to next week's display just as well as to this week's, then they are picking up which households shop in which stores — not genuine response.</dd></div>
+      <div class="mc-row"><dt>Result</dt><dd>Score of <strong>9.32</strong> against 17.10 for the real thing, p = 0.32 — comfortably no effect. <strong>The placebo passes.</strong></dd></div>
+      <div class="mc-row"><dt>Why it matters</dt><dd>This is the exact test the campaign analysis <strong>failed</strong>. Passing it here is the difference between a real result and an illusion.</dd></div>
+    </dl>
+  </div>
+
+  <div class="mc">
+    <div class="mc-h">
+      <div class="q"><span>The real test</span>Does the score work on data it has never seen?</div>
+      <span class="badge b-good">yes</span>
+    </div>
+    <dl class="mc-b">
+      <div class="mc-row"><dt>How it is done</dt><dd>Build the scoring rule on weeks 27–44 only. Use it to sort every test-week shopping trip into five groups by predicted responsiveness. Then measure the <strong>actual</strong> display effect in the top and bottom groups, using weeks 45–53 data only.</dd></div>
+      <div class="mc-row"><dt>Result</dt><dd>The top fifth responds <strong>+1.19pp</strong> more per displayed product than the bottom fifth (t = 3.18 — comfortably significant).</dd></div>
+      <div class="mc-row"><dt>The nice part</dt><dd>The model predicted a gap of +1.14pp before seeing the data. The real gap was +1.19pp — <strong>1.05× what it promised</strong>. The heterogeneity is not only real, it is about the size claimed.</dd></div>
+      <div class="mc-row"><dt>For scale</dt><dd>That gap is <strong>2.6× the average display effect itself.</strong> The difference between your best and worst customers is bigger than the promotion you are trying to aim.</dd></div>
+      <div class="mc-row"><dt>Not just big trips</dt><dd>The obvious innocent explanation is "these households are simply doing a big shop today". Controlling for trip size, the gap is still +1.10pp (t = 2.90). It survives.</dd></div>
+    </dl>
+  </div>
+
+  <div class="mc">
+    <div class="mc-h">
+      <div class="q"><span>Can anything beat it?</span>Seven promotion-history features, and a causal forest</div>
+      <span class="badge b-bad">nothing beats it</span>
+    </div>
+    <dl class="mc-b">
+      <div class="mc-row"><dt>Attempt 1 — more information</dt><dd>Seven new features describing each household's own history <em>with promotions</em>: how often it buys the category, how much display it normally walks past, how loyal it is to that store, and — most promising of all — <strong>how it reacted to its own last 20 displays</strong>.</dd></div>
+      <div class="mc-row"><dt>Attempt 2 — more flexibility</dt><dd>A causal forest, which can find curved and interacting patterns that eight straight lines cannot.</dd></div>
+      <div class="mc-row"><dt>Result</dt><dd><strong>Neither helps.</strong> The original 8-feature model scores t = 3.44. Adding the 7 new features drops it to 2.48. The forest gets 2.34, and with all 15 features it collapses to 0.53 — no signal at all.</dd></div>
+      <div class="mc-row"><dt>The striking failure</dt><dd>A household's <strong>own past reaction to displays</strong> — the most obviously relevant thing you could possibly measure — predicts its future reaction with a score of <strong>t = 0.79</strong>, which is nothing.</dd></div>
+      <div class="mc-row"><dt>What that means</dt><dd>Individual display response is mostly random noise, and 20 shopping trips is not nearly enough to average it out. <strong>This is a fact about shopping, not a flaw in the method.</strong> It says the limit here is the signal in the data, not the cleverness of the model.</dd></div>
+    </dl>
+  </div>
+</section>
+
+<!-- ================= 4 ================= -->
+<section id="best">
+  <div class="sec-head"><span class="sec-n">04</span><h2>What turned out best</h2></div>
+  <p class="sec-sub">The winner for each question, and why the simple approach kept beating the sophisticated one.</p>
+
+  <h3>4.1 The winners</h3>
+
+  <div class="tw">
+    <table>
+      <caption>Best model for each question</caption>
+      <thead><tr><th>Question</th><th>Winner</th><th>Beat</th><th class="n">Result</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Will they shop next week?</td>
+          <td><strong>Gradient boosting</strong></td>
+          <td>Their own recent shopping rate</td>
+          <td class="n">AUC 0.826<br>error 0.45pp</td>
+        </tr>
+        <tr>
+          <td>How much does a display lift sales?</td>
+          <td><strong>Poisson, same-product-same-week</strong></td>
+          <td>Plain comparison, which had the <em>opposite sign</em></td>
+          <td class="n">+24.4%</td>
+        </tr>
+        <tr>
+          <td>How much does a display bring in new category buyers?</td>
+          <td><strong>Two methods agreeing</strong></td>
+          <td>Assuming it is zero</td>
+          <td class="n">+5.96% and +6.3%</td>
+        </tr>
+        <tr>
+          <td>How sensitive are sales to price?</td>
+          <td><strong>Poisson at trip level</strong></td>
+          <td>Store-level version, which gave −0.08</td>
+          <td class="n">−1.19</td>
+        </tr>
+        <tr>
+          <td>Which product will they pick?</td>
+          <td><strong>Plain conditional logit</strong></td>
+          <td>Two more complex versions, which added nothing</td>
+          <td class="n">58% correct</td>
+        </tr>
+        <tr>
+          <td>How many units?</td>
+          <td><strong>Plain Poisson</strong></td>
+          <td>Negative binomial — identical answer, more complexity</td>
+          <td class="n">no difference</td>
+        </tr>
+        <tr>
+          <td>What are customers worth?</td>
+          <td><strong>BG/NBD + Gamma-Gamma</strong></td>
+          <td>Ranking people into quintiles</td>
+          <td class="n">correlation 0.785</td>
+        </tr>
+        <tr>
+          <td><em>Who responds most to displays?</em></td>
+          <td><strong>8 behaviour features, straight lines</strong></td>
+          <td>15 features; causal forest; promotion history</td>
+          <td class="n">+1.19pp, t = 3.18</td>
+        </tr>
+        <tr>
+          <td>How big is a campaign's effect?</td>
+          <td class="r"><strong>Nothing works</strong></td>
+          <td>—</td>
+          <td class="n r">unanswerable</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>4.2 The head-to-head that settles the main question</h3>
+  <p>Every candidate below was trained on the same weeks, tested on the same weeks, scored by the same procedure. That matters — comparing models scored different ways is not a comparison at all.</p>
+
+  <div class="tw">
+    <table>
+      <caption>Who responds most — every candidate, identical test</caption>
+      <thead><tr><th>Scoring method</th><th class="n">Gap found</th><th class="n">Confidence (t)</th><th>Verdict</th></tr></thead>
+      <tbody>
+        <tr><td><strong>8 shopping features, straight lines</strong></td><td class="n">+1.298pp</td><td class="n"><em>3.44</em></td><td class="g">Winner</td></tr>
+        <tr><td>7 promotion-history features alone</td><td class="n">+1.778pp</td><td class="n">3.07</td><td class="m">Tie, not a loss</td></tr>
+        <tr><td>All 15 features together</td><td class="n">+1.465pp</td><td class="n">2.48</td><td class="r">Worse</td></tr>
+        <tr><td>Causal forest, 8 features</td><td class="n">+0.818pp</td><td class="n">2.34</td><td class="r">Worse</td></tr>
+        <tr><td>Causal forest, all 15 features</td><td class="n">+0.266pp</td><td class="n">0.53</td><td class="r">Collapses</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="plain">
+    <span class="lab">Why row 2 is called a tie and not a loss</span>
+    <p>The history-only score actually found a <em>bigger</em> gap (+1.78pp vs +1.30pp). It has a lower confidence score only because it was measured less precisely. The difference between the two is well within the margin of error, so they cannot be told apart.</p>
+    <p><strong>A lower t does not mean a smaller effect — it means more uncertainty.</strong> Treating those as the same thing is one of the most common mistakes in reading model output.</p>
+  </div>
+
+  <h3>4.3 Why simple kept winning</h3>
+  <p>This happened often enough to be the real story of the project.</p>
+
+  <div class="tw">
+    <table>
+      <caption>Every time complexity was tried</caption>
+      <thead><tr><th>Added complexity</th><th>What happened</th></tr></thead>
+      <tbody>
+        <tr><td>Negative binomial instead of Poisson</td><td class="r">Identical answer. Nothing gained.</td></tr>
+        <tr><td>Letting price sensitivity vary randomly across people</td><td class="r">Effectively zero extra variation to find.</td></tr>
+        <tr><td>Letting products drift over time</td><td class="r">Fit score moved 28.8 → 28.3. Nothing.</td></tr>
+        <tr><td>Adding 7 promotion-history features</td><td class="r">Confidence fell from 3.44 to 2.48.</td></tr>
+        <tr><td>Causal forest instead of straight lines</td><td class="r">Confidence fell to 2.34, then 0.53.</td></tr>
+        <tr><td class="g">Comparing like with like (fixed effects)</td><td class="g"><strong>Reversed the sign of one result and corrected another by 19×.</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="plain">
+    <span class="lab">The pattern</span>
+    <p>Every attempt to make the <strong>model</strong> smarter failed. Every attempt to make the <strong>comparison</strong> fairer succeeded, often dramatically.</p>
+    <p>The reason is that the real effect here is small relative to how noisy the data is. A more flexible model has more ways to chase that noise. When signal is weak, <strong>simplicity is itself a form of protection</strong> — and around eight straight-line features is where this data runs out.</p>
+  </div>
+
+  <h3>4.4 The most satisfying result</h3>
+  <p>Three separate things were expected to be roughly right, and were checked against each other. They agreed:</p>
+  <ul>
+    <li>The effect of a display on category purchase, from the choice-model route: <strong>+5.96%</strong></li>
+    <li>The same effect, from a completely unrelated method: <strong>+6.3%</strong></li>
+    <li>The corrected combined forecast (+25.6%) against the directly measured truth (+24.4%) — a gap of <strong>1.2 points</strong>, having started at 31.5</li>
+  </ul>
+  <p>Independent methods agreeing is much stronger evidence than any single method looking good on its own.</p>
+</section>
+
+<!-- ================= 5 ================= -->
+<section id="drawbacks">
+  <div class="sec-head"><span class="sec-n">05</span><h2>Drawbacks and limitations</h2></div>
+  <p class="sec-sub">Everything that went wrong, could not be done, or should stop you acting on a result.</p>
+
+  <h3>5.1 Problems with the data</h3>
+
+  <div class="tw">
+    <table>
+      <caption>Data limitations, worst first</caption>
+      <thead><tr><th>Problem</th><th>What it broke</th><th>Fix</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="r"><strong>No shelf price</strong></td>
+          <td>Price had to be reverse-engineered from revenue ÷ units, so it moves when the <em>mix of buyers</em> changes. Made one elasticity useless (−0.08 instead of about −1.2), and caused the corrected choice model to say "raise prices to sell more".</td>
+          <td>Get a posted price feed from the retailer. Not fixable with statistics.</td>
+        </tr>
+        <tr>
+          <td class="r"><strong>No randomised holdout</strong></td>
+          <td>Campaign effects cannot be measured at all. The best method available left a placebo test failing.</td>
+          <td>Hold back a random 5–10% of every campaign's audience. Must be decided before the campaign runs.</td>
+        </tr>
+        <tr>
+          <td><strong>Display known only per store-week</strong></td>
+          <td>We know a display existed, not that any given shopper saw it. Every display effect here is diluted by shoppers who never walked down that aisle.</td>
+          <td>Aisle-level traffic data. Rarely available.</td>
+        </tr>
+        <tr>
+          <td><strong>Only one year</strong></td>
+          <td>The "has this customer lapsed" model is useless — in a shop people visit every few days, nobody looks lapsed within a year.</td>
+          <td>Two to three years of history.</td>
+        </tr>
+        <tr>
+          <td><strong>Everyone has a loyalty card</strong></td>
+          <td>100% of baskets are identified, which never happens in reality. Results may not transfer to a retailer identifying 40% of baskets.</td>
+          <td>Nothing — but measure your own identification rate first, and expect it to be your biggest source of bias.</td>
+        </tr>
+        <tr>
+          <td><strong>Demographics for only 32%</strong></td>
+          <td>Age, income and family type could not be used at all.</td>
+          <td>Better data collection, or accept behaviour-only models.</td>
+        </tr>
+        <tr>
+          <td><strong>No competitor or stock data</strong></td>
+          <td>A rival's promotion, or an empty shelf, both look like weak demand for our product.</td>
+          <td>External market data; stock feeds.</td>
+        </tr>
+        <tr>
+          <td><strong>Mailers run chain-wide</strong></td>
+          <td>In 99.4% of cases a product was in the mailer either everywhere or nowhere, so there is nothing to compare it against. Mailer effects were dropped entirely.</td>
+          <td>Regional mailer variation, or a deliberate test.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>5.2 Problems with the methods</h3>
+
+  <div class="tw">
+    <table>
+      <caption>Known weaknesses in what was built</caption>
+      <thead><tr><th>Weakness</th><th>Explanation</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Only one category was modelled</strong></td>
+          <td>Everything from the choice model onward is SOFT DRINKS only. A shopper switching from juice to cola looks like <em>category growth</em>, when really it is just substitution from a category we cannot see. Real promotion effects are likely smaller than reported.</td>
+        </tr>
+        <tr>
+          <td><strong>The product-choice model fails its fidelity check</strong></td>
+          <td>It picks the right product 58% of the time but does not reproduce real market shares (28.8 against a pass mark of 14.07). Shares drifted up to 6 points between periods and nothing in the data explains why. Left failing rather than patched.</td>
+        </tr>
+        <tr>
+          <td><strong>Two models joined against the theory</strong></td>
+          <td>The link parameter between "buy the category" and "pick a product" comes out at 1.27 when theory requires it to be between 0 and 1. The proper fix is to estimate both levels together in one model, which was not built.</td>
+        </tr>
+        <tr>
+          <td><strong>Built as two steps, not one</strong></td>
+          <td>The choice model is fitted first, then its output is fed into the category model. Errors from step one flow into step two, and step two's standard errors do not know about them.</td>
+        </tr>
+        <tr>
+          <td><strong>Only one campaign was analysed</strong></td>
+          <td>Campaign 13. Others might behave differently — though since the method failed on this one, running it on 26 more would not change the conclusion.</td>
+        </tr>
+        <tr>
+          <td><strong>The stage-14 correction is not a drop-in fix</strong></td>
+          <td>It fixes the display effect and breaks the price effect. It tells you what a proper rebuild must achieve; it is not itself the rebuild.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>5.3 Limits on what the results support</h3>
+
+  <div class="warn">
+    <span class="lab">Do not do these things with these results</span>
+    <p><strong>Do not rank customers finely.</strong> The score separates the top fifth from the bottom fifth and nothing more. The three middle groups came out in essentially random order — their rank correlation with reality is +0.40, and each group's margin of error is as big as its own effect. It is a top-vs-bottom tool, not a leaderboard.</p>
+    <p><strong>Do not build a rule on one feature.</strong> Trip size is <em>necessary</em> — remove it and the result collapses from t = 3.18 to 1.46. But on its own it gives t = 1.16, which is nothing. No single feature works alone. The signal lives in the combination, which is more fragile to own than one clean rule.</p>
+    <p><strong>Do not use discount-seeking to target displays.</strong> Households that buy heavily on discount are 37% more <em>price</em>-sensitive — a strong, clear effect. Their response to <em>displays</em> is t = +0.10, which is as close to exactly zero as this project produced. <strong>Price sensitivity and display responsiveness are different traits.</strong> Most retailers use one rule for both, and for displays that rule is no better than random.</p>
+    <p><strong>Do not apply any of this to campaigns.</strong> All of it works because displays are not aimed at people. Campaigns are. Nothing here transfers.</p>
+    <p><strong>Do not treat any number as an estimate of the real world.</strong> This is a demonstration of method on a public dataset with non-random targeting. What transfers is the approach and the tests, not the coefficients.</p>
+  </div>
+
+  <h3>5.4 Things that were tried and failed</h3>
+  <p>Listed because a failed attempt is information, and because burying them would make the successes look more inevitable than they were.</p>
+
+  <div class="tw">
+    <table>
+      <caption>The failures</caption>
+      <thead><tr><th>Attempt</th><th>Outcome</th></tr></thead>
+      <tbody>
+        <tr><td>Measure campaign 13's effect with double machine learning</td><td class="r">Placebo test failed. Abandoned.</td></tr>
+        <tr><td>Find which households the campaign worked on</td><td class="r">Just ranked them by prior spend.</td></tr>
+        <tr><td>Price elasticity from store-level data</td><td class="r">−0.08. Unusable, and explicitly flagged as such.</td></tr>
+        <tr><td>Lifecycle segmentation (who has lapsed)</td><td class="r">98% of households came out as "definitely active".</td></tr>
+        <tr><td>Mailer effects</td><td class="r">Not measurable — no variation to compare.</td></tr>
+        <tr><td>Fix the choice model with time trends</td><td class="r">Fit moved 28.8 → 28.3.</td></tr>
+        <tr><td>Fix it with random price sensitivity</td><td class="r">Essentially zero extra variation found.</td></tr>
+        <tr><td>Combine four models into a forecast</td><td class="r">Over-predicted by 31.5 points…</td></tr>
+        <tr><td class="g">…then find out why</td><td class="g"><strong>Succeeded. 96% traced to one coefficient.</strong></td></tr>
+        <tr><td>Beat the 8-feature score with 7 promotion-history features</td><td class="r">Tie at best.</td></tr>
+        <tr><td>Beat it with a causal forest</td><td class="r">Worse, then collapsed entirely.</td></tr>
+        <tr><td>Predict response from a household's own past display response</td><td class="r"><strong>t = 0.79. The most direct predictor available does not work.</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ================= 6 ================= -->
+<section id="remember">
+  <div class="sec-head"><span class="sec-n">06</span><h2>Five things worth remembering</h2></div>
+  <p class="sec-sub">If the detail fades, these are the parts that generalise beyond this dataset.</p>
+
+  <h3>1 · Good targeting destroys your ability to measure targeting</h3>
+  <p>The better a retailer is at choosing who to promote to, the more impossible it becomes to prove afterwards that the promotion worked. The mailed households here had already spent 2.8× more. There is no statistical technique that separates "the mailer worked" from "these were always the best customers".</p>
+  <p><strong>The only fix costs nothing and must happen first:</strong> withhold a random 5–10% of every campaign's audience. Then the simplest possible comparison becomes the correct answer.</p>
+
+  <h3>2 · An unadjusted number can be wrong in <em>direction</em>, not just size</h3>
+  <p>Comparing displayed against non-displayed products across the board, displays appeared to <strong>reduce</strong> sales by 36%. Comparing the same product in the same week across stores, they <strong>raise</strong> sales by 24.4%.</p>
+  <p>The naive number was not roughly right. It pointed the wrong way, and more data would not have helped. Always ask what else differs between the two groups you are comparing.</p>
+
+  <h3>3 · Biases compound when you multiply models together</h3>
+  <p>Four models, each individually defensible and each modestly over-stated, combined into a forecast that was <strong>five times</strong> too high. No single model's own diagnostics flagged anything. The only thing that caught it was checking the combined output against a number measured a completely different way.</p>
+  <p><strong>If you chain models together, you need an external check on the chain.</strong> Validating each link separately is not enough.</p>
+
+  <h3>4 · Test on the future, and set the bar before you look</h3>
+  <p>Every result here was measured on later weeks the model had never seen. The tests — one combined test rather than eight, a placebo against a promotion that had not happened, a control for trip size — were all decided in advance.</p>
+  <p>That discipline is what let the project say the campaign result was untrustworthy and the display result was trustworthy, using the same machinery on both.</p>
+
+  <h3>5 · Sometimes the honest answer is "the data cannot tell you"</h3>
+  <p>The most useful finding in the whole project is a negative one. A household's <strong>own reaction to its last 20 displays</strong> does not predict its reaction to the next one (t = 0.79). That is not a failure of modelling — individual promotion response is mostly random, and 20 trips is nowhere near enough to average out.</p>
+  <p>Knowing where the ceiling is stops you spending six months trying to beat it with a better algorithm, when what you actually need is a different experiment.</p>
+</section>
+
+<!-- ================= 7 ================= -->
+<section id="dictionary">
+  <div class="sec-head"><span class="sec-n">07</span><h2>Plain-English dictionary</h2></div>
+  <p class="sec-sub">Every term used in this guide, explained without jargon.</p>
+
+  <dl class="dict">
+    <dt>AUC</dt>
+    <dd>A score from 0.5 to 1.0 for how well a model <em>ranks</em>. It is the chance that a randomly chosen "yes" case scores higher than a randomly chosen "no" case. 0.5 is a coin flip. It says nothing about whether the probabilities are correct.</dd>
+
+    <dt>Calibration</dt>
+    <dd>Whether a model's numbers mean what they say. If it predicts 30% for a thousand cases, roughly 300 should actually happen. A model can rank perfectly and still be badly calibrated.</dd>
+
+    <dt>Causal forest</dt>
+    <dd>A machine-learning method that tries to work out how the effect of a treatment <em>differs</em> between people, rather than predicting an outcome. Tried twice here; beaten by simpler methods both times.</dd>
+
+    <dt>Confidence interval</dt>
+    <dd>The range a result is likely to sit in. "+24.4%, range +17.6% to +31.6%" means the true value is probably somewhere in that band. If the band includes zero, you cannot rule out "no effect at all".</dd>
+
+    <dt>Conditional logit</dt>
+    <dd>A model for choosing one thing out of several. Each option gets a score from its price, promotion and how much you usually like it; higher scores are more likely to be picked.</dd>
+
+    <dt>Double machine learning</dt>
+    <dd>A way of removing the influence of background differences before comparing two groups. Predict the outcome from people's history, predict who got treated from their history, then compare only the parts neither prediction explained.</dd>
+
+    <dt>Elasticity</dt>
+    <dd>How much sales move when price moves, in percentage terms. An elasticity of −2 means a 10% price cut raises sales by roughly 20%. Grocery values usually fall between −1 and −4.</dd>
+
+    <dt>Fixed effects</dt>
+    <dd>The "compare like with like" tool. Give every product-week (or every store-week) its own adjustment, so the model can only compare things <em>inside</em> those groups. Anything shared by a whole group — the season, the national price, the retailer's decision to promote — cancels out automatically, including things you never thought to measure.</dd>
+
+    <dt>Gradient boosting</dt>
+    <dd>Builds many small decision trees in sequence, each one correcting the mistakes of the ones before. Good at finding combinations of conditions.</dd>
+
+    <dt>Holdout / test set</dt>
+    <dd>Data deliberately kept away from the model while it learns, used only for scoring. Here it is always <em>later in time</em> — weeks 45–53.</dd>
+
+    <dt>Leakage</dt>
+    <dd>When information from the future, or from the answer itself, sneaks into a model's inputs. Produces models that score brilliantly and are useless in practice. Prevented here by always computing features from strictly earlier weeks.</dd>
+
+    <dt>Log loss</dt>
+    <dd>A score that punishes confident mistakes very heavily. Being 99% sure and wrong costs far more than being 60% sure and wrong. It is the measure that exposes bad calibration, which AUC hides.</dd>
+
+    <dt>p-value</dt>
+    <dd>The chance of seeing a result this strong if there were really no effect. Below 0.05 is the usual bar for "probably not luck". It is not the probability the finding is true.</dd>
+
+    <dt>Percentage point (pp)</dt>
+    <dd>An absolute change in a percentage. 7% to 8% is +1pp, which is about +14% in relative terms. The two are constantly confused.</dd>
+
+    <dt>Placebo test</dt>
+    <dd>Running your method on something where the answer <em>must</em> be zero — for example, an effect on spending that happened before the campaign was sent. If it finds an effect anyway, your method is broken. This test decided two of the project's main conclusions.</dd>
+
+    <dt>Poisson regression</dt>
+    <dd>A model for counting things. Effects multiply rather than add, so results read as "×1.24" instead of "+3 units". It also copes with zeros, which matters when three quarters of your data is zero.</dd>
+
+    <dt>Quintile</dt>
+    <dd>One fifth of a group. Sorting households into five equal-sized buckets by predicted responsiveness gives five quintiles; this project compares only the top and bottom.</dd>
+
+    <dt>Selection</dt>
+    <dd>When the people who got a treatment were already different from the people who did not. The central problem with the campaign data here.</dd>
+
+    <dt>Standard error / t-statistic</dt>
+    <dd>The standard error is how uncertain an estimate is. The t-statistic is the estimate divided by it. Above about 2 is the usual bar for "probably real". <strong>A low t means imprecision, not necessarily a small effect.</strong></dd>
+
+    <dt>Simpson's paradox</dt>
+    <dd>When a pattern reverses once you split data into the right groups. Displays "reducing" sales by 36% overall while raising them 24% within every product-week is a textbook case.</dd>
+  </dl>
+</section>
+
+<hr class="soft">
+<p style="color:var(--muted);font-size:14.5px;max-width:var(--measure)">
+  Every figure in this guide comes from a single end-to-end run of the fourteen pipeline stages and was checked against the saved outputs in <code>outputs/*.json</code> and the raw dataset. For the technical version — full equations, every variable defined, and stage-by-stage derivations — see <a href="method.html">method.html</a>.
+</p>
+
+</main>
+</div>
+</div>
+
+<script>
+  // Highlight the contents entry for the section currently on screen.
+  (function () {
+    var links = {}, seen = {};
+    document.querySelectorAll('nav.toc a').forEach(function (a) {
+      links[a.getAttribute('href').slice(1)] = a;
+    });
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { seen[e.target.id] = e.isIntersecting; });
+      var current = null;
+      Object.keys(links).forEach(function (id) { if (seen[id] && !current) current = id; });
+      Object.keys(links).forEach(function (id) { links[id].classList.remove('on'); });
+      if (current) links[current].classList.add('on');
+    }, { rootMargin: '-10px 0px -70% 0px' });
+    document.querySelectorAll('main section').forEach(function (s) { obs.observe(s); });
+  })();
+</script>

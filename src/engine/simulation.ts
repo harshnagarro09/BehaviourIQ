@@ -59,9 +59,11 @@ export function cachedProfile(ds: Dataset, cid: string, asOf: number): Behaviour
 }
 
 const PRIOR_WEIGHT = 2; // a short history counts as much as 2 average campaigns
-const priorCache = new WeakMap<Dataset, { lo: number; hi: number }>();
+const priorCache = new WeakMap<Dataset, Map<number, { lo: number; hi: number }>>();
 function priors(ds: Dataset, asOf: number) {
-  let p = priorCache.get(ds);
+  let byDay = priorCache.get(ds);
+  if (!byDay) priorCache.set(ds, (byDay = new Map()));
+  let p = byDay.get(asOf);
   if (!p) {
     let ls = 0, lb = 0, hs = 0, hb = 0;
     for (const cid of ds.customers) {
@@ -69,7 +71,7 @@ function priors(ds: Dataset, asOf: number) {
       ls += b.shallowShown; lb += b.shallowBought; hs += b.deepShown; hb += b.deepBought;
     }
     p = { lo: ls ? lb / ls : 0.2, hi: hs ? hb / hs : 0.3 };
-    priorCache.set(ds, p);
+    byDay.set(asOf, p);
   }
   return p;
 }
@@ -81,7 +83,7 @@ export function makeCtx(ds: Dataset, cid: string, cat: string, asOf: number): Ct
   let ourFull = 0, ourFullQty = 0, promoQty = 0, promoN = 0;
   for (const l of lines) {
     if (l.category !== cat || !l.ours) continue;
-    if (l.disc === 0) { ourFull++; ourFullQty += l.qty; } else { promoN++; promoQty += l.qty; }
+    if (!l.promoId) { ourFull++; ourFullQty += l.qty; } else { promoN++; promoQty += l.qty; }
   }
   const baselineUnits14 = baselineRate(ds, lines, cat, asOf) * SIM_WINDOW_DAYS;
   const qFull = ourFull ? ourFullQty / ourFull : b.avgQty || 1.3;

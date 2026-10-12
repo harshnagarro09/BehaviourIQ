@@ -134,9 +134,10 @@ export function profile(ds: Dataset, cid: string, asOf: number): Behaviour {
     catCount[l.category] = (catCount[l.category] || 0) + 1;
     if (l.ours) {
       ourLines++;
-      if (l.disc > 0) {
+      // a promoted line is one bought under a promotion (cashback lines carry no till discount but are promoted)
+      if (l.promoId) {
         promoOur++;
-        promoDiscs.push(l.disc);
+        promoDiscs.push(l.disc || (l.reward > 0 ? (l.reward / (l.list * l.qty)) * 100 : 0));
       } else fullOur++;
     }
   }
@@ -163,7 +164,7 @@ export function profile(ds: Dataset, cid: string, asOf: number): Behaviour {
   const normQty: number[] = [];
   for (const l of lines) {
     if (l.promoId) {
-      if (l.mechanic === 'PCT_OFF' || l.mechanic === 'FLAT_OFF') promoQty.push(l.qty);
+      if (l.mechanic === 'PCT_OFF' || l.mechanic === 'FLAT_OFF' || l.mechanic === 'CASHBACK') promoQty.push(l.qty);
     } else normQty.push(l.qty);
   }
   for (const c of active) {
