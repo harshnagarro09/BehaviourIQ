@@ -286,23 +286,31 @@ export function LineChart({
 }
 
 /* ---------------------------------------------------------------- scatter */
-export interface Dot { x: number; y: number; color: string; tip: ReactNode; onClick?: () => void; r?: number }
+export interface Dot { x: number; y: number; color: string; tip: ReactNode; onClick?: () => void; r?: number; label?: string }
+/**
+ * Scatter plot. `xScale: 'sqrt'` spreads out a crowd of small values when one or two points are much larger (ticks stay
+ * in real units). `refY` draws a labelled reference line (e.g. break-even), and a dot's `label` is written beside it.
+ */
 export function Scatter({
-  dots, height = 280, xFormat, yFormat, xLabel, yLabel, xMax, yMax, r = 3.4,
+  dots, height = 280, xFormat, yFormat, xLabel, yLabel, xMax, yMax, r = 3.4, xScale = 'linear', refY,
 }: {
   dots: Dot[]; height?: number; xFormat: (v: number) => string; yFormat: (v: number) => string; xLabel: string; yLabel: string; xMax?: number; yMax?: number; r?: number;
+  xScale?: 'linear' | 'sqrt'; refY?: { value: number; label: string };
 }) {
   const [ref, w] = useWidth<HTMLDivElement>(1000);
   const { box, show, hide, el } = useTip();
   const m = { t: 12, r: 12, b: 40, l: 54 };
   const xm = xMax ?? Math.max(...dots.map((d) => d.x), 1);
   const ym = yMax ?? Math.max(...dots.map((d) => d.y), 1);
-  const xt = ticks(0, xm);
-  const yt = ticks(Math.min(0, ...dots.map((d) => d.y)), ym);
+  const xt = ticks(0, xm, xScale === 'sqrt' ? 5 : 4);
+  const yt = ticks(Math.min(0, refY?.value ?? 0, ...dots.map((d) => d.y)), ym);
   const iw = Math.max(10, w - m.l - m.r);
   const ih = height - m.t - m.b;
-  const X = (v: number) => m.l + (v / xt.hi) * iw;
+  const f = xScale === 'sqrt' ? (v: number) => Math.sqrt(Math.max(0, v)) : (v: number) => v;
+  const X = (v: number) => m.l + (f(v) / f(xt.hi)) * iw;
   const Y = (v: number) => m.t + ih - ((v - yt.lo) / (yt.hi - yt.lo)) * ih;
+  // with a sqrt scale the low ticks crowd together: keep only ticks at least 44px apart
+  const xTicks = xt.vals.filter((t, i, all) => i === 0 || all.slice(0, i).every((u) => Math.abs(X(t) - X(u)) >= 44));
   return (
     <div ref={box} className="relative">
       <div ref={ref} className="flex w-full justify-center [contain:inline-size]">
@@ -314,9 +322,15 @@ export function Scatter({
                 <text x={m.l - 6} y={Y(t) + 4} textAnchor="end" className="chart-text">{yFormat(t)}</text>
               </g>
             ))}
-            {xt.vals.map((t) => (
+            {xTicks.map((t) => (
               <text key={t} x={X(t)} y={height - m.b + 16} textAnchor="middle" className="chart-text">{xFormat(t)}</text>
             ))}
+            {refY && (
+              <g>
+                <line x1={m.l} x2={w - m.r} y1={Y(refY.value)} y2={Y(refY.value)} stroke="var(--ink-2)" strokeWidth={1.2} strokeDasharray="5 4" />
+                <text x={m.l + 6} y={Y(refY.value) - 5} textAnchor="start" className="chart-text" style={{ fill: 'var(--ink-2)', fontWeight: 600, paintOrder: 'stroke', stroke: 'var(--card)', strokeWidth: 3 }}>{refY.label}</text>
+              </g>
+            )}
             <text x={m.l + iw / 2} y={height - 6} textAnchor="middle" className="chart-text">{xLabel}</text>
             <text x={12} y={m.t + ih / 2} textAnchor="middle" className="chart-text" transform={`rotate(-90 12 ${m.t + ih / 2})`}>{yLabel}</text>
             {dots.map((d, i) => (
@@ -326,6 +340,14 @@ export function Scatter({
                 onMouseMove={(e) => show(e, d.tip)} onMouseLeave={hide} onClick={d.onClick}
               />
             ))}
+            {dots.filter((d) => d.label).map((d, i) => {
+              const cx = X(Math.min(d.x, xt.hi)), rad = d.r ?? r;
+              const right = cx < m.l + iw * 0.7; // labels go right of the dot, or left near the right edge
+              return (
+                <text key={`l${i}`} x={right ? cx + rad + 4 : cx - rad - 4} y={Y(d.y) + 4} textAnchor={right ? 'start' : 'end'} className="chart-text pointer-events-none"
+                  style={{ fill: 'var(--ink)', fontWeight: 600, paintOrder: 'stroke', stroke: 'var(--card)', strokeWidth: 3 }}>{d.label}</text>
+              );
+            })}
           </svg>
         )}
       </div>
@@ -378,6 +400,14 @@ export function Heat({
       {el}
     </div>
   );
+}
+
+/** heat map with cells sized to fill the panel */
+export function FitHeat(props: Omit<Parameters<typeof Heat>[0], 'cell'>) {
+  const [ref, w] = useWidth<HTMLDivElement>();
+  const n = props.cols.length;
+  const cell = Math.max(56, Math.min(120, Math.floor((w - (props.rowW ?? 150) - 6 * n - 6) / Math.max(1, n))));
+  return <div ref={ref}><Heat {...props} cell={cell} /></div>;
 }
 
 function textOn(bg: string) {

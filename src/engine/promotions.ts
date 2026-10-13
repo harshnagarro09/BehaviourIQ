@@ -76,6 +76,15 @@ export function catalogue(ds: Dataset, category: string): PromoDef[] {
   ];
 }
 
+/** Extra price-off depths (e.g. 5% or 30%) beyond the standard 10 / 15 / 20 / 25%, built like the catalogue's price cuts */
+export function priceOffer(depth: number): PromoDef {
+  return {
+    key: `pct${depth}`, label: `${depth}% Off`, short: `${depth}%`, family: 'price', mechanic: 'PCT_OFF', depth,
+    perceived: 1, minQty: 1, minSpend: 0, flat: 0, retailerShare: 1, digitalOnly: false,
+    how: 'Price cut at the till on every unit.', bestFor: 'A depth chosen from the category demand curve.', watch: 'Check the extra depth buys enough extra units.',
+  };
+}
+
 /** Effective share of the shelf price the retailer gives away on a promoted unit */
 export const retailerDepth = (p: PromoDef) => (p.depth / 100) * (p.family === 'loyalty' ? POINTS_REDEMPTION : p.retailerShare);
 
@@ -147,8 +156,14 @@ export function digitalShare(ctx: Ctx): number {
   return (ctx.b.channelShare.App ?? 0) + (ctx.b.channelShare.Online ?? 0);
 }
 
+/**
+ * Optional replacement for the depth part of the response (how incremental response changes with discount depth).
+ * Returns null to keep the behaviour rule (incrementalAt). Used by the combined behaviour + price elasticity mode.
+ */
+export type DepthFn = (resp: RespProfile, p: PromoDef) => number | null;
+
 export function expectPromo(
-  ds: Dataset, ctx: Ctx, p: PromoDef, resp: RespProfile = NO_HISTORY, confidence = 1, A: Assumptions = DEFAULT_ASSUMPTIONS,
+  ds: Dataset, ctx: Ctx, p: PromoDef, resp: RespProfile = NO_HISTORY, confidence = 1, A: Assumptions = DEFAULT_ASSUMPTIONS, depth?: DepthFn,
 ): PromoExp {
   const e = ds.ourEcon[ctx.cat];
   const L = e.list, m = e.list - e.cost;
@@ -157,7 +172,7 @@ export function expectPromo(
   let pOn: number;
   if (isPutOff(ctx)) pOn = p0 * clamp(ctx.b.lift, 0.3, 0.9);
   else {
-    const conv = incrementalAt(resp, p.depth * p.perceived) * ctx.affinity * fitOf(ctx, p, L, A) * activityFactor(ctx.b) * confidence;
+    const conv = (depth?.(resp, p) ?? incrementalAt(resp, p.depth * p.perceived)) * ctx.affinity * fitOf(ctx, p, L, A) * activityFactor(ctx.b) * confidence;
     pOn = Math.min(0.97, p0 + (1 - p0) * clamp(conv));
   }
   const p1 = p0 + reach * (pOn - p0);

@@ -254,3 +254,22 @@ export function unallocated(plan: Plan, free: Plan | null): { amount: number; te
   if (value >= 0.98 * plan.maxUsefulValue - 1e-6) return { amount: left, text: `Every offer that earns at least ${per1(plan.settings.hurdle)} per ₹1 is already funded. Spending more would earn less than it costs.` };
   return { amount: left, text: `It is too small for the next worthwhile roll-out (offers go to a quarter of a customer group at a time).` };
 }
+
+// ------------------------------------------------------------------------ scoring a plan with another response model
+export interface PlanScore { spend: number; incRevenue: number; incMargin: number; incBuyers: number; roi: number; offers: number }
+
+/**
+ * Expected results of a plan's choices (same audiences, offers and coverage) under another set of predictions, e.g. the
+ * behaviour-only plan scored with the combined behaviour + elasticity response. Comparing two plans fairly needs one yardstick.
+ */
+export function rescore(plan: Plan, items: OptItem[]): PlanScore {
+  const keep = 1 - plan.settings.holdout;
+  const byId = new Map(items.map((i) => [i.id, i]));
+  let spend = 0, rev = 0, margin = 0, buyers = 0;
+  for (const a of plan.allocations) {
+    const cell = byId.get(a.item.id)?.cells.find((c) => c.promo.key === a.cell.promo.key) ?? a.cell;
+    const k = a.coverage * keep;
+    spend += cell.investment * k; rev += cell.incRevenue * k; margin += cell.incMargin * k; buyers += cell.incBuyers * k;
+  }
+  return { spend, incRevenue: rev, incMargin: margin, incBuyers: buyers, roi: spend > 0 ? margin / spend : 0, offers: plan.allocations.length };
+}

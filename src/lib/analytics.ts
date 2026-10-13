@@ -2,9 +2,10 @@
 // Every KPI is defined once here; the plain-English versions are the "?" tooltips in src/lib/glossary.ts.
 import type { Engine } from '@/engine';
 import type { Campaign } from '@/engine/data';
-import { mechKey, type MechKey } from '@/engine/mechanics';
+import type { CustomerCampaign } from '@/engine/campaigns';
 import { cutIndex } from '@/engine/behaviour';
-import { skuCatalog } from '@/engine/products';
+import { returnRows } from '@/engine/returns';
+import { mechKey, type MechKey } from '@/engine/mechanics';
 
 export interface Filters {
   category: string;
@@ -74,61 +75,88 @@ export function customerFilter(e: Engine, f: Filters): (cid: string) => boolean 
   };
 }
 
+function addRow(a: Agg, r: CustomerCampaign) {
+  a.reached++;
+  if (r.bought) a.buyers++;
+  a.units += r.units;
+  a.promoUnits += r.promoUnits;
+  a.revenue += r.revenue;
+  a.promoRevenue += r.promoRevenue;
+  a.baseRevenue += r.baseRevenue;
+  a.dip += r.pullForwardUnits;
+  a.base += r.baselineUnits;
+  a.inc += r.incUnits;
+  a.cost += r.discountCost;
+  a.leak += r.leakage;
+  a.incMargin += r.incMargin;
+  a.incRevenue += r.revenue - r.baseRevenue;
+}
+
 export function aggregate(e: Engine, camps: Campaign[], ok: (cid: string) => boolean): Agg {
   const a = emptyAgg();
   a.campaigns = camps.length;
   const ids = new Set(camps.map((c) => c.id));
   for (const [cid, rows] of e.perCustomer) {
     if (!ok(cid)) continue;
-    for (const r of rows) {
-      if (!ids.has(r.campaignId)) continue;
-      a.reached++;
-      if (r.bought) a.buyers++;
-      a.units += r.units;
-      a.promoUnits += r.promoUnits;
-      a.revenue += r.revenue;
-      a.promoRevenue += r.promoRevenue;
-      a.baseRevenue += r.baseRevenue;
-      a.dip += r.pullForwardUnits;
-      a.base += r.baselineUnits;
-      a.inc += r.incUnits;
-      a.cost += r.discountCost;
-      a.leak += r.leakage;
-      a.incMargin += r.incMargin;
-      a.incRevenue += r.revenue - r.baseRevenue;
-    }
+    for (const r of rows) if (ids.has(r.campaignId)) addRow(a, r);
   }
   return a;
 }
 
-// ----------------------------------------------------------------------------- sales split by brand / category / SKU
-/** Units sold in the promotion windows for one SKU, split into baseline (would have sold anyway) and uplift */
-export interface SkuSales { productId: string; product: string; brand: string; category: string; total: number; base: number }
+/** aggregate() for every campaign separately, in one pass over the customers; sumAggs() of any subset equals aggregate() of it */
+export function aggregateByCampaign(e: Engine, camps: Campaign[], ok: (cid: string) => boolean): Map<string, Agg> {
+  const out = new Map(camps.map((c) => [c.id, { ...emptyAgg(), campaigns: 1 }]));
+  for (const [cid, rows] of e.perCustomer) {
+    if (!ok(cid)) continue;
+    for (const r of rows) { const a = out.get(r.campaignId); if (a) addRow(a, r); }
+  }
+  return out;
+}
 
 /**
- * Promotion-window units per SKU for the reached customers of these campaigns. Sums to aggregate().units / .base.
- * The baseline is estimated per customer at category level, so it is split across SKUs by their regular-sales share (skuCatalog).
+ * aggregateByCampaign() limited to some products (brand / category / SKU filter). Promotions run for a whole category, so
+ * reach stays the category's; sales, baseline, cost and margin come from the promotion x SKU rows (engine/returns.ts) of
+ * the chosen products only, and a customer counts as a buyer only if they bought one of those products on the promotion.
  */
-export function skuSales(e: Engine, camps: Campaign[], ok: (cid: string) => boolean): SkuSales[] {
-  const catalog = skuCatalog(e.ds);
+export function aggregateByCampaignFor(e: Engine, camps: Campaign[], ok: (cid: string) => boolean, inScope?: (productId: string) => boolean): Map<string, Agg> {
+  const all = aggregateByCampaign(e, camps, ok);
+  if (!inScope) return all;
+  const out = new Map(camps.map((c) => [c.id, { ...emptyAgg(), campaigns: 1, reached: all.get(c.id)!.reached }]));
+  for (const r of returnRows(e.ds, e.perCustomer, camps, ok)) {
+    if (!inScope(r.productId)) continue;
+    const a = out.get(r.campaignId)!;
+    a.units += r.units; a.base += r.base; a.cost += r.cost; a.revenue += r.revenue; a.baseRevenue += r.baseRevenue;
+    a.incMargin += r.margin - r.baseMargin;
+  }
   const byId = new Map(camps.map((c) => [c.id, c]));
-  const out = new Map<string, SkuSales>(catalog.map((s) => [s.productId, { productId: s.productId, product: s.product, brand: s.brand, category: s.category, total: 0, base: 0 }]));
-  const inCat = new Map<string, typeof catalog>();
-  for (const s of catalog) inCat.set(s.category, [...(inCat.get(s.category) ?? []), s]);
-  const touched = new Set<string>();
   for (const [cid, rows] of e.perCustomer) {
     if (!ok(cid)) continue;
     const lines = e.ds.byCustomer.get(cid)!;
     for (const r of rows) {
       const c = byId.get(r.campaignId);
       if (!c) continue;
-      for (const s of inCat.get(c.category) ?? []) { out.get(s.productId)!.base += r.baselineUnits * s.share; touched.add(s.productId); }
+      const a = out.get(c.id)!;
+      let bought = false;
       for (let i = cutIndex(lines, c.start); i < lines.length && lines[i].day <= c.end; i++) {
-        if (lines[i].category === c.category) out.get(lines[i].productId)!.total += lines[i].qty;
+        const l = lines[i];
+        if (l.promoId !== c.id || !inScope(l.productId)) continue;
+        bought = true; a.promoUnits += l.qty; a.promoRevenue += l.unit * l.qty;
       }
+      if (bought) a.buyers++;
     }
   }
-  return [...out.values()].filter((s) => touched.has(s.productId));
+  for (const a of out.values()) {
+    a.inc = a.units - a.base;
+    a.incRevenue = a.revenue - a.baseRevenue;
+    a.leak = a.units > 0 ? a.cost * Math.min(1, a.base / a.units) : 0;
+  }
+  return out;
+}
+
+export function sumAggs(as: Agg[]): Agg {
+  const t = emptyAgg();
+  for (const a of as) for (const k of Object.keys(t) as (keyof Agg)[]) t[k] += a[k];
+  return t;
 }
 
 export function perCampaign(e: Engine, camps: Campaign[], ok: (cid: string) => boolean) {

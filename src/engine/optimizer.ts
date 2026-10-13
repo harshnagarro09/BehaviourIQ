@@ -61,6 +61,7 @@ export interface Allocation {
   incMargin: number;
   incRevenue: number;
   incBuyers: number;
+  incUnits: number; // extra units sold because of the offer
   roi: number;
   marginalRoi: number; // ROI of the last step funded in this audience (from the next lower coverage or nothing)
 }
@@ -72,6 +73,7 @@ export interface Plan {
   incMargin: number;
   incRevenue: number;
   incBuyers: number;
+  incUnits: number;
   treated: number;
   holdoutCustomers: number;
   roi: number;
@@ -246,7 +248,7 @@ export function optimise(items: OptItem[], s: OptSettings): Plan {
       item: p.it, cell: c.cell, coverage: c.coverage,
       treated: Math.round(offered * keep), holdout: offered - Math.round(offered * keep),
       spend: c.cost, incMargin: c.cell.incMargin * c.coverage * keep, incRevenue: c.cell.incRevenue * c.coverage * keep,
-      incBuyers: c.cell.incBuyers * c.coverage * keep, roi: c.cell.roi, marginalRoi: dCost > 0 ? dMargin / dCost : c.cell.roi,
+      incBuyers: c.cell.incBuyers * c.coverage * keep, incUnits: c.cell.incUnits * c.coverage * keep, roi: c.cell.roi, marginalRoi: dCost > 0 ? dMargin / dCost : c.cell.roi,
     };
   }).sort((a, b) => b.spend - a.spend);
 
@@ -274,7 +276,7 @@ export function optimise(items: OptItem[], s: OptSettings): Plan {
   const nextRupee = ahead > bu && best[bu] > -Infinity ? (best[ahead] - best[bu]) / ((ahead - bu) * unit) : 0;
 
   return {
-    settings: s, allocations, spend, incMargin, incRevenue: sum((a) => a.incRevenue), incBuyers: sum((a) => a.incBuyers),
+    settings: s, allocations, spend, incMargin, incRevenue: sum((a) => a.incRevenue), incBuyers: sum((a) => a.incBuyers), incUnits: sum((a) => a.incUnits),
     treated: sum((a) => a.treated), holdoutCustomers: sum((a) => a.holdout), roi: spend > 0 ? incMargin / spend : 0,
     frontier, recommendedBudget: rec * unit, maxUsefulValue: top1, nextRupee, unit, skipped, limitIssues,
   };

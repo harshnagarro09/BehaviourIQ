@@ -13,13 +13,16 @@ test('four customer types with the industry names', () => {
   assert.equal(new Set(e.records.map((r) => r.type)).size, 4);
 });
 
-test('demo data: BOGO has the highest response and earns its investment back', () => {
+test('demo data: volume deals draw an above-average response and BOGO pays back; high redemption is not profit', () => {
   const by = {};
-  for (const r of e.results) { const k = r.campaign.mechanic; const a = (by[k] ||= { c: 0, b: 0, inc: 0 }); a.c += r.customers; a.b += r.buyers; a.inc += r.incMargin; }
+  const all = { c: 0, b: 0 };
+  for (const r of e.results) { const k = r.campaign.mechanic; const a = (by[k] ||= { c: 0, b: 0, inc: 0 }); a.c += r.customers; a.b += r.buyers; a.inc += r.incMargin; all.c += r.customers; all.b += r.buyers; }
   const rate = (k) => by[k].b / by[k].c;
-  assert.ok(Object.keys(by).every((k) => rate('BOGO') >= rate(k) - 1e-9), 'BOGO has the best response');
+  for (const k of ['BOGO', 'MULTIBUY_3FOR2', 'B1G1_50']) assert.ok(rate(k) > all.b / all.c, `${k} response is above average`);
   assert.ok(by.BOGO.inc > 0, 'BOGO pays for itself');
-  assert.ok(e.results.some((r) => r.roi < 0), 'at least one campaign (deep cut on thin margin) does not pay back');
+  // a deep cut on a thin-margin staple is redeemed by customers who buy it anyway: lots of redemptions, money lost
+  const deep = e.results.find((r) => r.campaign.category === 'Dairy' && r.campaign.depth >= 25);
+  assert.ok(deep.respRate > all.b / all.c && deep.roi < 0, 'deep dairy cut: high redemption, negative ROI');
 });
 
 test('simulation is rule-based: no model code left', () => {

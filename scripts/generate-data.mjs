@@ -130,13 +130,33 @@ const DAY = 864e5;
 // ---------------------------------------------------------------- consumer types (latent)
 // Latent design -> business customer type:  anyways = Sure Thing | deal, stockup, switcher = Persuadable |
 // ignores = Lost Cause | dog = Sleeping Dog (buys the brand regularly but buys LESS while it is on offer).
+// Shares follow what uplift studies typically find: customers who buy BECAUSE of an offer (deal, stockup, switcher) are a
+// minority (~30%), while customers who would buy anyway or never respond make up most of the base.
 const TYPES = {
   dog: { share: 0.10, trips: [2.4, 4.0], pOur: [0.55, 0.85], maxP: 0.0, thr: [40, 50], qty: [1.0, 1.0] },
-  anyways: { share: 0.26, trips: [2.6, 4.2], pOur: [0.74, 0.93], maxP: 0.0, thr: [12, 20], qty: [1.0, 1.0] },
-  deal: { share: 0.19, trips: [1.2, 2.2], pOur: [0.06, 0.18], maxP: 0.82, thr: [7, 13], qty: [1.1, 1.5] },
-  stockup: { share: 0.13, trips: [1.6, 2.8], pOur: [0.35, 0.6], maxP: 0.78, thr: [9, 16], qty: [2.6, 4.0] },
-  switcher: { share: 0.10, trips: [2.0, 3.4], pOur: [0.03, 0.11], maxP: 0.72, thr: [17, 26], qty: [1.0, 1.4] },
-  ignores: { share: 0.22, trips: [0.8, 1.8], pOur: [0.05, 0.25], maxP: 0.07, thr: [22, 35], qty: [1.0, 1.0] },
+  anyways: { share: 0.29, trips: [2.6, 4.2], pOur: [0.74, 0.93], maxP: 0.0, thr: [12, 20], qty: [1.0, 1.0] },
+  deal: { share: 0.14, trips: [1.2, 2.2], pOur: [0.06, 0.18], maxP: 0.82, thr: [7, 13], qty: [1.1, 1.5] },
+  stockup: { share: 0.12, trips: [1.6, 2.8], pOur: [0.35, 0.6], maxP: 0.78, thr: [9, 16], qty: [2.6, 4.0] },
+  switcher: { share: 0.07, trips: [2.0, 3.4], pOur: [0.03, 0.11], maxP: 0.72, thr: [17, 26], qty: [1.0, 1.4] },
+  ignores: { share: 0.28, trips: [0.8, 1.8], pOur: [0.05, 0.25], maxP: 0.07, thr: [22, 35], qty: [1.0, 1.0] },
+};
+// What each latent type tends to buy (multiplier on how often a category lands in the basket; 1 = average). Each customer
+// still varies around their type's profile, so the groups overlap but differ in a consistent, explainable way:
+//   loyal regulars (anyways)   daily staples: milk, butter, cereal
+//   promo-averse regulars (dog) premium personal and home care bought at full price
+//   deal seekers               impulse categories that are promoted often: snacks and drinks
+//   stock-up shoppers          storable goods worth buying in bulk: household and personal care
+//   switchers                  packaged brands they compare on price: breakfast and drinks
+//   occasional shoppers        top-up trips: milk and a drink
+// A basket holds each category at most once, which evens out preferences; the profile is sharpened to survive that.
+const AFFINITY_STRENGTH = 1.8;
+const CAT_AFFINITY = {
+  anyways: { Beverages: 0.8, Snacks: 0.6, Breakfast: 1.5, Dairy: 2.4, Household: 0.8, 'Personal Care': 0.7 },
+  dog: { Beverages: 0.6, Snacks: 0.5, Breakfast: 0.9, Dairy: 0.8, Household: 1.5, 'Personal Care': 2.4 },
+  deal: { Beverages: 1.9, Snacks: 2.3, Breakfast: 0.6, Dairy: 0.7, Household: 0.7, 'Personal Care': 0.7 },
+  stockup: { Beverages: 0.9, Snacks: 0.8, Breakfast: 0.6, Dairy: 0.5, Household: 2.4, 'Personal Care': 1.6 },
+  switcher: { Beverages: 1.6, Snacks: 1.1, Breakfast: 1.9, Dairy: 0.6, Household: 0.8, 'Personal Care': 0.8 },
+  ignores: { Beverages: 1.5, Snacks: 1.2, Breakfast: 0.5, Dairy: 2.0, Household: 0.6, 'Personal Care': 0.6 },
 };
 const TYPE_KEYS = Object.keys(TYPES);
 
@@ -175,8 +195,9 @@ for (let i = 1; i <= N; i++) {
   const parks = type === 'stockup' || mix === 'stockup';
   const weekend = U(0.7, 2.0);
   const hhQty = wpick([1, 2, 3], [0.62, 0.3, 0.08]);
+  // personal taste around the category profile of the customer's type (hybrids blend the two profiles)
   const catW = {};
-  CATS.forEach((c) => (catW[c] = Math.exp(U(-0.7, 0.7))));
+  CATS.forEach((c) => (catW[c] = Math.exp(U(-0.5, 0.5)) * ((mix ? CAT_AFFINITY[type][c] ** 0.65 * CAT_AFFINITY[mix][c] ** 0.35 : CAT_AFFINITY[type][c]) ** AFFINITY_STRENGTH)));
   const meanW = Object.values(catW).reduce((s, w) => s + w, 0) / CATS.length;
   let active0 = START;
   let active1 = END;

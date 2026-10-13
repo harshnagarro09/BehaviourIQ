@@ -106,3 +106,8 @@ input[type='range'] {
   stroke: var(--line-2);
   stroke-width: 1;
 }
+
+/* striped swatch: marks an estimate (matches the striped chart bars) */
+.hatch {
+  background-image: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.45) 0 2px, transparent 2px 5px);
+}

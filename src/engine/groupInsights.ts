@@ -8,9 +8,10 @@
 //   on deals        = money paid on promoted lines / money paid
 //   last visit      = days from the last order to the end of the period
 //   main channel    = channel of most orders;  favourite category = category with most money paid
+//   promotions      = the promotions they bought something on in the period
 // Group rule thresholds (spending and frequency thirds) are cut from the customers active in the period, so the labels
 // always describe this data ("top third by spend"), not a fixed assumption.
-import type { Dataset, Line } from './data.ts';
+import type { Campaign, Dataset, Line } from './data.ts';
 import type { TypeId } from './behaviour.ts';
 
 export interface Period { from: number; to: number } // day numbers, inclusive
@@ -29,6 +30,8 @@ export interface CustomerFacts {
   channel: string;
   favCategory: string;
   catSpend: Record<string, number>; // money paid per category
+  promos: string[]; // ids of the promotions they bought on in the period
+  promoProducts: Record<string, string[]>; // per promotion: the products (SKUs) they bought under it
 }
 
 export const monthsIn = (p: Period) => Math.max(1, (p.to - p.from + 1) / 30.44);
@@ -40,15 +43,20 @@ export function periodLines(ds: Dataset, p: Period): Line[] {
 /** one row per customer who bought in the period */
 export function customerFacts(ds: Dataset, typeOf: Map<string, TypeId>, p: Period): CustomerFacts[] {
   const months = monthsIn(p);
-  const acc = new Map<string, { orders: Set<string>; spend: number; units: number; promo: number; last: number; ch: Map<string, Set<string>>; cat: Map<string, number> }>();
+  const acc = new Map<string, { orders: Set<string>; spend: number; units: number; promo: number; last: number; ch: Map<string, Set<string>>; cat: Map<string, number>; promos: Map<string, Set<string>> }>();
   for (const l of periodLines(ds, p)) {
     let a = acc.get(l.cid);
-    if (!a) acc.set(l.cid, (a = { orders: new Set(), spend: 0, units: 0, promo: 0, last: -Infinity, ch: new Map(), cat: new Map() }));
+    if (!a) acc.set(l.cid, (a = { orders: new Set(), spend: 0, units: 0, promo: 0, last: -Infinity, ch: new Map(), cat: new Map(), promos: new Map() }));
     const v = l.unit * l.qty;
     a.orders.add(l.orderId);
     a.spend += v;
     a.units += l.qty;
-    if (l.promoId) a.promo += v;
+    if (l.promoId) {
+      a.promo += v;
+      let ps = a.promos.get(l.promoId);
+      if (!ps) a.promos.set(l.promoId, (ps = new Set()));
+      ps.add(l.productId);
+    }
     if (l.day > a.last) a.last = l.day;
     if (!a.ch.has(l.channel)) a.ch.set(l.channel, new Set());
     a.ch.get(l.channel)!.add(l.orderId);
@@ -62,16 +70,16 @@ export function customerFacts(ds: Dataset, typeOf: Map<string, TypeId>, p: Perio
     out.push({
       cid, type, orders: a.orders.size, spend: a.spend, units: a.units, promoSpend: a.promo,
       spendPerMonth: a.spend / months, ordersPerMonth: a.orders.size / months, dealShare: a.spend > 0 ? a.promo / a.spend : 0,
-      lastVisit: p.to - a.last, channel: top(new Map([...a.ch].map(([k, s]) => [k, s.size]))) ?? 'Unknown', favCategory: top(a.cat) ?? '', catSpend: Object.fromEntries(a.cat),
+      lastVisit: p.to - a.last, channel: top(new Map([...a.ch].map(([k, s]) => [k, s.size]))) ?? 'Unknown', favCategory: top(a.cat) ?? '', catSpend: Object.fromEntries(a.cat), promos: [...a.promos.keys()], promoProducts: Object.fromEntries([...a.promos].map(([k, s]) => [k, [...s]])),
     });
   }
   return out.sort((x, y) => x.cid.localeCompare(y.cid));
 }
 
 // ------------------------------------------------------------------------ group rules
-export type RuleKey = 'spend' | 'frequency' | 'visit' | 'deals' | 'channel' | 'category';
+export type RuleKey = 'spend' | 'frequency' | 'visit' | 'deals' | 'channel' | 'promo';
 export type Rules = Partial<Record<RuleKey, string>>;
-export interface RuleOption { value: string; label: string; hint: string; test: (f: CustomerFacts) => boolean }
+export interface RuleOption { value: string; label: string; hint: string; group?: string; test: (f: CustomerFacts) => boolean }
 export interface RuleDef { key: RuleKey; label: string; any: string; options: RuleOption[] } // `any` = the "no filter" wording
 
 const quantile = (xs: number[], q: number) => {
@@ -83,12 +91,20 @@ const quantile = (xs: number[], q: number) => {
 };
 const rupees = (v: number) => `₹${Math.round(v).toLocaleString('en-IN')}`;
 
-/** the rules a group can be built from, with thresholds cut from this data */
-export function ruleDefs(facts: CustomerFacts[]): RuleDef[] {
+/**
+ * The rules a group can be built from, with thresholds cut from this data. "Bought on promotion" lists every promotion
+ * that at least one of these customers bought on in the period (grouped by category, newest first), so none is left out.
+ * With a product filter (`inScope`, by product id) only purchases of those products count: a promotion is listed only if
+ * someone bought one of the chosen products under it, and picking it keeps only the customers who did.
+ */
+export function ruleDefs(facts: CustomerFacts[], campaigns: Campaign[] = [], inScope?: (productId: string) => boolean): RuleDef[] {
+  const boughtOn = (f: CustomerFacts, id: string) => !!f.promoProducts[id] && (!inScope || f.promoProducts[id].some(inScope));
   const s1 = quantile(facts.map((f) => f.spendPerMonth), 1 / 3), s2 = quantile(facts.map((f) => f.spendPerMonth), 2 / 3);
   const o1 = quantile(facts.map((f) => f.ordersPerMonth), 1 / 3), o2 = quantile(facts.map((f) => f.ordersPerMonth), 2 / 3);
   const channels = [...new Set(facts.map((f) => f.channel))].sort();
-  const cats = [...new Set(facts.map((f) => f.favCategory).filter(Boolean))].sort();
+  const buyers = new Map<string, number>();
+  for (const f of facts) for (const id of f.promos) if (boughtOn(f, id)) buyers.set(id, (buyers.get(id) ?? 0) + 1);
+  const promos = campaigns.filter((c) => buyers.has(c.id)).sort((a, b) => a.category.localeCompare(b.category) || b.start - a.start);
   return [
     { key: 'spend', label: 'Spending', any: 'All spending levels', options: [
       { value: 'high', label: 'Top spenders', hint: `${rupees(s2)}+ a month`, test: (f) => f.spendPerMonth >= s2 },
@@ -105,13 +121,15 @@ export function ruleDefs(facts: CustomerFacts[]): RuleDef[] {
       { value: 'slowing', label: 'Slowing down', hint: '31–90 days ago', test: (f) => f.lastVisit > 30 && f.lastVisit <= 90 },
       { value: 'lapsed', label: 'Not seen lately', hint: 'over 90 days ago', test: (f) => f.lastVisit > 90 },
     ] },
-    { key: 'deals', label: 'Deals', any: 'All deal habits', options: [
+    { key: 'deals', label: 'Deal habit', any: 'Any deal habit', options: [
       { value: 'full', label: 'Mostly full price', hint: 'under 20% on deals', test: (f) => f.dealShare < 0.2 },
       { value: 'mixed', label: 'Mix of both', hint: '20–50% on deals', test: (f) => f.dealShare >= 0.2 && f.dealShare <= 0.5 },
       { value: 'deals', label: 'Mostly on deals', hint: 'over 50% on deals', test: (f) => f.dealShare > 0.5 },
     ] },
     { key: 'channel', label: 'Main channel', any: 'All channels', options: channels.map((c) => ({ value: c, label: c, hint: 'most orders here', test: (f: CustomerFacts) => f.channel === c })) },
-    { key: 'category', label: 'Favourite category', any: 'All categories', options: cats.map((c) => ({ value: c, label: c, hint: 'most money spent here', test: (f: CustomerFacts) => f.favCategory === c })) },
+    { key: 'promo', label: 'Bought on promotion', any: `Any promotion (${promos.length} ran)`, options: promos.map((c) => ({
+      value: c.id, label: c.name, group: c.category, hint: `${buyers.get(c.id)} buyers`, test: (f: CustomerFacts) => boughtOn(f, c.id),
+    })) },
   ];
 }
 
@@ -171,12 +189,13 @@ export const METRIC_TEXT: Record<Metric, { name: string; fmt: (v: number) => str
 /**
  * Which comparisons can be a finding. Spending, frequency and last visit all measure how much someone shops, so comparing
  * them with spend or orders only restates the rule (frequent shoppers spend more). Real findings are about behaviour mix:
- * reliance on deals, product preference, or volume differences across channel and favourite category.
+ * reliance on deals, product preference, or volume differences across channels. "Bought on promotion X" is not tested:
+ * it only restates that those customers bought on a deal.
  */
 const ALLOWED: Record<Exclude<Metric, 'catShare'>, RuleKey[]> = {
-  dealShare: ['spend', 'frequency', 'visit', 'channel', 'category'],
-  spendPerMonth: ['channel', 'category'],
-  ordersPerMonth: ['channel', 'category'],
+  dealShare: ['spend', 'frequency', 'visit', 'channel'],
+  spendPerMonth: ['channel'],
+  ordersPerMonth: ['channel'],
 };
 const CAT_RULES: RuleKey[] = ['spend', 'frequency', 'visit', 'deals', 'channel'];
 
@@ -223,6 +242,7 @@ export function behaviourAlerts(facts: CustomerFacts[], defs: RuleDef[], max = 4
     const inType = facts.filter((f) => f.type === type);
     if (inType.length < ALERT_RULES.minType) continue;
     for (const d of defs) for (const o of d.options) {
+      if (d.key === 'promo') continue;
       const sub = inType.filter(o.test), rest = inType.filter((f) => !o.test(f));
       // a separate segment must be a real minority of the type, with enough customers on both sides
       if (sub.length < ALERT_RULES.minSub || rest.length < ALERT_RULES.minRest || sub.length > ALERT_RULES.maxSubShare * inType.length) continue;

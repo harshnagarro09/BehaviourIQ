@@ -30,6 +30,7 @@ export const STATUS_LABEL: Record<Status, string> = { target: 'Target', optional
 
 export interface AudienceRow {
   cid: string;
+  category: string; // the category this row is scored for (with "all categories", each customer's best one)
   type: TypeId;
   activity: Activity;
   recency: number; // days since last order
@@ -107,7 +108,7 @@ export function buildAudience(e: Engine, P: CategoryPrediction, offerKey: string
     const x = expectPromo(ds, makeCtx(ds, r.cid, category, asOf), def, e.resp.get(r.cid) ?? NO_HISTORY, hasHistory(ds, category, def) ? 1 : UNTESTED_CONFIDENCE, e.assumptions);
     const gap = b.avgInterval > 0 ? b.avgInterval : 30;
     return {
-      cid: r.cid, type: r.type, activity: activityOf(b), recency: b.recencyDays, gap, ordersPerMonth: b.ordersPerMonth, frequency: frequencyOf(b),
+      cid: r.cid, category, type: r.type, activity: activityOf(b), recency: b.recencyDays, gap, ordersPerMonth: b.ordersPerMonth, frequency: frequencyOf(b),
       spend: b.totalSpend, spendLevel: b.totalSpend >= t2 ? 'high' : b.totalSpend >= t1 ? 'medium' : 'low', avgOrderValue: b.avgOrderValue,
       favCategory: b.topCategory, catShare: b.catShare[category] ?? 0, responsiveness: responsivenessOf(b), respRate: b.respRate,
       responded: b.respondedCampaigns, offered: b.activeCampaigns, offer, p0: x.p0, p1: x.p1, uplift: x.uplift, score: 0, potential: 'low',
@@ -125,6 +126,47 @@ export function buildAudience(e: Engine, P: CategoryPrediction, offerKey: string
     explain(x, e.recById.get(x.cid)!.reasons, category, fallback);
   }
   return { rows, offerByType, blocked };
+}
+
+/** The "all categories" choice in Find customers */
+export const ALL_CATEGORIES = 'all';
+
+const STATUS_RANK: Record<Status, number> = { target: 3, optional: 2, hold: 1, avoid: 0 };
+
+/**
+ * Audience across every category: each customer appears once, scored for the category where an offer would help most
+ * (a Target row beats an Optional one; ties go to the larger uplift). Customers who get no offer anywhere are shown for the
+ * category they buy most. Offers are decided per customer type and category as usual, so a type's offer may differ by
+ * category: `offerByType` holds an offer only where every offered customer of that type gets the same one, and `varies`
+ * lists the types whose offer depends on the category. The response score is re-ranked across the chosen rows.
+ */
+export function buildAudienceAll(e: Engine, predictFor: (category: string) => CategoryPrediction): { rows: AudienceRow[]; offerByType: Record<TypeId, PromoDef | null>; varies: Set<TypeId> } {
+  const per = e.ds.categories.map((c) => buildAudience(e, predictFor(c), 'recommended').rows);
+  const rows: AudienceRow[] = e.records.map((_, i) => {
+    let best: AudienceRow | null = null, bestKey = -Infinity;
+    for (const rs of per) {
+      const x = rs[i];
+      // customers without an offer anywhere: show the category they buy most
+      const key = STATUS_RANK[x.status] * 1000 + (x.status === 'target' || x.status === 'optional' ? x.uplift : x.catShare);
+      if (key > bestKey) { best = x; bestKey = key; }
+    }
+    return { ...best! };
+  });
+  const sorted = rows.map((x) => x.uplift).sort((a, b) => a - b);
+  const rankOf = (v: number) => { let lo = 0, hi = sorted.length; while (lo < hi) { const m = (lo + hi) >> 1; if (sorted[m] < v) lo = m + 1; else hi = m; } return lo; };
+  for (const x of rows) {
+    x.score = sorted.length > 1 ? Math.round((100 * rankOf(x.uplift)) / (sorted.length - 1)) : 50;
+    x.potential = x.score >= 70 ? 'high' : x.score >= 40 ? 'medium' : 'low';
+  }
+  const offerByType = {} as Record<TypeId, PromoDef | null>;
+  const varies = new Set<TypeId>();
+  for (const t of TYPE_IDS) {
+    const offers = rows.filter((r) => r.type === t && r.offer).map((r) => r.offer!);
+    const keys = new Set(offers.map((o) => o.key));
+    offerByType[t] = keys.size === 1 ? offers[0] : null;
+    if (keys.size > 1) varies.add(t);
+  }
+  return { rows, offerByType, varies };
 }
 
 function explain(x: AudienceRow, typeReasons: string[], category: string, fallback: PromoDef) {
@@ -157,11 +199,14 @@ export interface AudienceFilters {
 }
 export const DEFAULT_AUDIENCE: AudienceFilters = { type: 'all', activity: 'all', frequency: 'all', spend: 'all', responsiveness: 'all', categoryBuyers: false, recommendedOnly: false, search: '' };
 
+// A goal only sets WHO is in the audience (activity, category buying). Whether each of them gets an offer is the separate
+// recommendation (status), so the audience keeps its real mix of customer types: pre-filtering to "recommended only"
+// would leave nothing but the types that get an offer, which hides who was considered and why the others are held back.
 export type Goal = 'repeat' | 'winback' | 'category' | 'custom';
 export const GOALS: { id: Goal; title: string; text: string; filters: AudienceFilters }[] = [
-  { id: 'repeat', title: 'Grow repeat purchases', text: 'Active customers an offer will bring back more often.', filters: { ...DEFAULT_AUDIENCE, type: 'notDog', activity: 'active', recommendedOnly: true } },
+  { id: 'repeat', title: 'Grow repeat purchases', text: 'Active customers who could buy more often.', filters: { ...DEFAULT_AUDIENCE, type: 'notDog', activity: 'active' } },
   { id: 'winback', title: 'Win back inactive customers', text: 'Customers who have slowed down or stopped ordering.', filters: { ...DEFAULT_AUDIENCE, type: 'notDog', activity: 'lapsing' } },
-  { id: 'category', title: 'Promote a product category', text: 'Regular buyers of the category who respond to offers.', filters: { ...DEFAULT_AUDIENCE, type: 'notDog', categoryBuyers: true, recommendedOnly: true } },
+  { id: 'category', title: 'Promote a product category', text: 'Customers who already buy the category regularly.', filters: { ...DEFAULT_AUDIENCE, type: 'notDog', categoryBuyers: true } },
   { id: 'custom', title: 'Build my own audience', text: 'Start from every customer and set the filters yourself.', filters: { ...DEFAULT_AUDIENCE } },
 ];
 
@@ -176,6 +221,31 @@ export function applyFilters(rows: AudienceRow[], f: AudienceFilters): AudienceR
     (!f.categoryBuyers || x.catShare >= 0.15) &&
     (!f.recommendedOnly || x.status === 'target') &&
     (!q || x.cid.toLowerCase().includes(q)));
+}
+
+/** The audience Find customers hands to Plan the budget: who is in it, for which category, and how it was chosen */
+export interface SharedAudience {
+  category: string; // the category Find customers is promoting
+  goal: string; // the goal's title, e.g. "Grow repeat purchases"
+  ids: string[]; // customer ids in the filtered audience, exactly as listed and downloaded there
+  criteria: string[]; // the targeting criteria in plain words
+  total: number; // all customers scored
+}
+
+/** The audience filters in plain words (only the ones that narrow the audience) */
+export function describeFilters(f: AudienceFilters, category: string): string[] {
+  const out: string[] = [];
+  if (f.type === 'notDog') out.push('all except Sleeping Dogs');
+  else if (f.type !== 'all') out.push(TYPE_BY_ID[f.type].name);
+  if (f.activity === 'lapsing') out.push('slowing down or inactive');
+  else if (f.activity !== 'all') out.push(ACTIVITY_LABEL[f.activity].toLowerCase());
+  if (f.frequency !== 'all') out.push(`${FREQ_LABEL[f.frequency].toLowerCase()} buyers`);
+  if (f.spend !== 'all') out.push(`${LEVEL_LABEL[f.spend].toLowerCase()} spenders`);
+  if (f.responsiveness !== 'all') out.push(`${f.responsiveness === 'high' ? 'often' : f.responsiveness === 'medium' ? 'sometimes' : 'rarely'} buy on offers`);
+  if (f.categoryBuyers) out.push(category === ALL_CATEGORIES ? 'regular buyers of the category promoted to them' : `regular ${category} buyers`);
+  if (f.recommendedOnly) out.push('recommended customers only');
+  if (f.search.trim()) out.push(`customer ID contains “${f.search.trim()}”`);
+  return out;
 }
 
 export interface AudienceKpis {
@@ -211,13 +281,13 @@ export function sortRows(rows: AudienceRow[], k: SortKey): AudienceRow[] {
 }
 
 /** The table that is downloaded: one row per customer in the filtered audience, exactly as shown */
-export function exportTable(rows: AudienceRow[], category: string): { head: string[]; data: (string | number)[][] } {
+export function exportTable(rows: AudienceRow[]): { head: string[]; data: (string | number)[][] } {
   const head = ['customer_id', 'customer_type', 'recommendation', 'response_score', 'response_potential', 'promoted_category', 'recommended_offer',
     'chance_to_buy_without_offer', 'chance_to_buy_with_offer', 'uplift_pts', 'expected_promo_cost', 'activity', 'days_since_last_order',
     'orders_per_month', 'total_spend', 'spend_level', 'favourite_category', 'share_of_basket_in_category', 'promotion_responsiveness', 'targeting_reason'];
   const r2 = (v: number) => Math.round(v * 100) / 100;
   const data = rows.map((x) => [
-    x.cid, TYPE_BY_ID[x.type].name, STATUS_LABEL[x.status], x.score, LEVEL_LABEL[x.potential], category, x.offer?.label ?? 'No offer',
+    x.cid, TYPE_BY_ID[x.type].name, STATUS_LABEL[x.status], x.score, LEVEL_LABEL[x.potential], x.category, x.offer?.label ?? 'No offer',
     r2(x.p0), x.offer ? r2(x.p1) : r2(x.p0), x.offer ? Math.round(x.uplift * 1000) / 10 : 0, Math.round(x.investment), ACTIVITY_LABEL[x.activity], x.recency,
     Math.round(x.ordersPerMonth * 10) / 10, Math.round(x.spend), LEVEL_LABEL[x.spendLevel], x.favCategory, r2(x.catShare), LEVEL_LABEL[x.responsiveness], x.reason,
   ]);

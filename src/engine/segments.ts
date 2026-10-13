@@ -19,7 +19,7 @@ export const TYPES: TypeMeta[] = [
     id: 'persuadable', name: 'Persuadables', short: 'Persuadables', color: '#1baf7a',
     tagline: 'Buy only because of the offer',
     signature: 'Buy the brand mainly when it is on promotion, respond to many past offers and buy more units when it is discounted.',
-    rule: 'Responded to 20%+ of past promotions, or buy 1.7x their normal quantity on offer',
+    rule: 'Responded to 20%+ of past promotions, or buy 1.7x their normal quantity on offer while responding to 10%+ of them',
     play: 'The only group that creates new sales. Target them with the shallowest offer that still adds profit.',
     promoStance: 'target',
   },
@@ -69,7 +69,9 @@ export function classify(b: Behaviour): Classification {
     margin = (0.6 - b.lift) / 0.4;
     reasons.push(`Buys our brand ${b.fullPriceBuysPerMonth.toFixed(1)} times a month at full price`);
     reasons.push(`During promotions their volume falls to ${pct(b.lift)} of normal`);
-  } else if (b.qtyRatio >= 1.7) {
+  } else if (b.qtyRatio >= 1.7 && b.respRate >= 0.1) {
+    // stocking up on a deal is only a sign of persuasion when they respond to offers at all: a bulk buy on one or two
+    // promotions by someone who ignores the rest is chance, not a reaction to the offer
     type = 'persuadable';
     margin = (b.qtyRatio - 1.7) / 0.8;
     reasons.push(`Buys ${b.qtyRatio.toFixed(1)}x the usual quantity when a promotion runs`);

@@ -306,3 +306,22 @@ test('reasons: every category in range is explained, funded money matches the pl
   const big = optimise(allItems, { ...base30, budget: 1e6 });
   assert.match(unallocated(big, null).text, /already funded/);
 });
+
+test('audience: goals set who is in the audience, not who is offered; the type mix and offer split agree everywhere', () => {
+  for (const g of GOALS.filter((x) => x.id !== 'custom')) assert.ok(!g.filters.recommendedOnly, `${g.id} does not pre-filter to recommended customers`);
+  const rows = applyFilters(aud.rows, GOALS[0].filters);
+  const types = new Set(rows.map((r) => r.type));
+  assert.ok(types.size >= 3, 'an active-customer audience holds several customer types');
+  const k = audienceKpis(rows);
+  const byType = Object.fromEntries(['persuadable', 'sure', 'lost', 'dog'].map((t) => [t, rows.filter((r) => r.type === t)]));
+  assert.equal(Object.values(byType).reduce((s, x) => s + x.length, 0), k.customers);
+  assert.equal(Object.values(byType).reduce((s, x) => s + x.filter((r) => r.offer).length, 0), k.offered);
+  // a customer gets an offer exactly when their type does; Sleeping Dogs never
+  for (const r of rows) assert.equal(!!r.offer, !!aud.offerByType[r.type]);
+  const { data } = exportTable(rows, 'Snacks');
+  assert.equal(data.filter((d) => d[6] !== 'No offer').length, k.offered, 'the download marks the same customers as offered');
+});
+
+test('customer types: a quantity jump on deals alone does not make someone a Persuadable', () => {
+  for (const r of e.records) if (r.type === 'persuadable' && r.b.respRate < 0.2) assert.ok(r.b.qtyRatio >= 1.7 && r.b.respRate >= 0.1, r.cid);
+});

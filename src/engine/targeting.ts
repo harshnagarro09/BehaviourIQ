@@ -4,7 +4,7 @@
 // summed into their group.
 import type { Behaviour, TypeId } from './behaviour.ts';
 import type { Dataset } from './data.ts';
-import { catalogue, eligibility, expectPromo, hasHistory, digitalShare, UNTESTED_CONFIDENCE, type Eligibility, type PromoDef } from './promotions.ts';
+import { catalogue, eligibility, expectPromo, hasHistory, digitalShare, UNTESTED_CONFIDENCE, type DepthFn, type Eligibility, type PromoDef } from './promotions.ts';
 import { NO_HISTORY, type RespProfile } from './response.ts';
 import { TYPE_IDS } from './insights.ts';
 import { DEFAULT_ASSUMPTIONS, makeCtx, type Assumptions, type Ctx } from './simulation.ts';
@@ -32,7 +32,11 @@ export interface SegPromo {
   revPerRupee: number; // incremental revenue per rupee invested
   stockRisk: number; // units borrowed from later weeks (risk, not deducted)
   reach: number; // average share the offer can reach (digital-only offers)
+  depthSource?: 'elasticity' | 'behaviour'; // combined mode: was the depth response read from the category demand curve?
 }
+
+/** Combined mode: the depth-response hook, which offers it covers, and extra discount depths to consider */
+export interface DepthOptions { fn: DepthFn; covers: (p: PromoDef) => boolean; extra: PromoDef[] }
 
 export interface CategoryPrediction {
   category: string;
@@ -57,8 +61,10 @@ export function membersByType(typeOf: Map<string, TypeId>, only?: Set<string>): 
 
 export function predictCategory(
   ds: Dataset, typeOf: Map<string, TypeId>, category: string, asOf: number, resp: Map<string, RespProfile>, A: Assumptions = DEFAULT_ASSUMPTIONS, only?: Set<string>,
+  depth?: DepthOptions,
 ): CategoryPrediction {
-  const promos = catalogue(ds, category);
+  const base = catalogue(ds, category);
+  const promos = depth ? [...base, ...depth.extra.filter((x) => !base.some((b) => b.key === x.key))] : base;
   const members = membersByType(typeOf, only);
   const cells = new Map<TypeId, SegPromo[]>();
   const baseline = new Map<TypeId, { p0: number; baseUnits: number; baseRevenue: number }>();
@@ -71,19 +77,20 @@ export function predictCategory(
       baseUnits: ctxs.reduce((a, c) => a + c.p0 * c.qFull, 0),
       baseRevenue: ctxs.reduce((a, c) => a + c.p0 * c.qFull * L, 0),
     });
-    cells.set(t, promos.map((p) => aggregateGroup(ds, ctxs, t, category, p, resp, A)));
+    cells.set(t, promos.map((p) => aggregateGroup(ds, ctxs, t, category, p, resp, A, depth)));
   }
   return { category, promos, members, cells, baseline };
 }
 
-export function aggregateGroup(ds: Dataset, ctxs: Ctx[], seg: TypeId, category: string, p: PromoDef, resp: Map<string, RespProfile>, A: Assumptions): SegPromo {
+export function aggregateGroup(ds: Dataset, ctxs: Ctx[], seg: TypeId, category: string, p: PromoDef, resp: Map<string, RespProfile>, A: Assumptions, depth?: DepthOptions): SegPromo {
   const history = hasHistory(ds, category, p);
+  const useCurve = !!depth && depth.covers(p);
   const c: SegPromo = {
     seg, category, promo: p, eligible: eligibility(ds, category, p), history, members: ctxs.length,
     p0: 0, p1: 0, uplift: 0, incBuyers: 0, units: 0, incUnits: 0, revenue: 0, incRevenue: 0, investment: 0, subsidy: 0, incMargin: 0, margin: 0, roi: 0, revPerRupee: 0, stockRisk: 0, reach: 0,
   };
   for (const ctx of ctxs) {
-    const x = expectPromo(ds, ctx, p, resp.get(ctx.cid) ?? NO_HISTORY, history ? 1 : UNTESTED_CONFIDENCE, A);
+    const x = expectPromo(ds, ctx, p, resp.get(ctx.cid) ?? NO_HISTORY, history ? 1 : UNTESTED_CONFIDENCE, A, useCurve ? depth!.fn : undefined);
     c.p0 += x.p0; c.p1 += x.p1; c.incBuyers += x.uplift; c.units += x.units; c.incUnits += x.incUnits;
     c.revenue += x.revenue; c.incRevenue += x.incRevenue; c.investment += x.investment; c.subsidy += x.subsidy;
     c.incMargin += x.incMargin; c.margin += x.margin; c.stockRisk += x.stockRisk; c.reach += x.reach;
@@ -92,6 +99,7 @@ export function aggregateGroup(ds: Dataset, ctxs: Ctx[], seg: TypeId, category: 
   c.p0 /= n; c.p1 /= n; c.reach /= n; c.uplift = c.p1 - c.p0;
   c.roi = c.investment > 0 ? c.incMargin / c.investment : 0;
   c.revPerRupee = c.investment > 0 ? c.incRevenue / c.investment : 0;
+  if (depth) c.depthSource = useCurve ? 'elasticity' : 'behaviour';
   return c;
 }
 
