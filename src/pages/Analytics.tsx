@@ -1,21 +1,21 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Takeaway } from '@/components/Takeaway';
-import { CustomerGroups } from '@/pages/CustomerGroups';
+import { CustomerGroups, Drivers } from '@/pages/CustomerGroups';
 import { ReturnBreakdown } from '@/pages/ReturnBreakdown';
 import { resultsInsight } from '@/lib/takeaways';
 import { useApp, useEngine } from '@/state';
 import { Help } from '@/components/Help';
-import { Chip, FilterSelect, Kpi, Tabs, ViewToggle } from '@/components/ui';
-import { Scatter } from '@/components/charts';
+import { Chip, FilterSelect, Kpi, NextStep, Tabs, ViewToggle } from '@/components/ui';
+import { FitHeat, Scatter } from '@/components/charts';
 import { TYPES } from '@/engine/segments';
 import { offerName } from '@/engine/options';
 import { MECH_HOW, MECH_LABEL, MECH_ORDER } from '@/engine/mechanics';
 import {
-  aggregate, customerFilter, DEFAULT_FILTERS, incShareOf, mechOf,
+  aggregate, aggregateByCampaign, customerFilter, DEFAULT_FILTERS, incShareOf, mechOf, sumAggs,
   perCampaign, pctChange, respOf, roiOf, selectCampaigns, verdictOf, type Agg, type Filters,
 } from '@/lib/analytics';
-import { roiColor } from '@/lib/colors';
+import { rateFill, roiColor, roiFill } from '@/lib/colors';
 import { inr, int, pct, dateLabel, shortDate } from '@/lib/fmt';
 import { isoOf, type Campaign } from '@/engine/data';
 import type { GlossaryKey } from '@/lib/glossary';
@@ -28,10 +28,10 @@ const CHANNELS = ['Store', 'App', 'Online'];
 /** the metrics a chart can switch between: one definition, used by every chart and table on the page */
 type MetricKey = 'roi' | 'incRevenue' | 'resp' | 'uplift';
 const METRICS: Record<MetricKey, { label: string; phrase: string; short: string; get: (a: Agg) => number; fmt: (v: number) => string; help: GlossaryKey; good: (v: number) => boolean }> = {
-  roi: { label: 'Promo ROI', phrase: 'promo ROI', short: 'ROI', get: roiOf, fmt: (v) => v.toFixed(2), help: 'roi', good: (v) => v >= 0 },
-  incRevenue: { label: 'Incremental revenue', phrase: 'incremental revenue', short: 'Incr. revenue', get: (a) => a.incRevenue, fmt: (v) => inr(v, 0), help: 'incRevenue', good: (v) => v >= 0 },
+  roi: { label: 'ROI', phrase: 'ROI (extra profit per ₹1)', short: 'ROI', get: roiOf, fmt: (v) => v.toFixed(2), help: 'roi', good: (v) => v >= 0 },
+  incRevenue: { label: 'Extra sales', phrase: 'extra sales', short: 'Extra sales', get: (a) => a.incRevenue, fmt: (v) => inr(v, 0), help: 'incRevenue', good: (v) => v >= 0 },
   resp: { label: 'Redemption rate', phrase: 'redemption rate', short: 'Redemption', get: respOf, fmt: (v) => pct(v), help: 'redemption', good: () => true },
-  uplift: { label: 'Uplift (share of extra units)', phrase: 'uplift', short: 'Uplift', get: incShareOf, fmt: (v) => pct(v), help: 'uplift', good: (v) => v >= 0 },
+  uplift: { label: 'Extra units share', phrase: 'share of units that were extra', short: 'Extra units', get: incShareOf, fmt: (v) => pct(v), help: 'uplift', good: (v) => v >= 0 },
 };
 
 type Tab = 'types' | 'results';
@@ -39,9 +39,9 @@ type Tab = 'types' | 'results';
 export function Analytics() {
   const e = useEngine();
   const [f, setF] = useState<Filters>(DEFAULT_FILTERS);
-  const { params, syncParams } = useApp();
+  const { params, syncParams, go } = useApp();
   const [tab, setTabState] = useState<Tab>(() => (params.tab === 'results' ? 'results' : 'types'));
-  const setTab = (t: Tab) => { setTabState(t); syncParams({ tab: t }); };
+  const setTab = (t: Tab) => { setTabState(t); syncParams({ tab: t }); document.getElementById('main-scroll')?.scrollTo({ top: 0 }); };
   const set = (k: keyof Filters) => (v: string) => setF({ ...f, [k]: v });
 
   const { cur, prior } = useMemo(() => selectCampaigns(e, f), [e, f]);
@@ -65,13 +65,13 @@ export function Analytics() {
     <>
       <PageTop
         title="Behaviour Analytics"
-        sub={`Who your customers are, what they buy, and what past promotions delivered · ${dateLabel(isoOf(e.ds.minDay))} – ${dateLabel(isoOf(e.ds.maxDay))}`}
+        sub={`Who your customers are, what they buy, and how past promotions performed · ${dateLabel(isoOf(e.ds.minDay))} – ${dateLabel(isoOf(e.ds.maxDay))}`}
         tabs={<Tabs value={tab} onChange={setTab} options={[{ id: 'types', label: 'Customer types' }, { id: 'results', label: 'Promotion results' }]} />}
       />
 
       <div className="space-y-6 p-6">
-        {tab === 'types' ? <CustomerGroups /> : <>
-        <section className="card p-5">
+        {tab === 'types' ? <CustomerGroups onNext={() => setTab('results')} /> : <>
+        <section className="card p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="text-[14px] font-semibold">Which promotions to look at</p>
@@ -97,14 +97,15 @@ export function Analytics() {
           <>
             <Takeaway>{resultsInsight(perCampaign(e, cur, ok).map(({ campaign: c, agg }) => ({ name: c.name, category: c.category, roi: roiOf(agg), cost: agg.cost })), A.units)}</Takeaway>
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-              <Kpi help="investment" label="Promo investment" value={inr(A.cost)} delta={dPct(A.cost, P.cost, null)} note={sub} />
-              <Kpi help="promoRevenue" label="Promo revenue" value={inr(A.promoRevenue)} delta={dPct(A.promoRevenue, P.promoRevenue)} note={sub} />
-              <Kpi help="incRevenue" label="Incremental revenue" value={inr(A.incRevenue)} tone={A.incRevenue < 0 ? 'bad' : undefined} delta={dPct(A.incRevenue, P.incRevenue)} note={hasPrior ? sub : 'uplift vs baseline'} />
-              <Kpi help="roi" emphasis label="Promo ROI" value={roiOf(A).toFixed(2)} tone={roiOf(A) < 0 ? 'bad' : 'good'} delta={dAbs(roiOf(A), roiOf(P))} note={hasPrior ? sub : `${inr(A.incMargin)} margin ÷ ${inr(A.cost)} cost`} />
+              <Kpi help="investment" label="Promotion cost" value={inr(A.cost)} delta={dPct(A.cost, P.cost, null)} note={sub} />
+              <Kpi help="promoRevenue" label="Promotion sales" value={inr(A.promoRevenue)} delta={dPct(A.promoRevenue, P.promoRevenue)} note={sub} />
+              <Kpi help="incRevenue" label="Extra sales" value={inr(A.incRevenue)} tone={A.incRevenue < 0 ? 'bad' : undefined} delta={dPct(A.incRevenue, P.incRevenue)} note={hasPrior ? sub : 'above what customers would buy anyway'} />
+              <Kpi help="roi" emphasis label="ROI" value={roiOf(A).toFixed(2)} tone={roiOf(A) < 0 ? 'bad' : 'good'} delta={dAbs(roiOf(A), roiOf(P))} note={hasPrior ? sub : `${inr(A.incMargin)} extra profit ÷ ${inr(A.cost)} cost`} />
             </div>
             <Results cur={cur} ok={ok} />
           </>
         )}
+        <NextStep text="Use what worked to choose who to target with the next promotion." action="Find customers" onClick={() => go('customers', { tab: 'find' })} />
         </>}
       </div>
     </>
@@ -144,13 +145,14 @@ function More({ open, onClick, children }: { open: boolean; onClick: () => void;
 }
 
 // ============================================================================ PROMOTION RESULTS
-// Storyline: where the return comes from (by product and promotion) -> how each campaign did -> which promotion types work.
+// Storyline: how each campaign did and where its return came from -> what worked best, by promotion type and by customer group.
 function Results({ cur, ok }: { cur: Campaign[]; ok: (cid: string) => boolean }) {
   const e = useEngine();
   const [view, setView] = useState<'chart' | 'table'>('chart');
   const [campMetric, setCampMetric] = useState<MetricKey>('roi');
   const [typeMetric, setTypeMetric] = useState<MetricKey>('roi');
   const [allTypes, setAllTypes] = useState(false);
+  const [by, setBy] = useState<'types' | 'groups'>('types');
   const rows = useMemo(() => perCampaign(e, cur, ok), [e, cur, ok]);
   const types = useMemo(() => MECH_ORDER.map((k) => {
     const camps = cur.filter((c) => mechOf(c) === k);
@@ -169,7 +171,7 @@ function Results({ cur, ok }: { cur: Campaign[]; ok: (cid: string) => boolean })
 
   return (
     <>
-      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
         <div className="min-w-0 space-y-6">
         <Block title="How each campaign performed" sub={`Each dot is one campaign: what it cost (across) and its ${M.phrase} (up). Hover a dot for details.`}
           right={<><MetricSelect value={campMetric} onChange={setCampMetric} keys={['roi', 'incRevenue', 'resp']} /><ViewToggle value={view} onChange={setView} /></>}>
@@ -181,15 +183,15 @@ function Results({ cur, ok }: { cur: Campaign[]; ok: (cid: string) => boolean })
                     <span key={k} className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full" style={{ background: VERDICT[k] }} /><b className="font-semibold">{k}</b> {t}</span>
                   ))}
                 </div>
-              ) : <p className="mb-2 text-[12px] text-[var(--ink-3)]">Showing {M.phrase}. Switch to Promo ROI to colour campaigns by whether they paid back.</p>}
-              <Scatter height={340} xLabel="Promo investment (scale compressed so small campaigns spread out)" yLabel={M.short} xFormat={(v) => inr(v, 0)} yFormat={M.fmt}
-                xScale="sqrt" refY={campMetric === 'roi' ? { value: 0, label: 'Break-even' } : campMetric === 'incRevenue' ? { value: 0, label: 'No extra revenue' } : undefined}
+              ) : <p className="mb-2 text-[12px] text-[var(--ink-3)]">Showing {M.phrase}. Switch to ROI to colour campaigns by whether they paid back.</p>}
+              <Scatter height={340} xLabel="Promotion cost (scale compressed so small campaigns spread out)" yLabel={M.short} xFormat={(v) => inr(v, 0)} yFormat={M.fmt}
+                xScale="sqrt" refY={campMetric === 'roi' ? { value: 0, label: 'Break-even' } : campMetric === 'incRevenue' ? { value: 0, label: 'No extra sales' } : undefined}
                 dots={rows.map(({ campaign: c, agg }) => {
                   const roi = roiOf(agg);
                   return {
                     x: agg.cost, y: M.get(agg), color: campMetric === 'roi' ? VERDICT[verdictOf(roi)] : 'var(--navy)', r: 6 + Math.sqrt(agg.buyers) * 0.5,
                     label: labelled.has(c.id) ? c.name : undefined,
-                    tip: <><b>{c.name}</b><div>{c.category} · {offerOfCampaign(c)}</div><div>Investment {inr(agg.cost)} · ROI {roi.toFixed(2)} · {verdictOf(roi)}</div><div>Incremental revenue {inr(agg.incRevenue)} · {pct(respOf(agg))} redemption</div></>,
+                    tip: <><b>{c.name}</b><div>{c.category} · {offerOfCampaign(c)}</div><div>Promotion cost {inr(agg.cost)} · ROI {roi.toFixed(2)} · {verdictOf(roi)}</div><div>Extra sales {inr(agg.incRevenue)} · {pct(respOf(agg))} redemption</div></>,
                   };
                 })} />
             </>
@@ -197,7 +199,7 @@ function Results({ cur, ok }: { cur: Campaign[]; ok: (cid: string) => boolean })
             <div className="-mx-5 max-h-[400px] overflow-auto">
               <table className="w-full min-w-[640px] text-[12.5px]">
                 <thead className="sticky top-0 bg-white"><tr className="border-y border-[var(--line)] text-right text-[10.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">
-                  {['Campaign', 'Offer', 'Investment', M.short, ...(campMetric === 'roi' ? [] : ['ROI']), 'Result'].map((h, i, all) => <th key={h + i} className={`px-3 py-2.5 ${i < 2 ? 'text-left' : ''} ${i === 0 ? 'pl-5' : ''} ${i === all.length - 1 ? 'pr-5' : ''}`}>{h}</th>)}
+                  {['Campaign', 'Offer', 'Promotion cost', M.short, ...(campMetric === 'roi' ? [] : ['ROI']), 'Result'].map((h, i, all) => <th key={h + i} className={`px-3 py-2.5 ${i < 2 ? 'text-left' : ''} ${i === 0 ? 'pl-5' : ''} ${i === all.length - 1 ? 'pr-5' : ''}`}>{h}</th>)}
                 </tr></thead>
                 <tbody>
                   {[...rows].sort((a, b) => M.get(b.agg) - M.get(a.agg)).map(({ campaign: c, agg }) => {
@@ -220,15 +222,16 @@ function Results({ cur, ok }: { cur: Campaign[]; ok: (cid: string) => boolean })
           )}
         </Block>
 
-        <Block title="Which promotion types work best" sub={`Promotion types ranked by ${T.phrase}. Hover a row to see how the promotion works.`}
-            right={<MetricSelect value={typeMetric} onChange={setTypeMetric} keys={['roi', 'resp', 'incRevenue', 'uplift']} />}>
+        <Block title="What worked best" sub={by === 'types' ? `Promotion types ranked by ${T.phrase}. Hover a row to see how the promotion works.` : `How each customer group responded to these promotions, by ${T.phrase}.`}
+            right={<><Seg value={by} onChange={setBy} options={[{ id: 'types', label: 'Promotion types' }, { id: 'groups', label: 'Customer groups' }]} /><MetricSelect value={typeMetric} onChange={setTypeMetric} keys={['roi', 'resp', 'incRevenue', 'uplift']} /></>}>
+            {by === 'groups' ? <GroupView cur={cur} ok={ok} metric={typeMetric} /> : <>
             <div className="space-y-1">
               {shownTypes.map((g, i) => {
                 const v = T.get(g.a);
                 const w = (Math.abs(v) / maxAbs) * span;
                 return (
                   <div key={g.key} className="grid grid-cols-[minmax(130px,190px)_1fr_64px] items-center gap-4 rounded-lg px-2 py-2 hover:bg-[var(--page)]" title={MECH_HOW[g.key]}>
-                    <div className="min-w-0"><p className="truncate text-[13px] font-semibold">{MECH_LABEL[g.key]}{i === 0 && <span className="ml-2 align-middle"><Chip tone="green">Best</Chip></span>}</p><p className="text-[11.5px] text-[var(--ink-3)]">{g.camps} campaign{g.camps > 1 ? 's' : ''} · {inr(g.a.cost, 0)} invested</p></div>
+                    <div className="min-w-0"><p className="truncate text-[13px] font-semibold">{MECH_LABEL[g.key]}{i === 0 && <span className="ml-2 align-middle"><Chip tone="green">Best</Chip></span>}</p><p className="text-[11.5px] text-[var(--ink-3)]">{g.camps} campaign{g.camps > 1 ? 's' : ''} · {inr(g.a.cost, 0)} cost</p></div>
                     <div className="relative h-3.5">
                       <div className="absolute inset-y-0 w-px bg-[var(--line)]" style={{ left: `${zero}%` }} />
                       <div className="absolute inset-y-0 rounded" style={{ left: v >= 0 ? `${zero}%` : `${zero - w}%`, width: `${Math.max(0.6, w)}%`, background: T.good(v) ? 'var(--green)' : 'var(--red)' }} />
@@ -239,6 +242,7 @@ function Results({ cur, ok }: { cur: Campaign[]; ok: (cid: string) => boolean })
               })}
             </div>
             {rankedTypes.length > 6 && <More open={allTypes} onClick={() => setAllTypes(!allTypes)}>{allTypes ? 'Show top 6 only' : `Show all ${rankedTypes.length} promotion types`}</More>}
+            </>}
           </Block>
         </div>
 
@@ -251,6 +255,90 @@ function Results({ cur, ok }: { cur: Campaign[]; ok: (cid: string) => boolean })
   );
 }
 
+
+/** the small switch used on this page */
+function Seg<T extends string>({ value, options, onChange }: { value: T; options: { id: T; label: string }[]; onChange: (v: T) => void }) {
+  return (
+    <div className="inline-flex h-9 items-center rounded-lg border border-[var(--line)] bg-[var(--page)] p-0.5">
+      {options.map((o) => (
+        <button key={o.id} onClick={() => onChange(o.id)} className={`h-full whitespace-nowrap rounded-md px-3 text-[12px] font-semibold transition-colors ${value === o.id ? 'bg-white text-[var(--ink)] shadow-sm' : 'text-[var(--ink-3)] hover:text-[var(--ink)]'}`}>{o.label}</button>
+      ))}
+    </div>
+  );
+}
+
+/** below this many reached customers, a result is not read */
+const MIN_REACH = 8;
+
+/**
+ * How each customer group responded to the promotions in view (same filters as the page): one bar per group, the promotion
+ * type that worked best for it, the full group x promotion-type grid, and which behaviours predict a response.
+ */
+function GroupView({ cur, ok, metric }: { cur: Campaign[]; ok: (cid: string) => boolean; metric: MetricKey }) {
+  const e = useEngine();
+  const T = METRICS[metric];
+  const [grid, setGrid] = useState(false);
+  const [why, setWhy] = useState(false);
+  const mechs = useMemo(() => MECH_ORDER.filter((k) => cur.some((c) => mechOf(c) === k)), [cur]);
+  const groups = useMemo(() => TYPES.map((t) => {
+    const byCamp = aggregateByCampaign(e, cur, (cid) => ok(cid) && e.typeOf.get(cid) === t.id);
+    return {
+      t, a: sumAggs([...byCamp.values()]),
+      cells: mechs.map((k) => sumAggs(cur.filter((c) => mechOf(c) === k).map((c) => byCamp.get(c.id)!))),
+      customers: e.records.filter((r) => r.type === t.id && ok(r.cid)).length,
+    };
+  }).filter((g) => g.customers > 0), [e, cur, ok, mechs]);
+  const readable = groups.filter((g) => g.a.reached >= MIN_REACH);
+  const vals = readable.map((g) => T.get(g.a));
+  const maxAbs = Math.max(1e-9, ...vals.map(Math.abs));
+  const neg = vals.some((v) => v < 0);
+  const zero = neg ? 50 : 0, span = neg ? 50 : 100;
+  const ranked = [...readable].sort((x, y) => T.get(y.a) - T.get(x.a));
+  if (!readable.length) return <p className="py-8 text-center text-[12.5px] text-[var(--ink-3)]">Too few customers were reached by these promotions to compare groups.</p>;
+  return (
+    <div>
+      {ranked.length > 1 && <p className="mb-2 text-[12.5px] text-[var(--ink)]"><b>{ranked[0].t.name}</b> responded best ({T.fmt(T.get(ranked[0].a))}), <b>{ranked[ranked.length - 1].t.name}</b> least ({T.fmt(T.get(ranked[ranked.length - 1].a))}).</p>}
+      <div className="space-y-1">
+        {groups.map((g) => {
+          const ok8 = g.a.reached >= MIN_REACH;
+          const v = T.get(g.a);
+          const w = (Math.abs(v) / maxAbs) * span;
+          const best = g.cells.map((a, i) => ({ k: mechs[i], a })).filter((x) => x.a.reached >= MIN_REACH).sort((x, y) => T.get(y.a) - T.get(x.a))[0];
+          return (
+            <div key={g.t.id} className="grid grid-cols-[minmax(130px,190px)_1fr_64px] items-center gap-4 rounded-lg px-2 py-2" title={g.t.tagline}>
+              <div className="min-w-0">
+                <p className="flex items-center gap-1.5 truncate text-[13px] font-semibold"><span className="h-2 w-2 shrink-0 rounded-full" style={{ background: g.t.color }} />{g.t.name}</p>
+                <p className="truncate text-[11.5px] text-[var(--ink-3)]">{ok8 && best ? <>Best: {MECH_LABEL[best.k]} ({T.fmt(T.get(best.a))})</> : `${int(g.customers)} customers · too few reached`}</p>
+              </div>
+              <div className="relative h-3.5">
+                {ok8 && <>
+                  <div className="absolute inset-y-0 w-px bg-[var(--line)]" style={{ left: `${zero}%` }} />
+                  <div className="absolute inset-y-0 rounded" style={{ left: v >= 0 ? `${zero}%` : `${zero - w}%`, width: `${Math.max(0.6, w)}%`, background: T.good(v) ? 'var(--green)' : 'var(--red)' }} />
+                </>}
+              </div>
+              <p className="num text-right text-[14px] font-bold" style={{ color: !ok8 ? 'var(--ink-3)' : metric === 'roi' ? roiColor(v) : T.good(v) ? 'var(--ink)' : 'var(--red)' }}>{ok8 ? T.fmt(v) : '–'}</p>
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 border-t border-[var(--line-2)] pt-3">
+        <More open={grid} onClick={() => setGrid(!grid)}>{grid ? 'Hide' : 'Compare by promotion type'}</More>
+        <More open={why} onClick={() => setWhy(!why)}>{why ? 'Hide' : 'What makes a customer respond?'}</More>
+      </div>
+      {grid && (
+        <div className="mt-3">
+          <p className="mb-2 text-[11.5px] text-[var(--ink-3)]">{T.label} by customer group and promotion type. “–” means too few customers to read.</p>
+          <FitHeat rows={groups.map((g) => g.t.name)} cols={mechs.map((k) => MECH_LABEL[k].replace(' (Points)', '').replace(' on Min Spend', ''))} rowW={110}
+            value={(r, c) => { const a = groups[r].cells[c]; return a.reached >= MIN_REACH ? T.get(a) : -99; }}
+            color={(v) => (v === -99 ? '#f6f7f9' : metric === 'roi' ? roiFill(v) : rateFill(Math.max(0, v)))}
+            label={(v) => (v === -99 ? '–' : metric === 'roi' ? v.toFixed(1) : metric === 'incRevenue' ? inr(v, 0) : `${Math.round(v * 100)}%`)}
+            tip={(r, c) => { const a = groups[r].cells[c]; return <><b>{groups[r].t.name} · {MECH_LABEL[mechs[c]]}</b>{a.reached >= MIN_REACH ? <div>Redemption {pct(respOf(a))} · ROI {roiOf(a).toFixed(2)} · {int(a.reached)} reached</div> : <div>Too few customers to read</div>}</>; }} />
+        </div>
+      )}
+      {why && <Drivers />}
+    </div>
+  );
+}
 
 export function PageTop({ title, sub, right, tabs }: { title: string; sub: string; right?: ReactNode; tabs?: ReactNode }) {
   return (

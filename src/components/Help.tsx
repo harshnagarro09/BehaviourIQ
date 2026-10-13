@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { GLOSSARY, type GlossaryKey } from '@/lib/glossary';
 
 const BY_LABEL: Record<string, GlossaryKey> = {
-  'Incremental margin': 'incMargin', ROI: 'roi', Uplift: 'uplift', Subsidy: 'leakage', 'Subsidy rate': 'leakage', Baseline: 'baseline', Incrementality: 'incrementality', 'Promo ROI': 'roi',
+  'Incremental margin': 'incMargin', ROI: 'roi', Uplift: 'uplift', Subsidy: 'leakage', 'Subsidy rate': 'leakage', Baseline: 'baseline', Incrementality: 'incrementality', 'Promo ROI': 'roi', 'Extra profit': 'incMargin', 'Extra sales': 'incRevenue',
 };
 /** a label that gets a "?" when the glossary knows the term */
 export function Lbl({ t }: { t: string }): ReactNode {

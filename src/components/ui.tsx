@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { ArrowDown, ArrowUp, ChevronDown } from 'lucide-react';
+import { ArrowDown, ArrowRight, ArrowUp, ChevronDown } from 'lucide-react';
 import type { TypeId } from '@/engine/behaviour';
 import { TYPE_BY_ID } from '@/engine/segments';
 import { Help } from '@/components/Help';
@@ -195,5 +195,15 @@ export function Panel({
       )}
       {open && <div className={flush ? '' : 'px-4 pb-4'}>{children}</div>}
     </section>
+  );
+}
+
+/** The bridge to the next stage of the story (customers -> promotions -> who to target -> budget), at the end of a view */
+export function NextStep({ text, action, onClick }: { text: ReactNode; action: string; onClick: () => void }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[var(--line)] bg-white px-4 py-3">
+      <p className="text-[12.5px] leading-snug text-[var(--ink-2)]"><span className="mr-2 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--ink-3)]">Next step</span>{text}</p>
+      <button onClick={onClick} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[var(--navy)] px-4 text-[12.5px] font-semibold text-white hover:opacity-95">{action}<ArrowRight className="h-3.5 w-3.5" /></button>
+    </div>
   );
 }

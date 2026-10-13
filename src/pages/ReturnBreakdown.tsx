@@ -33,7 +33,7 @@ export function ReturnBreakdown({ cur, ok }: { cur: Campaign[]; ok: (cid: string
   const e = useEngine();
   const rows = useMemo(() => returnRows(e.ds, e.perCustomer, cur, ok), [e, cur, ok]);
   const camp = useMemo(() => new Map(e.ds.campaigns.map((c) => [c.id, c])), [e]);
-  const [level, setLevel] = useState<Level>('overall');
+  const [level, setLevel] = useState<Level>('sku');
   const [brand, setBrand] = useState('');
   const [category, setCategory] = useState('');
   const [sku, setSku] = useState('');
@@ -128,7 +128,7 @@ export function ReturnBreakdown({ cur, ok }: { cur: Campaign[]; ok: (cid: string
           </p>
 
           <div className="mt-3 rounded-lg px-3.5 py-2.5" style={{ background: paid ? 'var(--green-bg)' : 'var(--red-bg)', color: paid ? 'var(--green-dark)' : '#b91c1c' }}>
-            <p className="text-[13px] font-semibold">Promo ROI {T.cost > 0 ? T.roi.toFixed(2) : '–'} = {inr(T.incMargin, 1)} incremental margin ÷ {inr(T.cost, 1)} promo cost<Help term="roi" /></p>
+            <p className="text-[13px] font-semibold">ROI {T.cost > 0 ? T.roi.toFixed(2) : '–'} = {inr(T.incMargin, 1)} extra profit ÷ {inr(T.cost, 1)} promotion cost<Help term="roi" /></p>
             <p className="mt-0.5 text-[12px]">{T.cost <= 0 ? 'No promo cost in this selection.' : paid ? `Every ₹1 of promo cost earned it back plus ₹${T.roi.toFixed(2)}.` : 'The extra sales did not cover the promo cost.'}</p>
           </div>
 
@@ -157,7 +157,7 @@ export function ReturnBreakdown({ cur, ok }: { cur: Campaign[]; ok: (cid: string
                         <span className="num block text-right text-[12px] font-semibold" style={{ color: v.uplift < 0 ? 'var(--red)' : 'var(--green-dark)' }}>{v.uplift >= 0 ? '+' : ''}{fmt(v.uplift)}</span>
                         <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-[var(--line-2)]"><span className="block h-full rounded-full" style={{ width: `${(Math.abs(v.uplift) / maxUp) * 100}%`, background: v.uplift < 0 ? 'var(--red)' : 'var(--green)' }} /></span>
                       </span>
-                      <span className="num text-right text-[12px] font-bold" title="Promo ROI" style={{ color: g.t.cost > 0 ? roiColor(g.t.roi) : undefined }}>{g.t.cost > 0 ? g.t.roi.toFixed(2) : '–'}</span>
+                      <span className="num text-right text-[12px] font-bold" title="ROI" style={{ color: g.t.cost > 0 ? roiColor(g.t.roi) : undefined }}>{g.t.cost > 0 ? g.t.roi.toFixed(2) : '–'}</span>
                     </button>
                   </li>
                 );

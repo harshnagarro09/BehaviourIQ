@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { AlertTriangle, ArrowRight, ChevronDown, Download, FileSpreadsheet, RefreshCw, RotateCcw, Search, ShoppingBasket, SlidersHorizontal, UserRoundCheck } from 'lucide-react';
+import { AlertTriangle, ChevronDown, Download, FileSpreadsheet, RefreshCw, RotateCcw, Search, ShoppingBasket, SlidersHorizontal, UserRoundCheck } from 'lucide-react';
 import { useApp, useEngine } from '@/state';
 import { Help } from '@/components/Help';
-import { Btn, Card, Chip, FilterSelect, Kpi, Panel, Tabs, WindowChip } from '@/components/ui';
+import { Btn, Card, Chip, FilterSelect, Kpi, NextStep, Tabs, WindowChip } from '@/components/ui';
 import { PageTop } from '@/pages/Analytics';
 import { BudgetView } from '@/pages/BudgetPlanner';
 import { Takeaway } from '@/components/Takeaway';
 import { audienceTakeaway } from '@/lib/takeaways';
 import { TYPES, TYPE_BY_ID } from '@/engine/segments';
-import { TYPE_IDS } from '@/engine/insights';
 import type { TypeId } from '@/engine/behaviour';
 import {
   ACTIVITY_LABEL, ALL_CATEGORIES, applyFilters, audienceKpis, buildAudience, buildAudienceAll, DEFAULT_AUDIENCE, describeFilters, exportTable, GOALS, LEVEL_LABEL, sortRows, STATUS_LABEL,
@@ -31,7 +30,7 @@ export function CustomerPrediction() {
     <>
       <PageTop
         title="Customer Prediction"
-        sub="Find the customers most likely to respond to your next promotion, see why, and download the list for your campaign"
+        sub="Who to target with the next promotion and why, then how to spend the budget on them"
         tabs={<Tabs value={tab} onChange={setTab} options={[{ id: 'find', label: 'Find customers' }, { id: 'budget', label: 'Plan the budget' }]} />}
       />
       <div className="space-y-5 p-6">
@@ -63,7 +62,7 @@ function FindView({ onAudience, onPlan }: { onAudience: (a: SharedAudience) => v
   const e = useEngine();
   const { params, syncParams } = useApp();
   const cats = e.ds.categories;
-  const [category, setCategoryState] = useState(params.category && (params.category === ALL_CATEGORIES || cats.includes(params.category)) ? params.category : cats.includes('Snacks') ? 'Snacks' : cats[0]);
+  const [category, setCategoryState] = useState(params.category && (params.category === ALL_CATEGORIES || cats.includes(params.category)) ? params.category : ALL_CATEGORIES);
   const [offerKey, setOfferKey] = useState('recommended');
   const [goal, setGoal] = useState<Goal>('repeat');
   const [f, setF] = useState<AudienceFilters>(GOALS[0].filters);
@@ -100,28 +99,25 @@ function FindView({ onAudience, onPlan }: { onAudience: (a: SharedAudience) => v
 
   return (
     <>
-      <section>
-        <p className="mb-2 text-[13px] font-semibold">What do you want this promotion to achieve?</p>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {GOALS.map((g) => (
-            <button key={g.id} onClick={() => pickGoal(g.id)} aria-pressed={goal === g.id}
-              className={`card flex items-start gap-3 p-4 text-left transition-shadow hover:shadow-md ${goal === g.id ? 'ring-2 ring-[var(--navy)]' : ''}`}>
-              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${goal === g.id ? 'bg-[var(--navy)] text-white' : 'bg-[var(--page)] text-[var(--ink-2)]'}`}>{GOAL_ICON[g.id]}</span>
-              <span><span className="block text-[13.5px] font-bold">{g.title}</span><span className="mt-0.5 block text-[12px] leading-snug text-[var(--ink-3)]">{g.text}</span></span>
-            </button>
-          ))}
-        </div>
-      </section>
-
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="flex items-center gap-3 text-[13px] font-semibold">Who to include<WindowChip /></p>
+          <p className="flex items-center gap-3 text-[13px] font-semibold">What should the promotion achieve?<WindowChip /></p>
           <div className="flex items-center gap-3">
             {edited && goal !== 'custom' && <button onClick={() => pickGoal(goal)} className="inline-flex items-center gap-1 text-[12px] font-medium text-[var(--ink-2)] hover:text-[var(--ink)]"><RotateCcw className="h-3 w-3" />Back to “{goalDef.title}”</button>}
             <button onClick={() => { setF({ ...DEFAULT_AUDIENCE }); setGoal('custom'); setLimit(PAGE); }} className="text-[12px] font-medium text-[var(--ink-2)] hover:text-[var(--ink)]">Clear all filters</button>
           </div>
         </div>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-2.5 grid gap-2 sm:grid-cols-2 xl:grid-cols-4" role="radiogroup" aria-label="Goal">
+          {GOALS.map((g) => (
+            <button key={g.id} role="radio" aria-checked={goal === g.id} onClick={() => pickGoal(g.id)}
+              className={`flex items-start gap-2.5 rounded-lg border px-3 py-2.5 text-left ${goal === g.id ? 'border-[var(--navy)] bg-[#eef3fa]' : 'border-[var(--line)] bg-white hover:border-[#c9d2de]'}`}>
+              <span className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md [&>svg]:h-3.5 [&>svg]:w-3.5 ${goal === g.id ? 'bg-[var(--navy)] text-white' : 'bg-[var(--page)] text-[var(--ink-2)]'}`}>{GOAL_ICON[g.id]}</span>
+              <span className="min-w-0"><span className={`block text-[12.5px] font-bold ${goal === g.id ? 'text-[var(--navy)]' : ''}`}>{g.title}</span><span className="block text-[11.5px] leading-snug text-[var(--ink-3)]">{g.text}</span></span>
+            </button>
+          ))}
+        </div>
+        <p className="mt-4 border-t border-[var(--line-2)] pt-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--ink-3)]">Who to include</p>
+        <div className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Field label="Product category to promote"><FilterSelect value={category} onChange={setCategory} options={[{ value: ALL_CATEGORIES, label: 'All categories' }, ...cats.map((c) => ({ value: c, label: c }))]} /></Field>
           <Field label={<>Offer<Help term="uplift" /></>}><FilterSelect value={offerKey} onChange={(v) => { setOfferKey(v); setLimit(PAGE); }} options={[{ value: 'recommended', label: isAll ? 'Recommended per type and category' : 'Recommended per type' }, ...eligible.map((p) => ({ value: p.key, label: p.label }))]} /></Field>
           <Field label="Customer type"><FilterSelect value={f.type} onChange={(v) => set('type', v as AudienceFilters['type'])} options={[{ value: 'all', label: 'All customer types' }, { value: 'notDog', label: 'All except Sleeping Dogs' }, ...TYPES.map((t) => ({ value: t.id, label: t.name }))]} /></Field>
@@ -129,7 +125,7 @@ function FindView({ onAudience, onPlan }: { onAudience: (a: SharedAudience) => v
           <Field label="How often they buy"><FilterSelect value={f.frequency} onChange={(v) => set('frequency', v as AudienceFilters['frequency'])} options={[{ value: 'all', label: 'Any frequency' }, { value: 'frequent', label: 'Frequent (3+ orders a month)' }, { value: 'regular', label: 'Regular (1.5 to 3 a month)' }, { value: 'occasional', label: 'Occasional (under 1.5)' }]} /></Field>
           <Field label="How much they spend"><FilterSelect value={f.spend} onChange={(v) => set('spend', v as AudienceFilters['spend'])} options={[{ value: 'all', label: 'Any spend' }, { value: 'high', label: 'High (top third)' }, { value: 'medium', label: 'Medium' }, { value: 'low', label: 'Low (bottom third)' }]} /></Field>
           <Field label="How they react to offers"><FilterSelect value={f.responsiveness} onChange={(v) => set('responsiveness', v as AudienceFilters['responsiveness'])} options={[{ value: 'all', label: 'Any' }, { value: 'high', label: 'Often buy on offers (40%+)' }, { value: 'medium', label: 'Sometimes (15 to 40%)' }, { value: 'low', label: 'Rarely (under 15%)' }]} /></Field>
-          <div className="flex flex-col justify-end gap-2 pb-0.5 text-[12.5px]">
+          <div className="flex flex-col justify-end gap-2 pb-0 text-[12.5px]">
             <label className="flex items-center gap-2"><input type="checkbox" checked={f.categoryBuyers} onChange={(ev) => set('categoryBuyers', ev.target.checked)} className="accent-[var(--navy)]" />Regular {isAll ? 'buyers of the category' : `${category} buyers`} only</label>
             <label className="flex items-center gap-2"><input type="checkbox" checked={f.recommendedOnly} onChange={(ev) => set('recommendedOnly', ev.target.checked)} className="accent-[var(--navy)]" />Only customers we recommend</label>
           </div>
@@ -146,28 +142,33 @@ function FindView({ onAudience, onPlan }: { onAudience: (a: SharedAudience) => v
         <Kpi label="Customers in audience" value={int(k.customers)} note={`of ${int(A.rows.length)} · ${int(k.offered)} would get an offer`} />
         <Kpi label="Expected buyers" value={int(k.buyersWith)} note={`vs ${int(k.buyersWithout)} with no offer · next 14 days`} />
         <Kpi help="uplift" emphasis label="Extra buyers (uplift)" value={`+${int(k.extraBuyers)}`} tone="good" note={`from the ${int(k.offered)} who get the offer`} />
-        <Kpi help="roi" label="Expected ROI" value={k.investment > 0 ? k.roi.toFixed(2) : '–'} tone={k.roi < 0 ? 'bad' : undefined} note={k.investment > 0 ? `on ${inr(k.investment, 0)} promo cost` : 'no offer in this audience'} />
+        <Kpi help="roi" label="Expected ROI" value={k.investment > 0 ? k.roi.toFixed(2) : '–'} tone={k.roi < 0 ? 'bad' : undefined} note={k.investment > 0 ? `on ${inr(k.investment, 0)} promotion cost` : 'no offer in this audience'} />
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
         <Card>
-          <p className="text-[13px] font-semibold">Who is in this audience</p>
-          <p className="mb-3 text-[12px] text-[var(--ink-3)]">The {int(k.customers)} customers by type. The dark part of each bar gets the offer in {where}; the light part is held back.</p>
+          <p className="text-[13px] font-semibold">Who is in this audience, and who gets an offer</p>
+          <p className="mb-3 text-[12px] text-[var(--ink-3)]">The {int(k.customers)} customers by type. The dark part of each bar gets the offer in {where}; the light part is held back. Hover a group for how to treat it.</p>
           <div className="space-y-3">
             {TYPES.map((t) => {
               const inType = rows.filter((r) => r.type === t.id);
               const n = inType.length;
               const got = inType.filter((r) => r.offer).length;
               const off = A.offerByType[t.id];
+              // the same per-group figures the KPIs add up: buying chance without and with the offer, and return on its cost
+              const p0 = n ? inType.reduce((s, r) => s + r.p0, 0) / n : 0;
+              const p1 = n ? inType.reduce((s, r) => s + (r.offer ? r.p1 : r.p0), 0) / n : 0;
+              const inv = inType.reduce((s, r) => s + r.investment, 0);
+              const roi = inv > 0 ? inType.reduce((s, r) => s + r.incMargin, 0) / inv : null;
               return (
-                <div key={t.id} className="grid grid-cols-[130px_1fr_92px] items-start gap-3">
+                <div key={t.id} className="grid grid-cols-[130px_1fr_92px] items-start gap-3" title={t.play}>
                   <span className="flex items-center gap-2 pt-px text-[12.5px] font-medium"><span className="h-2.5 w-2.5 rounded-full" style={{ background: t.color }} />{t.name}</span>
                   <div>
                     <div className="flex h-3 overflow-hidden rounded bg-[var(--line-2)]" title={`${int(got)} get the offer, ${int(n - got)} held back`}>
                       <div style={{ width: `${k.customers ? (got / k.customers) * 100 : 0}%`, background: t.color }} />
                       <div style={{ width: `${k.customers ? ((n - got) / k.customers) * 100 : 0}%`, background: t.color, opacity: 0.28 }} />
                     </div>
-                    <p className="mt-0.5 text-[11px] leading-snug text-[var(--ink-3)]">{t.id === 'dog' ? 'Never offered: they buy less when offers run' : A.varies.has(t.id) ? 'Get the best offer for the category promoted to them' : off ? `Get ${off.label}` : t.id === 'sure' ? 'Held back: they buy anyway, a discount only gives margin away' : 'Held back: offers barely move them, so none pays back'}</p>
+                    <p className="mt-0.5 text-[11px] leading-snug text-[var(--ink-3)]">{t.id === 'dog' ? 'Never offered: they buy less when offers run' : A.varies.has(t.id) ? 'Get the best offer for the category promoted to them' : off ? `Get ${off.label}` : t.id === 'sure' ? 'Held back: they buy anyway, a discount only gives margin away' : 'Held back: offers barely move them, so none pays back'}{got > 0 && roi !== null && <> · buying chance {pct(p0)} → <b className="font-semibold text-[var(--ink-2)]">{pct(p1)}</b> · ROI <b className="font-semibold" style={{ color: roiColor(roi) }}>{roi.toFixed(2)}</b></>}</p>
                   </div>
                   <span className="num text-right text-[12px] leading-tight"><b className="text-[13px]">{int(n)}</b> <span className="text-[var(--ink-3)]">({pct(k.customers ? n / k.customers : 0)})</span><span className="block text-[11px] text-[var(--ink-3)]">{int(got)} get offer</span></span>
                 </div>
@@ -200,7 +201,6 @@ function FindView({ onAudience, onPlan }: { onAudience: (a: SharedAudience) => v
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex h-8 items-center gap-1.5 rounded-md border border-[var(--line)] bg-white px-2.5"><Search className="h-3.5 w-3.5 text-[var(--ink-3)]" /><input value={f.search} onChange={(ev) => set('search', ev.target.value)} placeholder="Customer ID" aria-label="Search customer ID" className="w-24 bg-transparent text-[12.5px] outline-none" /></div>
             <FilterSelect value={sort} onChange={(v) => setSort(v as SortKey)} options={SORTS.map((s) => ({ value: s.id, label: `Sort: ${s.label}` }))} />
-            <Btn onClick={onPlan} disabled={!rows.length}>Plan the budget for these customers<ArrowRight className="h-3.5 w-3.5" /></Btn>
             <Btn onClick={() => download('csv')} disabled={!rows.length}><Download className="h-3.5 w-3.5" />CSV</Btn>
             <Btn variant="navy" onClick={() => download('xlsx')} disabled={!rows.length}><FileSpreadsheet className="h-3.5 w-3.5" />Download Excel</Btn>
           </div>
@@ -223,9 +223,7 @@ function FindView({ onAudience, onPlan }: { onAudience: (a: SharedAudience) => v
         </div>
       </Card>
 
-      <Panel title="Which offer each customer type gets, and why" what={`Offers are decided for the whole customer type${isAll ? ' in each category' : ` in ${category}`}: the best offer that pays back and lifts buying by 15+ points. Numbers are for the customers in this audience.`} defaultOpen={false}>
-        <OfferByType rows={rows} offerByType={A.offerByType} varies={A.varies} />
-      </Panel>
+      {rows.length > 0 && <NextStep text={<>Decide how much to spend on these <b className="font-semibold text-[var(--ink)]">{int(rows.length)} customers</b>, on which products and with which discounts.</>} action="Plan the budget" onClick={onPlan} />}
     </>
   );
 }
@@ -265,39 +263,5 @@ function CustomerRow({ r, open, onToggle, showCategory }: { r: AudienceRow; open
         </tr>
       )}
     </>
-  );
-}
-
-/** per customer type, summed from the same audience rows as the KPIs, chart and download */
-function OfferByType({ rows, offerByType, varies }: { rows: AudienceRow[]; offerByType: Record<TypeId, { key: string; label: string } | null>; varies: Set<TypeId> }) {
-  return (
-    <div className="-mx-4 overflow-x-auto">
-      <table className="w-full min-w-[760px] text-[12.5px]">
-        <thead><tr className="border-y border-[var(--line)] text-left text-[10.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]">
-          {['Customer type', 'In audience', 'Offer', 'Chance to buy', 'Expected ROI', 'Why'].map((h, i) => <th key={h} className={`py-2.5 ${i === 0 ? 'pl-4 pr-3' : 'px-3'}`}>{h}</th>)}
-        </tr></thead>
-        <tbody>
-          {TYPE_IDS.map((t) => {
-            const def = TYPE_BY_ID[t];
-            const off = offerByType[t];
-            const rs = rows.filter((r) => r.type === t);
-            const p0 = rs.length ? rs.reduce((s, r) => s + r.p0, 0) / rs.length : 0;
-            const p1 = rs.length ? rs.reduce((s, r) => s + (r.offer ? r.p1 : r.p0), 0) / rs.length : 0;
-            const inv = rs.reduce((s, r) => s + r.investment, 0), inc = rs.reduce((s, r) => s + r.incMargin, 0);
-            const roi = inv > 0 ? inc / inv : null;
-            return (
-              <tr key={t} className="border-b border-[var(--line-2)] align-top last:border-0">
-                <td className="py-2.5 pl-4 pr-3 font-semibold"><span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: def.color }} />{def.name}</span></td>
-                <td className="num px-3 py-2.5">{int(rs.length)}</td>
-                <td className="px-3 py-2.5">{off ? off.label : varies.has(t) ? 'Varies by category' : <span className="text-[var(--ink-3)]">No offer</span>}</td>
-                <td className="num px-3 py-2.5">{!rs.length ? '–' : off || varies.has(t) ? <>{pct(p0)} → <b>{pct(p1)}</b></> : pct(p0)}</td>
-                <td className="num px-3 py-2.5 font-semibold" style={{ color: roi !== null ? roiColor(roi) : undefined }}>{roi !== null ? roi.toFixed(2) : '–'}</td>
-                <td className="max-w-[420px] px-3 py-2.5 text-[12px] leading-snug text-[var(--ink-2)]">{def.play}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
   );
 }

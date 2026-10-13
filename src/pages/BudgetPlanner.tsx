@@ -12,7 +12,7 @@ import { SourceChip } from '@/components/ui';
 import { GroupedBars } from '@/components/charts';
 import { useProductFilter } from '@/components/ProductScope';
 import { TYPE_BY_ID } from '@/engine/segments';
-import { FAMILY_LABEL, type Family } from '@/engine/promotions';
+import { type Family } from '@/engine/promotions';
 import { objectiveValue, type Objective, type SegPromo } from '@/engine/targeting';
 import type { TypeId } from '@/engine/behaviour';
 import type { ElasticityModel } from '@/engine/elasticity';
@@ -29,8 +29,8 @@ import { roiColor } from '@/lib/colors';
 import { saveFile, toCsv, toXlsx } from '@/lib/download';
 import { inr, int, pct } from '@/lib/fmt';
 
-const FAMILIES: Family[] = ['price', 'threshold', 'volume', 'bundle', 'loyalty', 'partner'];
 const DEFAULT_FAMILIES: Family[] = ['price', 'threshold', 'volume', 'bundle', 'loyalty'];
+const families = new Set<Family>(DEFAULT_FAMILIES); // all discount types stay allowed
 const GOALS: { id: Objective; label: string; text: string }[] = [
   { id: 'margin', label: 'Most profit', text: 'Puts money where it adds the most profit after paying for the offer.' },
   { id: 'revenue', label: 'Most sales', text: 'Puts money where it adds the most sales. Extra sales can come with thinner profit.' },
@@ -89,8 +89,8 @@ export function BudgetView({ audience, onFind }: { audience: SharedAudience | nu
   const [budget, setBudget] = useState(30000);
   const [objective, setObjective] = useState<Objective>('margin');
   const [hurdle, setHurdle] = useState(0.25);
-  const [holdout, setHoldout] = useState(0.1);
-  const [families, setFamilies] = useState<Set<Family>>(new Set(DEFAULT_FAMILIES));
+  const holdout = 0.1;
+
   const [limitInput, setLimitInput] = useState<LimitInput>({});
   const [rulesOpen, setRulesOpen] = useState(false);
   const model = useMemo(() => elasticityOf(e), [e]);
@@ -103,8 +103,8 @@ export function BudgetView({ audience, onFind }: { audience: SharedAudience | nu
   const limitCount = Object.keys(limits).length;
   const includeDogs = groups.has('dog');
   const settings: OptSettings = useMemo(() => ({ budget, objective, hurdle, holdout, includeExcluded: includeDogs, allowed: (p) => families.has(p.family), limits: limitCount ? limits : undefined }),
-    [budget, objective, hurdle, holdout, includeDogs, families, limits, limitCount]);
-  const changedRules = [hurdle !== 0.25, holdout !== 0.1, families.size !== DEFAULT_FAMILIES.length || !DEFAULT_FAMILIES.every((f) => families.has(f))].filter(Boolean).length + limitCount;
+    [budget, objective, hurdle, holdout, includeDogs, limits, limitCount]);
+  const changedRules = (hurdle !== 0.25 ? 1 : 0) + limitCount;
 
   // ---- 4. generate plan: once generated, results follow every input (budget, groups, products, goal, settings) immediately,
   // so what is shown always matches the current selections
@@ -154,7 +154,7 @@ export function BudgetView({ audience, onFind }: { audience: SharedAudience | nu
             </div>
             {!fromFind && (
               <div className="inline-flex rounded-lg border border-[var(--line)] bg-white p-0.5" role="radiogroup" aria-label="Last shopped">
-                {([['all', 'Any activity'], ['active', 'Active'], ['lapsing', 'Slowing / inactive']] as const).map(([v, l]) => (
+                {([['all', 'All customers'], ['active', 'Active'], ['lapsing', 'Slowing / inactive']] as const).map(([v, l]) => (
                   <button key={v} role="radio" aria-checked={activity === v} onClick={() => setActivity(v)} className={`rounded-md px-2.5 py-1 text-[12px] font-semibold ${activity === v ? 'bg-[var(--navy)] text-white' : 'text-[var(--ink-2)] hover:bg-[var(--page)]'}`}>{l}</button>
                 ))}
               </div>
@@ -188,7 +188,7 @@ export function BudgetView({ audience, onFind }: { audience: SharedAudience | nu
               className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[var(--navy)] px-4 text-[13px] font-semibold text-white hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-40">Generate plan</button>
           )}
         </div>
-        {rulesOpen && <div className="px-4 pb-4"><Rules {...{ hurdle, setHurdle, holdout, setHoldout, families, setFamilies, limitInput, setLimitInput, cats }} /></div>}
+        {rulesOpen && <div className="px-4 pb-4"><Rules {...{ hurdle, setHurdle, limitInput, setLimitInput, cats }} /></div>}
       </section>
 
       {/* ------------------------------------------------------------ your plan next to the recommended plan */}
@@ -232,11 +232,14 @@ function Results({ items, itemsRec, settings, range, rangeLabel, model, label, c
   const skuRows = useMemo(() => rollDown(plan, range), [plan, range]);
   const left = unallocated(plan, free);
   const reached = useMemo(() => new Set(activation(plan).filter((r) => r.group === 'treatment').map((r) => r.cid)).size, [plan]);
-  // recommended plan: every responsive group, at the budget where returns level off (found on the full budget curve)
+  // recommended plan: every responsive group, with the budget everything worthwhile needs: what the planner spends when money
+  // is not the limit (it never funds an offer below the minimum return), rounded up, so it never gives up profit to save cost
   const rec = useMemo(() => {
     if (!itemsRec) return null;
     const s0: OptSettings = { ...settings, includeExcluded: false };
-    const budget = Math.max(500, Math.round(optimise(itemsRec, s0).recommendedBudget / 500) * 500);
+    const level = optimise(itemsRec, s0).recommendedBudget;
+    const needed = optimise(itemsRec, { ...s0, budget: Math.max(settings.budget, level * 2, 1000) }).spend;
+    const budget = Math.max(500, Math.ceil(needed / 500) * 500);
     const s: OptSettings = { ...s0, budget };
     const p = optimise(itemsRec, s);
     return { plan: p, settings: s, items: itemsRec, advice: explainPlan(p, null, itemsRec), reached: new Set(activation(p).filter((r) => r.group === 'treatment').map((r) => r.cid)).size };
@@ -246,7 +249,6 @@ function Results({ items, itemsRec, settings, range, rangeLabel, model, label, c
   const why = useCallback((al: Alloc) => whyOffer(al, shown.items.find((i) => i.id === al.item.id), shown.settings, model), [shown.items, shown.settings, model]);
   const [focus, setFocus] = useState<string | null>(null);
   const focusId = shown.plan.allocations.some((x) => x.item.id === focus) || shown.items.some((i) => i.id === focus && i.members.length) ? focus : shown.plan.allocations[0]?.item.id ?? null;
-  const cats = [...new Set(items.map((i) => i.category))].sort();
 
   const exportPlan = (kind: 'xlsx' | 'csv') => {
     const head = ['Planned for', 'Brand', 'Category', 'SKU id', 'SKU', 'Customer group', 'Offer', 'Discount depth set by', 'Share of group offered', 'Budget (Rs)', 'Expected extra units', 'Expected extra sales (Rs)', 'Expected extra profit (Rs)', 'Profit per Rs 1 (ROI)', 'Why'];
@@ -265,12 +267,12 @@ function Results({ items, itemsRec, settings, range, rangeLabel, model, label, c
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <Summary plan={plan} advice={advice} customers={customers} budget={settings.budget} left={left} reached={reached} />
-        <Compare yours={{ plan, reached, budget: settings.budget, bau: bau.incMargin }} rec={rec} groups={groups} />
+      <div className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+        <Summary plan={plan} advice={advice} customers={customers} budget={settings.budget} left={left} reached={reached} changes={recChanges(plan, settings.budget, rec, groups)} hasRec={!!rec} bau={bau.incMargin} />
+        <Compare yours={{ plan, reached, budget: settings.budget }} rec={rec} />
       </div>
       {plan.allocations.length > 0 || (rec?.plan.allocations.length ?? 0) > 0 ? (
-        <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+        <div className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
           <AllocationChart plan={shown.plan} advice={shown.advice} focusId={focusId} onFocus={setFocus} why={why} onExport={exportPlan} onAudience={exportAudience}
             view={rec ? <PlanSwitch value={view} onChange={setView} /> : undefined} />
           <DiscountChart item={shown.items.find((i) => i.id === focusId)} plan={shown.plan} settings={shown.settings} items={shown.items} onFocus={setFocus} />
@@ -292,73 +294,65 @@ function PlanSwitch({ value, onChange }: { value: 'yours' | 'rec'; onChange: (v:
   );
 }
 
-/** Your plan next to the recommended plan: the same measures, then what the recommendation changes and what it adds */
-function Compare({ yours, rec, groups }: {
-  yours: { plan: Plan; reached: number; budget: number; bau: number };
-  rec: { plan: Plan; settings: OptSettings; reached: number } | null;
-  groups: Set<TypeId>;
-}) {
+/** What the recommended plan does differently from yours, in plain words */
+function recChanges(y: Plan, yb: number, rec: { plan: Plan; settings: OptSettings } | null, groups: Set<TypeId>): string[] {
+  if (!rec) return [];
+  const r = rec.plan;
+  const out: string[] = [];
+  for (const t of [...new Set(r.allocations.map((a) => a.item.type))].filter((x) => !groups.has(x))) {
+    const al = r.allocations.filter((a) => a.item.type === t);
+    out.push(`Add ${TYPE_BY_ID[t].name}: ${int(al.reduce((s, a) => s + a.treated, 0))} customers, about ${inr(al.reduce((s, a) => s + a.incMargin, 0))} extra profit.`);
+  }
+  if (y.allocations.some((a) => a.item.type === 'dog')) out.push('Leave out Sleeping Dogs: offers make them buy less.');
+  const rb = rec.settings.budget;
+  if (rb < yb * 0.95) out.push(`Budget ${inr(rb)} instead of ${inr(yb)}: beyond that, more money earns less than it costs here.`);
+  else if (rb > yb * 1.05) out.push(`Budget ${inr(rb)} instead of ${inr(yb)}: returns keep paying off up to that level.`);
+  for (const a of r.allocations) {
+    const mine = y.allocations.find((x) => x.item.id === a.item.id);
+    if (mine && mine.cell.promo.key !== a.cell.promo.key) out.push(`${a.item.category} · ${TYPE_BY_ID[a.item.type].name}: ${a.cell.promo.label} instead of ${mine.cell.promo.label}.`);
+  }
+  return out;
+}
+
+/** Your plan next to the recommended plan, measure by measure */
+function Compare({ yours, rec }: { yours: { plan: Plan; reached: number; budget: number }; rec: { plan: Plan; settings: OptSettings; reached: number } | null }) {
   const y = yours.plan, r = rec?.plan;
-  const rows: { k: string; a: string; b: string; d?: number; help?: string }[] = [
+  const rows: { k: string; a: string; b: string; d?: number }[] = [
     { k: 'Budget used', a: `${inr(y.spend)} of ${inr(yours.budget)}`, b: r ? `${inr(r.spend)} of ${inr(rec!.settings.budget)}` : '–' },
     { k: 'Customers with an offer', a: int(yours.reached), b: r ? int(rec!.reached) : '–' },
     { k: 'Extra units', a: int(y.incUnits), b: r ? int(r.incUnits) : '–', d: r ? r.incUnits - y.incUnits : undefined },
     { k: 'Extra sales', a: inr(y.incRevenue), b: r ? inr(r.incRevenue) : '–', d: r ? r.incRevenue - y.incRevenue : undefined },
     { k: 'Extra profit', a: inr(y.incMargin), b: r ? inr(r.incMargin) : '–', d: r ? r.incMargin - y.incMargin : undefined },
-    { k: 'Profit per ₹1', a: y.spend > 0 ? per1(y.roi) : '–', b: r && r.spend > 0 ? per1(r.roi) : '–' },
+    { k: 'ROI (profit per ₹1)', a: y.spend > 0 ? per1(y.roi) : '–', b: r && r.spend > 0 ? per1(r.roi) : '–' },
   ];
-  // what the recommendation does differently
-  const changes: string[] = [];
-  if (r) {
-    const fundedRec = [...new Set(r.allocations.map((a) => a.item.type))];
-    const added = fundedRec.filter((t) => !groups.has(t));
-    for (const t of added) {
-      const al = r.allocations.filter((a) => a.item.type === t);
-      changes.push(`Add ${TYPE_BY_ID[t].name}: ${int(al.reduce((s, a) => s + a.treated, 0))} customers, about ${inr(al.reduce((s, a) => s + a.incMargin, 0))} extra profit.`);
-    }
-    const dropped = [...groups].filter((t) => t === 'dog' && y.allocations.some((a) => a.item.type === t));
-    if (dropped.length) changes.push('Leave out Sleeping Dogs: offers make them buy less.');
-    const yb = yours.budget, rb = rec!.settings.budget;
-    if (rb < yb * 0.95) changes.push(`Budget ${inr(rb)} instead of ${inr(yb)}: beyond that, more money earns less than it costs here.`);
-    else if (rb > yb * 1.05) changes.push(`Budget ${inr(rb)} instead of ${inr(yb)}: returns keep paying off up to that level.`);
-    for (const a of r.allocations) {
-      const mine = y.allocations.find((x) => x.item.id === a.item.id);
-      if (mine && mine.cell.promo.key !== a.cell.promo.key) changes.push(`${a.item.category} · ${TYPE_BY_ID[a.item.type].name}: ${a.cell.promo.label} instead of ${mine.cell.promo.label}.`);
-    }
-  }
   return (
-    <section className="card p-4">
+    <section className="card flex flex-col p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-[14px] font-bold tracking-tight">Your plan vs recommended</h2>
         <span title="Both are estimates built by the same stated rules: customers' past response to offers, how sales moved with past discounts, product costs and the budget. The recommended plan only changes the customer groups (never Sleeping Dogs) and the budget level; your settings are not changed."><SourceChip kind="simulated" /></span>
       </div>
       <table className="mt-3 w-full text-[12.5px]">
         <thead><tr className="border-b border-[var(--line)] text-right text-[10.5px] font-semibold uppercase tracking-[0.06em] text-[var(--ink-3)]">
-          <th className="py-1.5 text-left font-semibold" /><th className="px-2 py-1.5">Your plan</th><th className="py-1.5 pl-2">Recommended</th>
+          <th className="py-2 text-left font-semibold" /><th className="px-2 py-2">Your plan</th><th className="py-2 pl-2">Recommended</th>
         </tr></thead>
         <tbody>
           {rows.map((x) => (
             <tr key={x.k} className="border-b border-[var(--line-2)] text-right last:border-0">
-              <td className="py-1.5 text-left text-[var(--ink-2)]">{x.k}</td>
-              <td className="num px-2 py-1.5 font-semibold">{x.a}</td>
-              <td className="num py-1.5 pl-2 font-semibold">{x.b}{x.d !== undefined && Math.abs(x.d) >= 1 && <span className="ml-1.5 text-[11px] font-semibold" style={{ color: x.d > 0 ? 'var(--green-dark)' : 'var(--red)' }}>{x.d > 0 ? '+' : '−'}{x.k === 'Extra units' ? int(Math.abs(x.d)) : inr(Math.abs(x.d))}</span>}</td>
+              <td className="py-2 text-left text-[var(--ink-2)]">{x.k}</td>
+              <td className="num px-2 py-2 font-semibold">{x.a}</td>
+              <td className="num py-2 pl-2 font-semibold">{x.b}{x.d !== undefined && Math.abs(x.d) >= 1 && <span className="ml-1.5 text-[11px] font-semibold" style={{ color: x.d > 0 ? 'var(--green-dark)' : 'var(--red)' }}>{x.d > 0 ? '+' : '−'}{x.k === 'Extra units' ? int(Math.abs(x.d)) : inr(Math.abs(x.d))}</span>}</td>
             </tr>
           ))}
         </tbody>
       </table>
-      <div className="mt-3 rounded-lg bg-[var(--page)] px-3 py-2.5">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--ink-3)]">What the recommendation changes</p>
-        {!r ? <p className="mt-1 text-[12px] text-[var(--ink-3)]">No customer group in this audience responds to offers, so there is nothing to recommend.</p>
-          : changes.length ? <ul className="mt-1 space-y-0.5 text-[12px] leading-snug text-[var(--ink)]">{changes.slice(0, 5).map((c) => <li key={c}>• {c}</li>)}</ul>
-          : <p className="mt-1 text-[12px] text-[var(--ink)]">Nothing: your plan already matches the recommendation.</p>}
-        <p className="mt-1.5 text-[11px] text-[var(--ink-3)]">Your settings are not changed. Usual way at your budget: {inr(yours.bau)} extra profit.</p>
-      </div>
     </section>
   );
 }
 
 /** who to target, what to promote, which discount, how to split the budget: one line each, straight from the plan */
-function Summary({ plan, advice, customers, budget, left, reached }: { plan: Plan; advice: CategoryAdvice[]; customers: number; budget: number; left: { amount: number; text: string }; reached: number }) {
+function Summary({ plan, advice, customers, budget, left, reached, changes, hasRec, bau }: {
+  plan: Plan; advice: CategoryAdvice[]; customers: number; budget: number; left: { amount: number; text: string }; reached: number; changes: string[]; hasRec: boolean; bau: number;
+}) {
   const funded = [...new Set(plan.allocations.map((x) => x.item.type))];
   const skipped = [...new Set(advice.flatMap((c) => c.types.filter((t) => !t.funded).map((t) => t.type)))].filter((t) => !funded.includes(t));
   const byCat = advice.filter((c) => c.spend > 0).sort((x, y) => y.spend - x.spend);
@@ -370,7 +364,7 @@ function Summary({ plan, advice, customers, budget, left, reached }: { plan: Pla
     [<Wallet key="i" className="h-3.5 w-3.5" />, 'How to spend the budget', <>{byCat.map((c) => `${inr(c.spend)} on ${c.category}`).join(', ')} · {inr(plan.spend)} of {inr(budget)}{left.amount > budget * 0.01 ? <span className="text-[var(--ink-3)]"> ({inr(left.amount)} kept back: more would cost more than it earns)</span> : ''}</>],
   ] : [];
   return (
-    <section className="card p-4">
+    <section className="card flex flex-col p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-[14px] font-bold tracking-tight">Your plan</h2>
         <span title="Built by stated rules from each customer's past response to offers, how sales moved with past discounts, product costs and your budget. Not a trained AI model; results are estimates."><SourceChip kind="simulated" /></span>
@@ -388,6 +382,15 @@ function Summary({ plan, advice, customers, budget, left, reached }: { plan: Pla
       ) : (
         <p className="mt-3 text-[12.5px] leading-snug text-[var(--ink-2)]">No offer pays back for these customers and products. {advice[0]?.headline ?? ''} Try other customer groups or products, or lower the minimum profit per ₹1 under Advanced settings.</p>
       )}
+      <div className="mt-auto pt-3">
+        <div className="rounded-lg bg-[var(--page)] px-3 py-2.5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--ink-3)]">What the recommendation changes</p>
+          {!hasRec ? <p className="mt-1 text-[12px] text-[var(--ink-3)]">No customer group in this audience responds to offers, so there is nothing to recommend.</p>
+            : changes.length ? <ul className="mt-1 space-y-0.5 text-[12px] leading-snug text-[var(--ink)]">{changes.slice(0, 4).map((c) => <li key={c}>• {c}</li>)}</ul>
+            : <p className="mt-1 text-[12px] text-[var(--ink)]">Nothing: your plan already matches the recommendation.</p>}
+          <p className="mt-1.5 text-[11px] text-[var(--ink-3)]">Your settings are not changed. The usual way at your budget would earn {inr(bau)} extra profit.</p>
+        </div>
+      </div>
     </section>
   );
 }
@@ -495,7 +498,7 @@ function AllocationChart({ plan, advice, focusId, onFocus, why, onExport, onAudi
 // ------------------------------------------------------------------------ chart 2: the discount options for one customer group
 function DiscountChart({ item, plan, settings, items, onFocus }: { item: OptItem | undefined; plan: Plan; settings: OptSettings; items: OptItem[]; onFocus: (id: string) => void }) {
   const live = items.filter((i) => i.members.length && (i.type !== 'dog' || settings.includeExcluded));
-  if (!item) return <section className="card p-4"><h2 className="text-[14px] font-bold tracking-tight">Compare discounts</h2><p className="mt-6 text-center text-[12.5px] text-[var(--ink-3)]">No customer group to compare yet.</p></section>;
+  if (!item) return <section className="card h-full p-4"><h2 className="text-[14px] font-bold tracking-tight">Compare discounts</h2><p className="mt-6 text-center text-[12.5px] text-[var(--ink-3)]">No customer group to compare yet.</p></section>;
   const chosen = plan.allocations.find((a) => a.item.id === item.id)?.cell.promo.key;
   const opts = item.cells.filter((c) => c.eligible.ok && settings.allowed(c.promo) && c.investment > 0)
     .sort((a, b) => (a.promo.family === 'price' && b.promo.family === 'price' ? a.promo.depth - b.promo.depth : b.incMargin - a.incMargin));
@@ -506,7 +509,7 @@ function DiscountChart({ item, plan, settings, items, onFocus }: { item: OptItem
   const neg = shown.some((c) => c.incMargin < 0);
   const zero = neg ? 35 : 0, span = neg ? 65 : 100;
   return (
-    <section className="card p-4">
+    <section className="card h-full p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <h2 className="text-[14px] font-bold tracking-tight">Compare discounts</h2>
@@ -520,7 +523,7 @@ function DiscountChart({ item, plan, settings, items, onFocus }: { item: OptItem
       {!opts.length ? <p className="mt-6 text-center text-[12.5px] text-[var(--ink-3)]">No discount type allowed here. Check Advanced settings.</p> : (
         <>
           <div className="mt-3 grid grid-cols-[minmax(0,130px)_minmax(0,1fr)_52px_56px] gap-x-3 border-b border-[var(--line)] pb-1 text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--ink-3)]">
-            <span>Offer</span><span>Extra profit</span><span className="text-right" title="Extra profit for every ₹1 the offer costs">Profit/₹1</span><span className="text-right" title="Extra buyers in every 100 customers of the group">Buyers</span>
+            <span>Offer</span><span>Extra profit</span><span className="text-right" title="Extra profit for every ₹1 the offer costs">ROI</span><span className="text-right" title="Extra buyers in every 100 customers of the group">Buyers</span>
           </div>
           <ul className="mt-1 space-y-0.5">
             {shown.map((c) => {
@@ -634,10 +637,9 @@ function AimField({ value, onChange }: { value: Objective; onChange: (v: Objecti
 
 // ------------------------------------------------------------------------ discounts & rules (opened from the setup card)
 function Rules(p: {
-  hurdle: number; setHurdle: (v: number) => void; holdout: number; setHoldout: (v: number) => void; families: Set<Family>; setFamilies: (v: Set<Family>) => void;
+  hurdle: number; setHurdle: (v: number) => void;
   limitInput: LimitInput; setLimitInput: (v: LimitInput) => void; cats: string[];
 }) {
-  const toggleFamily = (f: Family) => { const n = new Set(p.families); if (n.has(f)) n.delete(f); else n.add(f); p.setFamilies(n); };
   const anyLimit = Object.values(p.limitInput).some((l) => l.min || l.max);
   const seg = <T extends string>(value: T, options: { id: T; label: string }[], onChange: (v: T) => void) => (
     <div className="inline-flex rounded-lg border border-[var(--line)] bg-white p-0.5">
@@ -652,18 +654,8 @@ function Rules(p: {
         <Field label={<>Minimum profit per ₹1<Help term="hurdle" /></>} text="Only fund offers that bring back their cost plus at least this much profit for every ₹1 spent.">
           {seg(String(p.hurdle), ['0', '0.25', '0.5', '1'].map((h) => ({ id: h, label: h === '0' ? 'Break even' : `₹${h}` })), (v) => p.setHurdle(+v))}
         </Field>
-        <Field label={<>Keep a test group<Help term="holdout" /></>} text="A random few in each group get no offer, so the real effect can be measured afterwards.">
-          {seg(String(p.holdout), [0, 0.05, 0.1, 0.2].map((h) => ({ id: String(h), label: h ? pct(h) : 'None' })), (v) => p.setHoldout(+v))}
-        </Field>
-        <Field label="Discount types allowed" text="Switch off any type you cannot run.">
-          <div className="flex flex-wrap gap-1.5">
-            {FAMILIES.map((f) => (
-              <button key={f} onClick={() => toggleFamily(f)} aria-pressed={p.families.has(f)} className={`rounded-full border px-2.5 py-1 text-[11.5px] font-semibold ${p.families.has(f) ? 'border-[var(--navy)] bg-[var(--navy)] text-white' : 'border-[var(--line)] bg-white text-[var(--ink-3)]'}`}>{FAMILY_LABEL[f]}</button>
-            ))}
-          </div>
-        </Field>
       </div>
-      <Field label="Category limits (optional)" text="A minimum (for example a supplier commitment) or a maximum, in ₹.">
+      <Field label="Spending limits by category (optional)" text="Set the least and/or most the plan may spend on each product category, in ₹. Use a minimum when you have committed to spend on a category (for example a supplier deal); use a maximum to cap it. Leave a box empty for no limit.">
         <div className="overflow-hidden rounded-lg border border-[var(--line)] bg-white">
           <table className="w-full text-[12px]">
             <thead><tr className="whitespace-nowrap text-left text-[10.5px] font-semibold uppercase tracking-wider text-[var(--ink-3)]"><th className="px-3 py-2">Category</th><th className="px-2 py-2">Min ₹</th><th className="px-2 py-2 pr-3">Max ₹</th></tr></thead>
