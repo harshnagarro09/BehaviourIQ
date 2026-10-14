@@ -9,7 +9,6 @@ import { ChevronDown, Info, RotateCcw, SlidersHorizontal } from 'lucide-react';
 import { useApp, useEngine } from '@/state';
 import { FinaliseBox } from '@/components/Finalise';
 import { useProductFilter } from '@/components/ProductScope';
-import { TYPE_BY_ID } from '@/engine/segments';
 import { MAX_SUBSIDY } from '@/engine/targeting';
 import { TypeId } from '@/engine/behaviour';
 import type { ShiftFrom } from '@/engine/shifts';
@@ -51,10 +50,8 @@ export function PlanBuilder({ onSimulate }: { onSimulate: () => void }) {
   };
   const changedRules = (cfg.maxSubsidy !== MAX_SUBSIDY ? 1 : 0) + (cfg.hurdle !== 0.25 ? 1 : 0) + Object.keys(cfg.limits).length + (cfg.maxDepth != null ? 1 : 0) + (cfg.testedOnly ? 1 : 0) + (cfg.maxCoverage < 1 ? 1 : 0);
   // Persuadables and Sure Things are always shown, one card each; "Start from" chooses which customers are in them.
-  // The other groups are one click away under "Also include".
   const SHOWN: TypeId[] = ['persuadable', 'sure'];
   const cards = r.insights.filter((g) => SHOWN.includes(g.type));
-  const extraGroups = r.insights.filter((g) => !SHOWN.includes(g.type) && g.customers > 0 && g.type !== 'dog').concat(r.insights.filter((g) => g.type === 'dog' && g.customers > 0));
   const toggleGroup = (t: TypeId) => { const s = new Set(r.groups); if (s.has(t)) s.delete(t); else s.add(t); set({ groups: GROUP_IDS.filter((x) => s.has(x)) }); };
   const toggleLeaveOut = (k: string) => set({ leaveOut: cfg.leaveOut.includes(k) ? cfg.leaveOut.filter((x) => x !== k) : [...cfg.leaveOut, k] });
   const toggleWake = (f: ShiftFrom) => set({ wakeUp: cfg.wakeUp.includes(f) ? cfg.wakeUp.filter((x) => x !== f) : [...cfg.wakeUp, f] });
@@ -77,20 +74,6 @@ export function PlanBuilder({ onSimulate }: { onSimulate: () => void }) {
           right={changedTargeting ? <button onClick={() => set({ groups: null, leaveOut: [], wakeUp: [], activity: 'all', alertPeriod: '6m' })} className="inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--navy)] hover:underline"><RotateCcw className="h-3 w-3" />Back to the recommendation</button> : undefined} />
         <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
           <Seg label="Start from" value={cfg.activity} onChange={(v) => set({ activity: v as ActivityPick })} options={[['all', 'All customers'], ['active', 'Active only'], ['lapsing', 'Slowing or inactive only']]} />
-          {extraGroups.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 text-[12px]">
-              <span className="font-semibold text-[var(--ink-3)]">Also include</span>
-              {extraGroups.map((g) => {
-                const on = r.groups.has(g.type);
-                return (
-                  <button key={g.type} onClick={() => toggleGroup(g.type)} aria-pressed={on} title={g.type === 'dog' ? 'Offers make them buy less: include only to test that' : 'Not recommended for these products: include to test it'}
-                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-semibold ${on ? 'border-[var(--navy)] bg-[#eef3fa] text-[var(--navy)]' : 'border-[var(--line)] bg-white text-[var(--ink-2)] hover:border-[var(--ink-3)]'}`}>
-                    <span className="h-2 w-2 rounded-full" style={{ background: TYPE_BY_ID[g.type].color }} />{TYPE_BY_ID[g.type].name}<span className="num font-normal text-[var(--ink-3)]">{int(g.customers)}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
         </div>
         <div className="mt-3 grid gap-3 lg:grid-cols-2">
           {cards.map((g) => <GroupCard key={g.type} g={g} on={r.groups.has(g.type)} onToggle={() => toggleGroup(g.type)} hurdle={cfg.hurdle} maxSubsidy={cfg.maxSubsidy} />)}

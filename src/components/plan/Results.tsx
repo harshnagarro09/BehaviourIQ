@@ -4,21 +4,18 @@ import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { ChevronDown, Download, Package, Percent, Users, Wallet } from 'lucide-react';
 import { useEngine } from '@/state';
 import { SourceChip } from '@/components/ui';
-import { GroupedBars } from '@/components/charts';
 import { TYPE_BY_ID } from '@/engine/segments';
 import { objectiveValue, type SegPromo } from '@/engine/targeting';
 import type { TypeId } from '@/engine/behaviour';
 import { ElasticityModel } from '@/engine/elasticity';
 import { activation, optimise, qualifies, type Allocation as Alloc, type OptItem, type OptSettings, type Plan } from '@/engine/optimizer';
-import { explainPlan, pastPractice, rollDown, unallocated, type CategoryAdvice, type PastPlan, type SkuAllocation } from '@/engine/budgetScope';
-import { type Sku } from '@/engine/products';
-import { returnRows } from '@/engine/returns';
+import { explainPlan, pastPractice, rollDown, unallocated, type CategoryAdvice } from '@/engine/budgetScope';
 import { reliabilityFor } from '@/lib/targeting';
 import { likelyRange } from '@/engine/reliability';
 import { segName, type PlanResult } from '@/lib/plan';
 import { roiColor } from '@/lib/colors';
 import { saveFile, toCsv, toXlsx } from '@/lib/download';
-import { inr, int, money, pct } from '@/lib/fmt';
+import { int, money, pct } from '@/lib/fmt';
 import { per1, list } from './shared';
 
 export function Results({ r, model, label }: { r: PlanResult; model: ElasticityModel; label: string }) {
@@ -68,9 +65,6 @@ export function Results({ r, model, label }: { r: PlanResult; model: ElasticityM
           </div>
         </Fold>
       ) : null}
-      <Fold title="Products, and your plan vs the usual way" sub="Budget and extra profit for each product, and how the plan differs from splitting the money like past spend">
-        <Details plan={plan} bau={bau} advice={advice} range={range} rows={skuRows} />
-      </Fold>
     </div>
   );
 }
@@ -321,25 +315,6 @@ function DiscountChart({ item, plan, settings, items, onFocus }: { item: OptItem
   );
 }
 
-// ------------------------------------------------------------------------ more details, closed by default
-function Details({ plan, bau, advice, range, rows }: { plan: Plan; bau: PastPlan; advice: CategoryAdvice[]; range: Sku[]; rows: SkuAllocation[] }) {
-  const funded = advice.filter((a) => a.spend > 0).map((a) => a.category);
-  return (
-    <div className="grid items-stretch gap-4 xl:grid-cols-2">
-      <section className="card flex min-w-0 flex-col p-4">
-        <h2 className="text-[14px] font-bold tracking-tight">Products</h2>
-        <p className="mt-0.5 text-[11.5px] text-[var(--ink-3)]">Budget and extra profit for each product in your plan</p>
-        <div className="mt-3 flex-1">
-          {funded.length ? <SkuTable categories={funded.map((c) => ({ category: c, skus: range.filter((s) => s.category === c) }))} rows={rows} /> : <p className="py-8 text-center text-[12.5px] text-[var(--ink-3)]">No products funded.</p>}
-        </div>
-      </section>
-      <section className="card flex min-w-0 flex-col p-4">
-        <CompareByCategory plan={plan} bau={bau} advice={advice} />
-      </section>
-    </div>
-  );
-}
-
 // ------------------------------------------------------------------------ why an offer (row tooltips and the export)
 /**
  * Why this offer, for one funded customer group: how it compares with the other offers that pay back, what a deeper price
@@ -392,118 +367,6 @@ function DownloadMenu({ onExport, onAudience }: { onExport: (k: 'xlsx' | 'csv') 
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-// ------------------------------------------------------------------------ details: products and the usual way
-/** per product: units sold in all past promotion windows, and how many of them were extra (engine/returns.ts), once per file */
-const pastLift = new WeakMap<object, Map<string, { units: number; uplift: number }>>();
-
-function usePastLift() {
-  const e = useEngine();
-  return useMemo(() => {
-    let m = pastLift.get(e);
-    if (!m) {
-      m = new Map();
-      for (const r of returnRows(e.ds, e.perCustomer, e.ds.campaigns, () => true)) {
-        const a = m.get(r.productId) ?? { units: 0, uplift: 0 };
-        a.units += r.units; a.uplift += r.units - r.base;
-        m.set(r.productId, a);
-      }
-      pastLift.set(e, m);
-    }
-    return m;
-  }, [e]);
-}
-
-/** the products of the funded categories in one table, sharing each category's money by their share of regular sales, with how each responded to past promotions */
-function SkuTable({ categories, rows }: { categories: { category: string; skus: Sku[] }[]; rows: SkuAllocation[] }) {
-  const past = usePastLift();
-  const sum = (id: string, f: (r: SkuAllocation) => number) => rows.filter((r) => r.sku.productId === id).reduce((t, r) => t + f(r), 0);
-  return (
-    <div className="flex h-full flex-col overflow-hidden rounded-lg border border-[var(--line)]">
-      <div className="max-h-[360px] flex-1 overflow-auto">
-        <table className="w-full text-[12px]">
-          <thead className="sticky top-0 z-10 bg-[var(--page)]"><tr className="text-right text-[10.5px] font-semibold uppercase tracking-[0.06em] text-[var(--ink-3)]">
-            <th className="px-3 py-2 text-left">Product</th>
-            <th className="px-2 py-2" title="Share of the category's normal sales; each product gets this share of the category's money">Sales share</th>
-            <th className="px-2 py-2" title="Of this product's sales during past promotions, the share that was extra (above what customers would have bought anyway). Estimate.">Past uplift</th>
-            <th className="px-2 py-2">Budget</th><th className="px-3 py-2">Extra profit</th>
-          </tr></thead>
-          <tbody>
-            {categories.map(({ category, skus }) => {
-              const tot = skus.reduce((t, s) => t + s.share, 0);
-              return [
-                <tr key={category} className="border-t border-[var(--line)] bg-[#fafbfd]">
-                  <td colSpan={3} className="px-3 py-1.5 text-[11.5px] font-bold">{category}</td>
-                  <td className="num px-2 py-1.5 text-right text-[11.5px] font-bold">{money(skus.reduce((t, s) => t + sum(s.productId, (r) => r.spend), 0))}</td>
-                  <td className="num px-3 py-1.5 text-right text-[11.5px] font-bold">{money(skus.reduce((t, s) => t + sum(s.productId, (r) => r.incMargin), 0))}</td>
-                </tr>,
-                ...[...skus].sort((a, b) => b.share - a.share).map((s) => {
-                  const p = past.get(s.productId);
-                  return (
-                    <tr key={s.productId} className="border-t border-[var(--line-2)] text-right">
-                      <td className="px-3 py-1.5 pl-5 text-left font-medium">{s.product}</td>
-                      <td className="num px-2 py-1.5 text-[var(--ink-3)]">{pct(tot ? s.share / tot : 0)}</td>
-                      <td className="num px-2 py-1.5 text-[var(--ink-3)]">{p && p.units > 0 ? pct(Math.max(0, p.uplift) / p.units) : '–'}</td>
-                      <td className="num px-2 py-1.5 font-semibold">{money(sum(s.productId, (r) => r.spend))}</td>
-                      <td className="num px-3 py-1.5">{money(sum(s.productId, (r) => r.incMargin))}</td>
-                    </tr>
-                  );
-                }),
-              ];
-            })}
-          </tbody>
-        </table>
-      </div>
-      <p className="border-t border-[var(--line-2)] bg-[var(--page)] px-3 py-1.5 text-[11px] leading-snug text-[var(--ink-3)]">Past promotions ran on whole categories, so response is measured per category and its money is split by normal sales. Past uplift shows how strongly each product responded.</p>
-    </div>
-  );
-}
-
-function CompareByCategory({ plan, bau, advice }: { plan: Plan; bau: PastPlan; advice: CategoryAdvice[] }) {
-  const [view, setView] = useState<'chart' | 'table'>('chart');
-  const rec = new Map(advice.map((a) => [a.category, a.spend]));
-  const recOffers = (c: string) => [...new Set(plan.allocations.filter((a) => a.item.category === c).map((a) => a.cell.promo.label))].join(', ') || '–';
-  const rows = bau.rows.map((r) => ({ ...r, rec: rec.get(r.category) ?? 0 })).sort((a, b) => b.rec - a.rec);
-  return (
-    <div className="flex h-full flex-col">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <h2 className="text-[14px] font-bold tracking-tight">Usual way vs plan</h2>
-          <p className="mt-0.5 flex flex-wrap gap-x-4 text-[11.5px] text-[var(--ink-3)]"><span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm bg-[#94a3b8]" />Usual way (split like past spend)</span><span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm bg-[var(--navy)]" />Your plan</span></p>
-        </div>
-        <div className="inline-flex rounded-lg border border-[var(--line)] p-0.5">
-          {(['chart', 'table'] as const).map((v) => <button key={v} onClick={() => setView(v)} className={`rounded-md px-2.5 py-1 text-[11.5px] font-semibold capitalize ${view === v ? 'bg-[var(--navy)] text-white' : 'text-[var(--ink-2)]'}`}>{v}</button>)}
-        </div>
-      </div>
-      <div className="mt-3 flex-1">
-      {view === 'chart'
-        ? <GroupedBars height={300} format={(v) => inr(v)} series={[{ label: 'Usual way', color: '#94a3b8' }, { label: 'Your plan', color: 'var(--navy)' }]} groups={rows.map((r) => ({ label: r.category, values: [r.spend, r.rec] }))} />
-        : (
-          <div className="max-h-[360px] overflow-auto rounded-lg border border-[var(--line)]">
-            <table className="w-full text-[12px]">
-              <thead className="sticky top-0 bg-[var(--page)]"><tr className="text-right text-[10.5px] font-semibold uppercase tracking-[0.06em] text-[var(--ink-3)]">
-                {['Category', 'Usual', 'Your plan', 'Change'].map((h, i) => <th key={h} className={`px-3 py-2 ${i === 0 ? 'text-left' : ''}`}>{h}</th>)}
-              </tr></thead>
-              <tbody>
-                {rows.map((r) => {
-                  const d = r.rec - r.spend;
-                  return (
-                    <tr key={r.category} className="border-t border-[var(--line-2)] text-right">
-                      <td className="px-3 py-1.5 text-left"><span className="block font-semibold">{r.category}</span><span className="block text-[10.5px] text-[var(--ink-3)]" title={`Usual offer: ${r.offer}. Past campaigns here returned ${per1(r.pastRoi)} per ₹1. Your plan: ${recOffers(r.category)}`}>{r.offer} → {recOffers(r.category)}</span></td>
-                      <td className="num px-3">{money(r.spend)}</td>
-                      <td className="num px-3 font-semibold">{money(r.rec)}</td>
-                      <td className="num px-3 font-semibold" style={{ color: d >= 0 ? 'var(--green-dark)' : 'var(--red)' }}>{d >= 0 ? '+' : '−'}{money(Math.abs(d))}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
