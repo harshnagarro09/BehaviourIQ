@@ -103,7 +103,7 @@ export function ReturnBreakdown({ cur, ok }: { cur: Campaign[]; ok: (cid: string
         <Picker label="Level" value={lvl} onChange={(v) => pickLevel(v as Level)} searchable={false} options={fixedCat ? LEVELS.filter((o) => o.value !== 'category') : LEVELS} />
         {lvl === 'overall' ? <div className="sm:col-span-2">{promoPicker}</div> : <>{brandPicker}{lvl === 'brand' || fixedCat ? promoPicker : categoryPicker}</>}
         {lvl === 'category' && <div className="sm:col-span-3">{promoPicker}</div>}
-        {lvl === 'sku' && (fixedCat ? <div className="sm:col-span-3">{skuPicker}</div> : <><div className="sm:col-span-2">{skuPicker}</div>{promoPicker}</>)}
+        {lvl === 'sku' && <><div className="sm:col-span-3">{skuPicker}</div>{!fixedCat && <div className="sm:col-span-3">{promoPicker}</div>}</>}
       </div>
       {fixedCat && <p className="mt-2 text-[11.5px] text-[var(--ink-3)]">Category: <b className="font-semibold text-[var(--ink-2)]">{fixedCat}</b>, set in “Which promotions to look at” above.</p>}
 
@@ -151,7 +151,7 @@ export function ReturnBreakdown({ cur, ok }: { cur: Campaign[]; ok: (cid: string
                       className={`grid w-full grid-cols-[minmax(0,1fr)_96px_52px] items-center gap-3 rounded-md px-2 py-2 text-left ${on ? 'bg-[#eef3fa]' : 'hover:bg-[var(--page)]'}`}>
                       <span className="min-w-0">
                         <span className="block truncate text-[12.5px] font-semibold">{g.label}</span>
-                        <span className="block truncate text-[10.5px] text-[var(--ink-3)]">{g.sub}</span>
+                        <span className="block text-[10.5px] leading-snug text-[var(--ink-3)]">{g.sub}</span>
                       </span>
                       <span>
                         <span className="num block text-right text-[12px] font-semibold" style={{ color: v.uplift < 0 ? 'var(--red)' : 'var(--green-dark)' }}>{v.uplift >= 0 ? '+' : ''}{fmt(v.uplift)}</span>

@@ -80,56 +80,6 @@ export function typeStats(recs: CustomerRecord[], results: CampaignResult[]): Ty
 }
 
 // ---------------------------------------------------------------- price behaviour
-export interface CurvePoint { depth: number; rate: number; n: number }
-/** share of active customers of each type who bought on promo, by discount depth */
-export function responseCurves(ds: Dataset, recs: CustomerRecord[]): Record<TypeId, CurvePoint[]> {
-  const typeOf = new Map(recs.map((r) => [r.cid, r.type]));
-  const acc: Record<string, Record<number, { hit: number; n: number }>> = {};
-  for (const t of TYPE_IDS) acc[t] = {};
-  for (const c of ds.campaigns) {
-    for (const cid of ds.customers) {
-      const lines = ds.byCustomer.get(cid)!;
-      if (lines[0].day > c.end) continue;
-      const recent = lines.some((l) => l.day < c.start && l.day >= c.start - 90) || lines[0].day >= c.start - 90;
-      if (!recent) continue;
-      const t = typeOf.get(cid)!;
-      const cell = (acc[t][c.depth] ||= { hit: 0, n: 0 });
-      cell.n++;
-      if (lines.some((l) => l.promoId === c.id)) cell.hit++;
-    }
-  }
-  const out = {} as Record<TypeId, CurvePoint[]>;
-  for (const t of TYPE_IDS)
-    out[t] = Object.entries(acc[t])
-      .map(([d, v]) => ({ depth: +d, rate: v.hit / v.n, n: v.n }))
-      .sort((a, b) => a.depth - b.depth);
-  return out;
-}
-
-/** per type, share of promo-line units bought at each discount band */
-export function priceLadder(ds: Dataset, recs: CustomerRecord[]) {
-  const typeOf = new Map(recs.map((r) => [r.cid, r.type]));
-  const bands = ['Full price', '10-15% off', '20-25% off', '30%+ / multi-buy'];
-  const rows = TYPE_IDS.map((t) => ({ type: t, share: [0, 0, 0, 0], units: 0 }));
-  const ix = Object.fromEntries(TYPE_IDS.map((t, i) => [t, i]));
-  for (const l of ds.lines) {
-    if (!l.ours) continue;
-    const r = rows[ix[typeOf.get(l.cid)!]];
-    const k = l.disc === 0 ? 0 : l.disc <= 15 ? 1 : l.disc <= 25 ? 2 : 3;
-    r.share[k] += l.qty;
-    r.units += l.qty;
-  }
-  rows.forEach((r) => (r.share = r.share.map((v) => (r.units ? v / r.units : 0))));
-  return { bands, rows };
-}
-
-// ---------------------------------------------------------------- promotion behaviour
-export function campaignTypeMatrix(ds: Dataset, results: CampaignResult[]) {
-  return results.map((r) => ({
-    campaign: r.campaign,
-    rates: Object.fromEntries(TYPE_IDS.map((t) => [t, r.byType[t].customers ? r.byType[t].buyers / r.byType[t].customers : 0])) as Record<TypeId, number>,
-  }));
-}
 
 // ---------------------------------------------------------------- basket behaviour
 export interface PairStat { a: string; b: string; support: number; lift: number; n: number }

@@ -1,16 +1,6 @@
 import { useId, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { GLOSSARY, type GlossaryKey } from '@/lib/glossary';
-
-const BY_LABEL: Record<string, GlossaryKey> = {
-  'Incremental margin': 'incMargin', ROI: 'roi', Uplift: 'uplift', Subsidy: 'leakage', 'Subsidy rate': 'leakage', Baseline: 'baseline', Incrementality: 'incrementality', 'Promo ROI': 'roi', 'Extra profit': 'incMargin', 'Extra sales': 'incRevenue',
-};
-/** a label that gets a "?" when the glossary knows the term */
-export function Lbl({ t }: { t: string }): ReactNode {
-  const k = BY_LABEL[t];
-  return k ? <>{t}<Help term={k} /></> : t;
-}
 
 /**
  * Small "?" with a plain-English tooltip (hover or keyboard focus). The tip is fixed-positioned just below the

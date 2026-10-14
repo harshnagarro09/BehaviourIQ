@@ -23,3 +23,10 @@ dist-ssr
 .env
 
 Screenshots
+# scratch output from screenshots and one-off edit scripts
+scripts/out/s/
+scripts/out/edit*.cjs
+scripts/out/_*.mjs
+scripts/out/*_snapshot.txt
+scripts/out/after*.txt
+scripts/out/dist.mjs

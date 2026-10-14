@@ -6,6 +6,7 @@ import { recommend, watchdog, type Alert, type Recommendation } from './planner.
 import { classify } from './segments.ts';
 import { responseProfiles, type RespProfile } from './response.ts';
 import type { TypeId } from './behaviour.ts';
+import { depthOptions, estimateElasticity, type ElasticityModel } from './elasticity.ts';
 
 export interface Engine {
   ds: Dataset;
@@ -23,6 +24,8 @@ export interface Engine {
   basket: ReturnType<typeof basketPairs>;
   timing: ReturnType<typeof timingBehaviour>;
   trend: ReturnType<typeof monthlyTrend>;
+  /** price elasticity from the actual past campaigns: how deep a discount should be (used by every prediction) */
+  elasticity: ElasticityModel;
   recommendations: Recommendation[];
   alerts: Alert[];
   totals: {
@@ -56,7 +59,9 @@ export function buildEngine(csvText: string, assumptions: Assumptions = DEFAULT_
   const strategies = replayStrategies(perCustomer, typeOf);
   const stats = typeStats(records, results);
   const resp = responseProfiles(ds, perCustomer, asOf, (cid) => cachedProfile(ds, cid, asOf).avgQty);
-  const recommendations = recommend(ds, records, asOf, resp, assumptions);
+  // one prediction model everywhere: customer behaviour for who responds, the category demand curve for how deep
+  const elasticity = estimateElasticity(results, perCustomer, typeOf);
+  const recommendations = recommend(ds, records, asOf, resp, assumptions, (cat) => depthOptions(elasticity.byCategory.get(cat)));
   const alerts = watchdog(ds, results, records, asOf);
 
   const orders = new Set<string>();
@@ -78,7 +83,7 @@ export function buildEngine(csvText: string, assumptions: Assumptions = DEFAULT_
     basket: basketPairs(ds),
     timing: timingBehaviour(ds, records),
     trend: monthlyTrend(ds),
-    recommendations, alerts,
+    elasticity, recommendations, alerts,
     totals: {
       customers: ds.customers.length, orders: orders.size, revenue, lines: ds.lines.length,
       promoUnits, incUnits, incShare: promoUnits ? incUnits / promoUnits : 0,

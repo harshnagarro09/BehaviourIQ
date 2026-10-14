@@ -26,7 +26,7 @@ function Rich({ text }: { text: string }) {
 }
 
 // links in answers point at the old page ids; map them onto the four pages
-const PAGE_MAP: Record<string, PageId> = { plan: 'planning', simulator: 'simulation', simulation: 'simulation', planning: 'planning' };
+const PAGE_MAP: Record<string, PageId> = { plan: 'planning', simulator: 'simulation', simulation: 'simulation', planning: 'planning', analytics: 'analytics', lab: 'analytics', live: 'live' };
 const toPage = (p: string): PageId => PAGE_MAP[p] ?? 'analytics';
 
 export function Advisor() {
@@ -51,7 +51,7 @@ export function Advisor() {
 
   return (
     <div className="flex h-full flex-col">
-      <PageTop title="Advisor" sub="Ask in plain English. Answers come from fixed rules applied to your loaded data" />
+      <PageTop title="Advisor" sub="Ask in plain English. Answers come from fixed rules applied to your loaded data, so only the question types in the suggestions are understood" />
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
         <div className="mx-auto max-w-[900px] space-y-4">
           {msgs.length === 0 && (

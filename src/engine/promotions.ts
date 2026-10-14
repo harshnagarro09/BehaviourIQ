@@ -1,4 +1,4 @@
-// The promotion catalogue used by Customer Prediction and the budget optimiser: twelve mechanics a grocery retailer
+// The promotion catalogue used by Planning, Simulation and the budget optimiser: twelve mechanics a grocery retailer
 // actually runs, each with explicit economics, eligibility guardrails and a rule-based response read from behaviour.
 // Nothing is trained or fitted: every number is a stated rule on the customer's own history.
 //
@@ -47,10 +47,6 @@ export const UNTESTED_CONFIDENCE = 0.75;
 export const MARGIN_FLOOR = 0.05;
 /** Share of the discount a bank / UPI partner funds on co-funded offers (assumption; agreed per partner contract). */
 export const PARTNER_SHARE = 0.5;
-
-export const FAMILY_LABEL: Record<Family, string> = {
-  price: 'Price-off', threshold: 'Spend threshold', volume: 'Multi-buy / volume', bundle: 'Combo', loyalty: 'Loyalty points', partner: 'Partner-funded',
-};
 
 /** The twelve mechanics for one category. Thresholds use the category's own shelf price and history. */
 export function catalogue(ds: Dataset, category: string): PromoDef[] {

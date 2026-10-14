@@ -1,5 +1,5 @@
 // Rule-based planning: scores every upcoming campaign x promotion scenario with the same customer-type prediction used on
-// Customer Prediction, and recommends which promotion to run and which customer types to give it to.
+// Planning and Simulation, and recommends which promotion to run and which customer types to give it to.
 // Rule: an offer goes to a customer type only if it lifts purchase probability by at least MIN_SEG_UPLIFT and its predicted
 // ROI (incremental margin / promo investment) clears TARGET_HURDLE. Run the promotion with the highest incremental margin.
 // No promotion clears the bar -> do not discount. Sleeping Dogs are never targeted.
@@ -10,8 +10,8 @@ import { TYPE_IDS, type CustomerRecord } from './insights.ts';
 import { offerName } from './options.ts';
 import type { PromoDef } from './promotions.ts';
 import type { RespProfile } from './response.ts';
-import { DEFAULT_ASSUMPTIONS, makeCtx, type Assumptions, type Ctx } from './simulation.ts';
-import { predictCategory, worthTargeting, type SegPromo } from './targeting.ts';
+import { DEFAULT_ASSUMPTIONS, type Assumptions } from './simulation.ts';
+import { predictCategory, worthTargeting, type DepthOptions, type SegPromo } from './targeting.ts';
 
 export interface Candidate {
   id: string;
@@ -76,17 +76,13 @@ export function activeAt(ds: Dataset, asOf: number): string[] {
   });
 }
 
-export function buildCtxs(ds: Dataset, cids: string[], cat: string, asOf: number): Ctx[] {
-  return cids.map((cid) => makeCtx(ds, cid, cat, asOf));
-}
-
 const TYPE_LABEL: Record<TypeId, string> = {
   persuadable: 'Persuadables', sure: 'Sure Things', lost: 'Lost Causes', dog: 'Sleeping Dogs',
 };
 const list = (xs: string[]) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
 
 /** Combine the per-type predictions of one promotion into a scenario. Only the types in `include` receive the offer. */
-export function buildScenario(cells: SegPromo[], include: (c: SegPromo) => boolean = worthTargeting): Scenario {
+export function buildScenario(cells: SegPromo[], include: (c: SegPromo) => boolean = (c) => worthTargeting(c)): Scenario {
   const sum = (cs: SegPromo[], f: (c: SegPromo) => number) => cs.reduce((t, c) => t + f(c), 0);
   const chosen = cells.filter(include);
   const byType = Object.fromEntries(cells.map((c) => [c.seg, { total: c.members, targeted: include(c) ? c.members : 0 }])) as Audience['byType'];
@@ -115,22 +111,28 @@ export function buildScenario(cells: SegPromo[], include: (c: SegPromo) => boole
   };
 }
 
+/** The recommended scenario: the most extra profit among offers that reach at least 20 customers (the same rule everywhere) */
+export function bestScenario(scenarios: Scenario[]): Scenario | null {
+  const positive = scenarios.filter((s) => s.incMargin > 0 && s.audience.targeted >= 20);
+  return positive.length ? positive.reduce((a, b) => (b.incMargin > a.incMargin ? b : a)) : null;
+}
+
 export function recommend(
   ds: Dataset, recs: CustomerRecord[], asOf: number, resp: Map<string, RespProfile>, A: Assumptions = DEFAULT_ASSUMPTIONS,
+  depthFor?: (category: string) => DepthOptions | undefined,
 ): Recommendation[] {
   const typeOf = new Map(recs.map((r) => [r.cid, r.type]));
   const active = new Set(activeAt(ds, asOf));
   const out: Recommendation[] = [];
   for (const cand of CANDIDATES) {
-    const P = predictCategory(ds, typeOf, cand.category, asOf, resp, A, active);
+    const P = predictCategory(ds, typeOf, cand.category, asOf, resp, A, active, depthFor?.(cand.category));
     const scenarios: Scenario[] = [];
     P.promos.forEach((p, i) => {
       const cells = TYPE_IDS.map((t) => P.cells.get(t)![i]);
       if (cells[0].eligible.ok) scenarios.push(buildScenario(cells));
       void p;
     });
-    const positive = scenarios.filter((s) => s.incMargin > 0 && s.audience.targeted >= 20);
-    const best = positive.length ? positive.reduce((a, b) => (b.incMargin > a.incMargin ? b : a)) : null;
+    const best = bestScenario(scenarios);
     const hist = ds.campaigns.filter((c) => c.category === cand.category).length;
     // Confidence reflects how much earlier campaign history exists in this category (rules, not a fitted model)
     const confidence = Math.min(92, 45 + 12 * hist);
@@ -142,16 +144,16 @@ export function recommend(
       const targetedTypes = TYPE_IDS.filter((t) => bt[t].targeted > 0).map((t) => TYPE_LABEL[t]);
       const heldBack = TYPE_IDS.filter((t) => bt[t].total > 0 && bt[t].targeted === 0).map((t) => TYPE_LABEL[t]);
       rationale.push(`${Math.round((best.audience.targeted / best.audience.total) * 100)}% of ${best.audience.total} active customers (${list(targetedTypes)}) show a positive uplift: about ${Math.round(best.incrementalBuyers)} incremental buyers are expected because of the offer.`);
-      if (heldBack.length) rationale.push(`Hold back ${list(heldBack)}: sending this offer to everyone would put about ${fmtMoney(best.blanket.leakage - best.leakage)} more promo investment into baseline sales that happen anyway.`);
+      if (heldBack.length) rationale.push(`Hold back ${list(heldBack)}: sending this offer to everyone would put about ${fmtMoney(best.blanket.leakage - best.leakage)} more promotion cost into sales that happen anyway.`);
       const alt = [...scenarios].sort((a, b) => b.incMargin - a.incMargin).find((s) => s.option.key !== best.option.key && s.incMargin > 0);
-      if (alt) rationale.push(`${alt.option.label} was the next best option (${fmtMoney(alt.incMargin)} incremental margin vs ${fmtMoney(best.incMargin)}).`);
+      if (alt) rationale.push(`${alt.option.label} was the next best option (${fmtMoney(alt.incMargin)} extra profit vs ${fmtMoney(best.incMargin)}).`);
       if (!best.tested) { flag = 'attention'; flagReason = `${best.option.label} has not run in ${cand.category} before: the uplift is discounted by a quarter. Launch as a test with a holdout.`; }
-      else if (best.roi < 0.65 || best.incMargin < 2500) { flag = 'attention'; flagReason = `Expected return is thin (ROI ${best.roi.toFixed(2)}, incremental margin ${fmtMoney(best.incMargin)}); validate with a small test first.`; }
+      else if (best.roi < 0.65 || best.incMargin < 2500) { flag = 'attention'; flagReason = `Expected return is thin (ROI ${best.roi.toFixed(2)}, extra profit ${fmtMoney(best.incMargin)}); validate with a small test first.`; }
       else if (hist < 2) { flag = 'attention'; flagReason = `Only ${hist} earlier ${cand.category} campaign${hist === 1 ? '' : 's'} to learn from.`; }
     } else {
       flag = 'attention';
       flagReason = 'No promotion pays back for this category and audience.';
-      rationale.push('Across all promotion types the incremental margin is negative or the uplift is too small. Consider a non-price trigger (sampling, loyalty points) for this slot.');
+      rationale.push('Across all promotion types the extra profit is negative or the uplift is too small. Consider a non-price trigger (sampling, loyalty points) for this slot.');
     }
     out.push({ candidate: cand, scenarios, best, confidence, flag, flagReason, rationale });
   }

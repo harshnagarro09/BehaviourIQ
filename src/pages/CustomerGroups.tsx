@@ -8,7 +8,8 @@
 // lines in the chosen period (engine/groupInsights.ts).
 import { useMemo, useState, type ReactNode } from 'react';
 import { AlertTriangle, BellRing, Check, ChevronDown, Package, RotateCcw, ShoppingBag, SlidersHorizontal, Target, Users, X } from 'lucide-react';
-import { useEngine } from '@/state';
+import { useApp, useEngine } from '@/state';
+import type { Shift, ShiftFrom } from '@/engine/shifts';
 import { Picker } from '@/components/Picker';
 import { useProductFilter } from '@/components/ProductScope';
 import { Chip, NextStep } from '@/components/ui';
@@ -17,10 +18,12 @@ import { TYPES, TYPE_BY_ID } from '@/engine/segments';
 import type { TypeId } from '@/engine/behaviour';
 import { skuCatalog } from '@/engine/products';
 import {
-  applyRules, behaviourAlerts, customerFacts, leaning, METRIC_TEXT, monthsIn, purchases, ruleDefs,
-  type Alert, type Period, type Purchases, type RuleDef, type RuleKey, type Rules, type Slice,
+  applyRules, behaviourAlerts, customerFacts, leaning, monthsIn, purchases, ruleDefs,
+  type Alert, type Period, type Purchases, type RuleDef, type Rules, type Slice,
 } from '@/engine/groupInsights';
 import { driversOf } from '@/lib/targeting';
+import { alertText, shiftText } from '@/lib/alerts';
+import { planShifts } from '@/lib/plan';
 import { dateLabel, inr, int, pct } from '@/lib/fmt';
 import { isoOf } from '@/engine/data';
 
@@ -109,6 +112,10 @@ export function CustomerGroups({ onNext }: { onNext: () => void }) {
     setGroupId(a.type); setRules({ [a.rule.key]: a.rule.value }); products.reset(); setNarrow(true);
     document.getElementById('main-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
   };
+  // customers whose last 3 months differ from their type: fixed to the last 3 months, whatever period is picked above
+  const shifts = useMemo(() => planShifts(e), [e]);
+  const { plan, setPlan, go } = useApp();
+  const planShift = (from: ShiftFrom) => { setPlan({ ...plan, wakeUp: [...new Set([...plan.wakeUp, from])] }, 'Behaviour Analytics'); go('planning'); };
   const empty = group.length === 0;
   const activeRules = defs.flatMap((d) => { const o = d.options.find((x) => x.value === rules[d.key]); return o ? [{ key: d.key, text: `${d.label}: ${o.label}` }] : []; });
   const anyFilter = ruleCount > 0 || !products.isAll || period !== '6m';
@@ -180,7 +187,7 @@ export function CustomerGroups({ onNext }: { onNext: () => void }) {
         <section>
           <div className="mb-2.5 flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="text-[15px] font-bold tracking-tight">What they buy</h2>
-            <p className="text-[12px] text-[var(--ink-3)]">Where {groupName} spend their money{products.isAll ? '' : ` within ${products.label}`}, compared with all customers.</p>
+            <p className="text-[12px] text-[var(--ink-3)]">{groupId === 'all' ? 'Where customers spend their money' : `Where ${groupName} spend their money`}{products.isAll ? '' : ` within ${products.label}`}{groupId === 'all' ? '.' : ', compared with all customers.'}</p>
           </div>
           <div className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
             <Mix color={NAVY} same={same} G={G} A={A} level={products.picked.length <= 1 ? 'sku' : new Set(products.picked.map((s) => s.category)).size === 1 ? 'sku' : 'category'} />
@@ -190,7 +197,7 @@ export function CustomerGroups({ onNext }: { onNext: () => void }) {
       )}
 
       {/* ------------------------------------------------------------ customers who behave differently */}
-      <Alerts alerts={alerts} period={pdef.phrase} onExplore={explore} />
+      <Alerts alerts={alerts} shifts={shifts} period={pdef.phrase} onExplore={explore} onPlan={planShift} />
 
       <NextStep text="See which promotions these customer groups responded to, and what the promotions returned." action="Promotion results" onClick={onNext} />
     </div>
@@ -229,13 +236,13 @@ function GroupCard({ id, n, total, P, months, on, onClick }: { id: GroupId; n: n
         </span>
         {on && <Check className="h-3.5 w-3.5 shrink-0 text-[var(--navy)]" />}
       </span>
-      <span className="mt-0.5 truncate text-[11px] text-[var(--ink-3)]">{t ? t.tagline : 'Everyone who bought in the period'}</span>
-      <span className="mt-2.5 flex items-baseline justify-between gap-2">
+      <span className="mt-0.5 text-[11px] leading-snug text-[var(--ink-3)]">{t ? t.tagline : 'Everyone who bought in the period'}</span>
+      <span className="my-2.5 flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
         <span><span className="num text-[17px] font-bold leading-none tracking-tight">{int(n)}</span> <span className="text-[11px] text-[var(--ink-3)]">{id === 'all' ? 'customers' : `· ${pct(total ? n / total : 0)}`}</span></span>
         <span className="text-right"><span className="num text-[13px] font-semibold">{inr(perCustMonth(P, n, months))}</span><span className="text-[10.5px] text-[var(--ink-3)]"> /month</span></span>
       </span>
-      <span className="mt-2.5 space-y-0.5 border-t border-[var(--line-2)] pt-2 text-[11px] text-[var(--ink-3)]">
-        <span className="block truncate">{top ? <>Most spend: <b className="font-semibold text-[var(--ink-2)]">{top.label}</b> ({pct(P.spend ? top.spend / P.spend : 0)})</> : 'No purchases in these products'}</span>
+      <span className="mt-auto space-y-0.5 border-t border-[var(--line-2)] pt-2 text-[11px] text-[var(--ink-3)]">
+        <span className="block leading-snug">{top ? <>Most spend: <b className="font-semibold text-[var(--ink-2)]">{top.label}</b> ({pct(P.spend ? top.spend / P.spend : 0)})</> : 'No purchases in these products'}</span>
       </span>
     </button>
   );
@@ -453,39 +460,37 @@ export function Drivers() {
 }
 
 // ------------------------------------------------------------------------ behaviour alerts
-const RULE_PHRASE: Record<RuleKey, (label: string) => string> = {
-  spend: (l) => `are ${l.toLowerCase()}`,
-  frequency: (l) => `are ${l.toLowerCase()}`,
-  visit: (l) => (l === 'Shopped recently' ? 'shopped in the last 30 days' : l === 'Slowing down' ? 'last shopped 31–90 days ago' : 'have not shopped for 90+ days'),
-  deals: (l) => (l === 'Mostly on deals' ? 'buy mostly on deals' : l === 'Mostly full price' ? 'buy mostly at full price' : 'buy a mix of deals and full price'),
-  channel: (l) => `shop mainly ${l === 'Store' ? 'in store' : l === 'App' ? 'in the app' : 'online'}`,
-  promo: (l) => `bought on ${l}`,
-};
-
-function alertText(a: Alert) {
-  const t = TYPE_BY_ID[a.type];
-  const m = METRIC_TEXT[a.metric];
-  const more = a.inside > a.rest;
-  const ratio = more ? a.inside / a.rest : a.rest / Math.max(1e-9, a.inside);
-  const what = a.metric === 'catShare' ? `${a.category}'s share of their spending` : m.name;
-  const title = `${int(a.n)} ${t.name} who ${RULE_PHRASE[a.rule.key](a.rule.label)} ${a.metric === 'catShare' ? `spend ${more ? 'more' : 'less'} of their money on ${a.category}` : a.metric === 'dealShare' ? `buy on deals ${more ? 'more' : 'less'} often` : a.metric === 'spendPerMonth' ? `spend ${more ? 'more' : 'less'} each month` : `shop ${more ? 'more' : 'less'} often`}`;
-  const data = `${what[0].toUpperCase() + what.slice(1)}: ${m.fmt(a.inside)} for them, against ${m.fmt(a.rest)} for the other ${int(a.of - a.n)} ${t.name} (${ratio.toFixed(1)}× ${more ? 'higher' : 'lower'}).`;
-  const why = `They are ${pct(a.n / a.of)} of the group but behave clearly differently, and a gap this size is very unlikely to be chance. If you plan for ${t.name} as one group, these customers may need their own offer or message.`;
-  return { title, data, why };
-}
-
-function Alerts({ alerts, period, onExplore }: { alerts: Alert[]; period: string; onExplore: (a: Alert) => void }) {
+function Alerts({ alerts, shifts, period, onExplore, onPlan }: { alerts: Alert[]; shifts: Shift[]; period: string; onExplore: (a: Alert) => void; onPlan: (from: ShiftFrom) => void }) {
+  const total = alerts.length + shifts.length;
   return (
     <section className="card overflow-hidden">
       <div className="px-4 py-3">
-        <SectionHead icon={<BellRing className="h-4 w-4" />} color={alerts.length ? '#b45309' : '#0f7a55'} title="Behaviour alerts"
-          sub={`Customers inside a group who behave clearly differently from the rest of it in ${period}. Only strong, consistent differences are shown.`}
-          right={<Chip tone={alerts.length ? 'amber' : 'green'}>{alerts.length ? `${alerts.length} worth a look` : 'Nothing unusual'}</Chip>} />
+        <SectionHead icon={<BellRing className="h-4 w-4" />} color={total ? '#b45309' : '#0f7a55'} title="Behaviour alerts"
+          sub={`Customers inside a group who behave clearly differently from the rest of it in ${period}, and customers whose last 3 months no longer match their type. Only strong, consistent differences are shown.`}
+          right={<Chip tone={total ? 'amber' : 'green'}>{total ? `${total} worth a look` : 'Nothing unusual'}</Chip>} />
       </div>
-      {!alerts.length ? (
+      {!total ? (
         <p className="border-t border-[var(--line)] px-4 py-5 text-center text-[12px] text-[var(--ink-3)]">In this period, every group behaves consistently: the differences inside each group are within normal variation.</p>
       ) : (
         <ul className="space-y-2.5 border-t border-[var(--line)] bg-[var(--page)] p-3">
+          {shifts.map((sh) => {
+            const x = shiftText(sh);
+            const c = TYPE_BY_ID[sh.from].color;
+            return (
+              <li key={sh.from} className="relative grid gap-3 overflow-hidden rounded-xl border border-[var(--line)] bg-white px-4 py-3 pl-5 shadow-[0_1px_2px_rgba(11,28,47,0.04)] md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+                <span className="absolute inset-y-0 left-0 w-1" style={{ background: c }} />
+                <div className="min-w-0">
+                  <p className="flex flex-wrap items-center gap-2 text-[12.5px] font-semibold leading-snug">
+                    <span className="rounded-full px-2 py-[1px] text-[10.5px] font-semibold uppercase tracking-wider" style={{ background: `${c}18`, color: c }}>{TYPE_BY_ID[sh.from].name}</span>
+                    {x.title}
+                  </p>
+                  <p className="mt-1 text-[12px] leading-snug text-[var(--ink)]">{x.data}</p>
+                  <p className="mt-0.5 text-[11.5px] leading-snug text-[var(--ink-3)]">{x.why}</p>
+                </div>
+                <button onClick={() => onPlan(sh.from)} className="justify-self-start whitespace-nowrap rounded-lg bg-[var(--navy)] px-3 py-1.5 text-[11.5px] font-semibold text-white shadow-sm hover:opacity-90 md:justify-self-end">Plan for them →</button>
+              </li>
+            );
+          })}
           {alerts.map((a, i) => {
             const x = alertText(a);
             const c = TYPE_BY_ID[a.type].color;

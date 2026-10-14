@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { buildEngine } from '../src/engine/index.ts';
 import { TYPES } from '../src/engine/segments.ts';
-import { pastResultsTakeaway, behaviourTakeaway, NOT_ENOUGH } from '../src/lib/takeaways.ts';
+import { resultsInsight, NOT_ENOUGH } from '../src/lib/takeaways.ts';
 
 const e = buildEngine(fs.readFileSync(new URL('../public/data/promo_behaviour_data.csv', import.meta.url), 'utf8'));
 test('four customer types with the industry names', () => {
@@ -33,8 +33,8 @@ test('simulation is rule-based: no model code left', () => {
 });
 
 test('takeaways', () => {
-  assert.equal(pastResultsTakeaway({ campaigns: 0, lost: 0, cost: 0, incRevenue: 0, roi: 0, incShare: 0, units: 0 }), NOT_ENOUGH);
-  assert.equal(behaviourTakeaway([{ name: 'A', n: 10, roi: 1.2, resp: 0.4 }, { name: 'B', n: 10, roi: -0.5, resp: 0.1 }]), 'A return the most on promotions (ROI 1.20, 40% response); B the least (ROI -0.50). Spend should follow the customer type, not the calendar.');
+  assert.equal(resultsInsight([], 0), NOT_ENOUGH);
+  assert.match(resultsInsight([{ name: 'A', category: 'Dairy', roi: -0.4, cost: 100 }, { name: 'B', category: 'Snacks', roi: 1.5, cost: 100 }], 200), /B/);
 });
 
 test('the data file has no competitor data: only the retailer own labels, no competitor flag', () => {

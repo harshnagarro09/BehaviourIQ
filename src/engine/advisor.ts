@@ -76,10 +76,10 @@ export function answer(e: Engine, raw: string): Answer {
       ...r.reasons.map((s) => `- ${s}`),
       `They order about ${r.b.ordersPerMonth.toFixed(1)} times a month, spent ${inr(r.b.totalSpend)} in total and last ordered ${r.b.recencyDays} days ago.`,
       offers.length
-        ? `**Next campaign for this customer type:** ${offers[0].candidate.name} at ${offers[0].best!.option.label}. Offers are decided per customer type, and ${TYPE_BY_ID[r.type].name} show a positive uplift here (planned ROI ${offers[0].best!.roi.toFixed(2)}).`
-        : `**No discount recommended.** Offers are decided per customer type, and no upcoming promotion clears the uplift and ROI bar for ${TYPE_BY_ID[r.type].name}. ${TYPE_BY_ID[r.type].play}`,
+        ? `**Best offer for this customer type:** ${offers[0].best!.option.label} on ${offers[0].candidate.category}. Offers are decided per customer type, and ${TYPE_BY_ID[r.type].name} show a positive uplift here (expected ROI ${offers[0].best!.roi.toFixed(2)}).`
+        : `**No discount recommended.** Offers are decided per customer type, and no offer clears the uplift and ROI bar for ${TYPE_BY_ID[r.type].name}. ${TYPE_BY_ID[r.type].play}`,
     ];
-    return { text: lines.join('\n'), links: [{ label: 'Open profile', page: 'customers', params: { id: cid } }] };
+    return { text: lines.join('\n'), links: [{ label: 'Customer types', page: 'analytics' }] };
   }
 
   // ------------------------------------------------ best offer for a budget / category
@@ -87,22 +87,22 @@ export function answer(e: Engine, raw: string): Answer {
     const budget = findBudget(q);
     const recs = e.recommendations.filter((r) => !cat || r.candidate.category.toLowerCase() === cat.toLowerCase());
     let cands: { name: string; s: Scenario; cat: string }[] = [];
-    for (const r of recs) for (const s of r.scenarios) if (s.incMargin > 0) cands.push({ name: r.candidate.name, s, cat: r.candidate.category });
+    for (const r of recs) for (const s of r.scenarios) if (s.incMargin > 0) cands.push({ name: r.candidate.category, s, cat: r.candidate.category });
     if (budget) cands = cands.filter((c) => c.s.discountCost <= budget);
     cands.sort((a, b) => b.s.incMargin - a.s.incMargin);
-    if (!cands.length) return { text: `No campaign has a positive incremental margin${budget ? ` within a ${inr(budget)} discount budget` : ''}${cat ? ` in ${cat}` : ''}. A non-price trigger such as sampling or loyalty points is a safer use of the slot.` };
+    if (!cands.length) return { text: `No offer has a positive extra profit${budget ? ` within a ${inr(budget)} promotion budget` : ''}${cat ? ` in ${cat}` : ''}. A non-price trigger such as sampling or loyalty points is a safer choice.` };
     const top = cands[0];
-    const alt = cands.filter((c) => c.name !== top.name).slice(0, 3);
+    const alt = cands.filter((c) => c !== top).slice(0, 3);
     return {
       text: [
-        `**${top.name}** (${top.cat}) at **${top.s.option.label}** is the best fit${budget ? ` for ${inr(budget)}` : ''}.`,
+        `**${top.s.option.label}** on **${top.cat}** is the best fit${budget ? ` for ${inr(budget)}` : ''}.`,
         `- Target ${top.s.audience.targeted} of ${top.s.audience.total} active customers (the customer types with a positive uplift), skipping those who would buy anyway`,
-        `- Promo investment ${inr(top.s.discountCost)}, incremental margin **${inr(top.s.incMargin)}**, ROI ${top.s.roi.toFixed(2)}`,
-        `- About ${Math.round(top.s.incrementalBuyers)} incremental buyers because of the offer`,
+        `- Promotion cost ${inr(top.s.discountCost)}, extra profit **${inr(top.s.incMargin)}**, ROI ${top.s.roi.toFixed(2)}`,
+        `- About ${Math.round(top.s.incrementalBuyers)} extra buyers because of the offer`,
         top.s.blanket.incMargin < top.s.incMargin ? `- Sending the same offer to everyone would return ${inr(top.s.blanket.incMargin)} (ROI ${top.s.blanket.roi.toFixed(2)}), so targeting adds ${inr(top.s.incMargin - top.s.blanket.incMargin)}` : `- Sending to everyone returns ${inr(top.s.blanket.incMargin)}, similar to targeting`,
       ].join('\n'),
-      table: alt.length ? { head: ['Alternative', 'Offer', 'Investment', 'Incremental margin'], rows: alt.map((a) => [a.name, a.s.option.label, inr(a.s.discountCost), inr(a.s.incMargin)]) } : undefined,
-      links: [{ label: 'Open Planning', page: 'plan' }, { label: 'Try in Simulation', page: 'simulator' }],
+      table: alt.length ? { head: ['Category', 'Offer', 'Promotion cost', 'Extra profit'], rows: alt.map((a) => [a.name, a.s.option.label, inr(a.s.discountCost), inr(a.s.incMargin)]) } : undefined,
+      links: [{ label: 'Open Planning', page: 'plan' }, { label: 'Open Simulation', page: 'simulator' }],
       followUps: ['Where are we wasting discount money?', 'Who should we target?'],
     };
   }
@@ -120,7 +120,7 @@ export function answer(e: Engine, raw: string): Answer {
         `- Sleeping Dogs: ROI ${ign.roi.toFixed(2)} (${ign.n} customers)`,
       ].join('\n'),
       table: { head: ['Weakest campaigns', 'Offer', 'ROI', 'Subsidy rate'], rows: worst.map((r) => [r.campaign.name, `${r.campaign.depth}%`, r.roi.toFixed(2), pct(r.leakagePct)]) },
-      links: [{ label: 'See scorecard', page: 'lab' }, { label: 'Watchdog alerts', page: 'plan' }],
+      links: [{ label: 'Promotion results', page: 'lab' }, { label: 'Open Planning', page: 'plan' }],
       followUps: ['Which customers are Sure Things?', 'Best offer for ₹10K discount budget'],
     };
   }
@@ -139,7 +139,7 @@ export function answer(e: Engine, raw: string): Answer {
         `**What to do:** ${meta.play}`,
         `Examples: ${sample.join(', ')}`,
       ].join('\n'),
-      links: [{ label: 'See these customers', page: 'customers', params: { type } }],
+      links: [{ label: 'See this customer type', page: 'analytics' }],
       followUps: ['Where are we wasting discount money?', 'What should we run for Beverages?'],
     };
   }
@@ -161,7 +161,7 @@ export function answer(e: Engine, raw: string): Answer {
         '- **Uplift**: purchase probability with the offer minus baseline. ROI is incremental margin divided by promo investment; customers whose volume falls during promotions are Sleeping Dogs',
         'Results are **simulated** for a business demonstration, not forecasts from a model. The data itself is demo data.',
       ].join('\n'),
-      links: [{ label: 'Open Customer Prediction', page: 'customers' }],
+      links: [{ label: 'Open Simulation', page: 'simulation' }],
       followUps: ['Where are we wasting discount money?', 'What should we run for Beverages?'],
     };
   }
@@ -173,7 +173,7 @@ export function answer(e: Engine, raw: string): Answer {
     return {
       text: `Best: **${sorted[0].campaign.name}** (ROI ${sorted[0].roi.toFixed(2)}). Worst: **${sorted[sorted.length - 1].campaign.name}** (ROI ${sorted[sorted.length - 1].roi.toFixed(2)}). ${e.results.filter((r) => r.roi < 0).length} of ${e.results.length} did not pay back.`,
       table: { head: ['Campaign', 'Offer', 'Incremental margin', 'ROI'], rows: show.map((r) => [r.campaign.name, `${r.campaign.depth}% ${r.campaign.mechanic === 'BOGO' ? 'BOGO' : ''}`.trim(), inr(r.incMargin), r.roi.toFixed(2)]) },
-      links: [{ label: 'Open scorecard', page: 'lab' }],
+      links: [{ label: 'Promotion results', page: 'lab' }],
     };
   }
 
@@ -183,7 +183,7 @@ export function answer(e: Engine, raw: string): Answer {
     return {
       text: `${p[0].a} and ${p[0].b} are bought together **${p[0].lift.toFixed(2)}x** more often than chance. Good bundle candidates:`,
       table: { head: ['Pair', 'Orders', 'Lift'], rows: p.map((x) => [`${x.a} + ${x.b}`, pct(x.support, 1), x.lift.toFixed(2)]) },
-      links: [{ label: 'Basket analysis', page: 'lab' }],
+      links: [{ label: 'Behaviour Analytics', page: 'lab' }],
     };
   }
 
@@ -194,7 +194,7 @@ export function answer(e: Engine, raw: string): Answer {
     const peaks = e.timing.seasonality.map((s) => `${s.category}: ${e.timing.months[s.index.indexOf(Math.max(...s.index.slice(1, -1)))]?.label}`);
     return {
       text: [`Weekends carry **${pct((d[0] + d[6]) / tot)}** of orders (Sat+Sun).`, `Peak months by category: ${peaks.join(' · ')}.`, 'Avoid deep discounts in a category\'s natural peak month; the sales were coming anyway.'].join('\n'),
-      links: [{ label: 'Timing analysis', page: 'lab' }],
+      links: [{ label: 'Behaviour Analytics', page: 'lab' }],
     };
   }
 
@@ -202,8 +202,8 @@ export function answer(e: Engine, raw: string): Answer {
   if (/depth|how much (discount|off)|sensitiv|price|willing|threshold/.test(q)) {
     const dl = e.stats.find((s) => s.type === 'persuadable')!;
     return {
-      text: [`Persuadables take about **${dl.avgDisc.toFixed(0)}%** off on average.`, `Across the planned slots the best offers are: ${[...new Set(e.recommendations.filter((r) => r.best).map((r) => r.best!.option.label))].join(', ')}. Deeper offers mostly add subsidy and pull-forward.`].join('\n'),
-      links: [{ label: 'Price behaviour', page: 'lab' }, { label: 'Try the Simulator', page: 'simulator' }],
+      text: [`Persuadables take about **${dl.avgDisc.toFixed(0)}%** off on average.`, `Across the categories the best offers are: ${[...new Set(e.recommendations.filter((r) => r.best).map((r) => r.best!.option.label))].join(', ')}. Deeper offers mostly add subsidy and pull-forward.`].join('\n'),
+      links: [{ label: 'Promotion results', page: 'lab' }, { label: 'Open Simulation', page: 'simulator' }],
     };
   }
 
@@ -211,9 +211,9 @@ export function answer(e: Engine, raw: string): Answer {
   if (/target|audience|who should/.test(q)) {
     const r = (cat ? e.recommendations.find((x) => x.candidate.category === cat) : e.recommendations[0])!;
     const b = r.best;
-    if (!b) return { text: `No customers are worth discounting for ${r.candidate.name}.` };
+    if (!b) return { text: `No customers are worth discounting in ${r.candidate.category}.` };
     return {
-      text: `For **${r.candidate.name}** (${b.option.label}), target ${b.audience.targeted} of ${b.audience.total} customers:`,
+      text: `For **${r.candidate.category}** (${b.option.label}), target ${b.audience.targeted} of ${b.audience.total} active customers:`,
       table: { head: ['Type', 'Targeted', 'Of'], rows: TYPES.map((x) => [x.short, String(b.audience.byType[x.id].targeted), String(b.audience.byType[x.id].total)]) },
       links: [{ label: 'Open Planning', page: 'plan' }],
     };
@@ -224,17 +224,20 @@ export function answer(e: Engine, raw: string): Answer {
     return {
       text: [
         `**${t.customers} customers**, ${t.orders.toLocaleString()} orders, ${inr(t.revenue)} revenue over 15 months.`,
-        `- Promo investment was ${inr(t.discountCost)}. Only ${pct(t.incShare)} of promoted units are estimated to be incremental (estimated from each customer's own baseline, not a randomised test).`,
-        `- Promo ROI **${t.roi.toFixed(2)}** (incremental margin ${inr(t.incMargin)}). ${e.results.filter((r) => r.roi < 0).length} of ${e.results.length} campaigns did not pay back.`,
-        `- The planner expects ${inr(e.recommendations.reduce((s, r) => s + (r.best?.incMargin ?? 0), 0))} of incremental margin from the next ${e.recommendations.length} campaigns.`,
+        `- Promotion cost was ${inr(t.discountCost)}. Only ${pct(t.incShare)} of promoted units are estimated to be incremental (estimated from each customer's own baseline, not a randomised test).`,
+        `- Promotion ROI **${t.roi.toFixed(2)}** (extra profit ${inr(t.incMargin)}). ${e.results.filter((r) => r.roi < 0).length} of ${e.results.length} campaigns did not pay back.`,
+        `- The best offer in each of the ${e.recommendations.length} categories is expected to add ${inr(e.recommendations.reduce((s, r) => s + (r.best?.incMargin ?? 0), 0))} of extra profit (Planning builds the full plan).`,
       ].join('\n'),
-      links: [{ label: 'Overview', page: 'problem' }],
+      links: [{ label: 'Behaviour Analytics', page: 'lab' }],
       followUps: ['Where are we wasting discount money?', 'What should we run for Beverages?'],
     };
   }
 
+  // nothing matched: say so plainly, and offer the suggested questions closest to what was typed (shared words)
+  const words = new Set(q.split(/[^a-z0-9₹]+/).filter((w) => w.length > 3));
+  const near = SUGGESTED.map((s) => ({ s, hits: s.toLowerCase().split(/[^a-z0-9₹]+/).filter((w) => words.has(w)).length })).filter((x) => x.hits > 0).sort((a, b) => b.hits - a.hits).slice(0, 3).map((x) => x.s);
   return {
-    text: 'I can answer questions about customer behaviour, customer types, past promotion results, the simulation and upcoming campaigns, using the loaded data. For example:',
-    followUps: SUGGESTED.slice(0, 5),
+    text: `I did not recognise that question, and I would rather not guess. I answer from fixed rules over the loaded data, so I can help with customer types, one customer (type an ID such as C0042), past promotion results, the best offer for a category or budget, discount waste and who to target.${near.length ? ' Closest to what you asked:' : ' For example:'}`,
+    followUps: near.length ? near : SUGGESTED.slice(0, 5),
   };
 }

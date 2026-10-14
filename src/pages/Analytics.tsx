@@ -1,12 +1,13 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Megaphone, RotateCcw, X } from 'lucide-react';
+import { Picker } from '@/components/Picker';
 import { Takeaway } from '@/components/Takeaway';
 import { CustomerGroups, Drivers } from '@/pages/CustomerGroups';
 import { ReturnBreakdown } from '@/pages/ReturnBreakdown';
 import { resultsInsight } from '@/lib/takeaways';
 import { useApp, useEngine } from '@/state';
 import { Help } from '@/components/Help';
-import { Chip, FilterSelect, Kpi, NextStep, Tabs, ViewToggle } from '@/components/ui';
+import { Chip, FilterSelect, Kpi, Journey, NextStep, Tabs, ViewToggle } from '@/components/ui';
 import { FitHeat, Scatter } from '@/components/charts';
 import { TYPES } from '@/engine/segments';
 import { offerName } from '@/engine/options';
@@ -52,6 +53,13 @@ export function Analytics() {
   const mechsInData = MECH_ORDER.filter((k) => e.ds.campaigns.some((c) => mechOf(c) === k));
   const filtered = JSON.stringify({ ...f, period: '' }) !== JSON.stringify({ ...DEFAULT_FILTERS, period: '' });
   const customersInView = e.records.filter((r) => ok(r.cid)).length;
+  // the filters that are switched on, as removable chips
+  const chips = [
+    f.category !== 'all' && { key: 'category', text: f.category },
+    f.promo !== 'all' && { key: 'promo', text: MECH_LABEL[f.promo as keyof typeof MECH_LABEL] ?? f.promo },
+    f.type !== 'all' && { key: 'type', text: TYPES.find((x) => x.id === f.type)?.name ?? f.type },
+    f.channel !== 'all' && { key: 'channel', text: `Mostly ${f.channel}` },
+  ].filter(Boolean) as { key: keyof Filters; text: string }[];
   const sub = hasPrior ? `vs prior ${f.period === '3m' ? '3' : '6'} months` : `${A.campaigns} campaigns`;
 
   const dPct = (a: number, b: number, good: boolean | null = true) => {
@@ -71,23 +79,37 @@ export function Analytics() {
 
       <div className="space-y-6 p-6">
         {tab === 'types' ? <CustomerGroups onNext={() => setTab('results')} /> : <>
-        <section className="card p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <p className="text-[14px] font-semibold">Which promotions to look at</p>
-              <p className="mt-0.5 text-[12px] text-[var(--ink-3)]">These filters apply to every number and chart on this tab.</p>
+        {/* one filter area, built like the one on Customer types */}
+        <section className="card">
+          <div className="grid items-end gap-3 p-4 sm:grid-cols-2 lg:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
+            <div className="sm:col-span-2 lg:col-span-1">
+              <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--ink-3)]">Period</span>
+              <div className="flex h-10 w-full rounded-lg border border-[var(--line)] bg-white p-1 lg:w-auto">
+                {([['3m', '3 months'], ['6m', '6 months'], ['all', 'All time']] as const).map(([v, l]) => (
+                  <button key={v} onClick={() => setF({ ...f, period: v })} className={`flex-1 whitespace-nowrap rounded-md px-3 text-[12.5px] font-semibold transition-colors lg:flex-none ${f.period === v ? 'bg-[var(--navy)] text-white shadow-sm' : 'text-[var(--ink-2)] hover:bg-[var(--page)]'}`}>{l}</button>
+                ))}
+              </div>
             </div>
-            <span className="flex items-center gap-4 text-[12px] text-[var(--ink-3)]">
-              <span>{A.campaigns} campaigns · {int(customersInView)} customers</span>
-              {filtered && <button onClick={() => setF({ ...DEFAULT_FILTERS, period: f.period })} className="font-medium text-[var(--ink-2)] hover:text-[var(--ink)]">Clear filters</button>}
-            </span>
+            <Picker label="Category" value={f.category} onChange={set('category')} active={f.category !== 'all'} searchable={false}
+              options={[{ value: 'all', label: 'All categories', hint: `${e.ds.categories.length} categories` }, ...e.ds.categories.map((c) => ({ value: c, label: c }))]} />
+            <Picker label="Promotion type" value={f.promo} onChange={set('promo')} active={f.promo !== 'all'}
+              options={[{ value: 'all', label: 'All promotion types', hint: `${mechsInData.length} types` }, ...mechsInData.map((k) => ({ value: k, label: MECH_LABEL[k] }))]} />
+            <Picker label="Customer type" value={f.type} onChange={set('type')} active={f.type !== 'all'} searchable={false}
+              options={[{ value: 'all', label: 'All customer types' }, ...TYPES.map((x) => ({ value: x.id, label: x.name }))]} />
+            <Picker label="Main shopping channel" value={f.channel} onChange={set('channel')} active={f.channel !== 'all'} searchable={false}
+              options={[{ value: 'all', label: 'All channels', hint: 'where most orders are placed' }, ...CHANNELS.map((c) => ({ value: c, label: c }))]} />
           </div>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            <Field label="Time period"><FilterSelect value={f.period} onChange={(v) => setF({ ...f, period: v as Filters['period'] })} options={[{ value: '3m', label: 'Last 3 months' }, { value: '6m', label: 'Last 6 months' }, { value: 'all', label: 'All time' }]} /></Field>
-            <Field label="Product category"><FilterSelect value={f.category} onChange={set('category')} options={[{ value: 'all', label: 'All categories' }, ...e.ds.categories.map((c) => ({ value: c, label: c }))]} /></Field>
-            <Field label="Promotion type"><FilterSelect value={f.promo} onChange={set('promo')} options={[{ value: 'all', label: 'All promotion types' }, ...mechsInData.map((k) => ({ value: k, label: MECH_LABEL[k] }))]} /></Field>
-            <Field label="Customer type"><FilterSelect value={f.type} onChange={set('type')} options={[{ value: 'all', label: 'All customer types' }, ...TYPES.map((t) => ({ value: t.id, label: t.name }))]} /></Field>
-            <Field label={<span title="Each customer's main shopping channel: where most of their orders are placed">Main shopping channel</span>}><FilterSelect value={f.channel} onChange={set('channel')} options={[{ value: 'all', label: 'All channels' }, ...CHANNELS.map((c) => ({ value: c, label: c }))]} /></Field>
+          <div className="flex flex-wrap items-center gap-2 border-t border-[var(--line-2)] px-4 py-2.5">
+            {chips.map((c) => (
+              <span key={c.key} className="inline-flex items-center gap-1 rounded-full bg-[var(--page)] py-1 pl-2.5 pr-1.5 text-[11.5px] font-medium text-[var(--ink-2)]">
+                {c.text}<button onClick={() => setF({ ...f, [c.key]: 'all' })} aria-label={`Remove ${c.text}`} className="rounded-full p-0.5 hover:bg-white"><X className="h-3 w-3" /></button>
+              </span>
+            ))}
+            {!chips.length && <span className="text-[11.5px] text-[var(--ink-3)]">These filters apply to every number and chart on this tab.</span>}
+            <span className="ml-auto flex flex-wrap items-center gap-3 text-[11.5px] text-[var(--ink-3)]">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eef3fa] px-2.5 py-1 font-semibold text-[var(--navy)]"><Megaphone className="h-3.5 w-3.5" />{A.campaigns} campaigns · {int(customersInView)} customers</span>
+              {(filtered || f.period !== '6m') && <button onClick={() => setF({ ...DEFAULT_FILTERS })} className="inline-flex items-center gap-1 font-semibold text-[var(--ink-2)] hover:text-[var(--ink)]"><RotateCcw className="h-3 w-3" />Reset all</button>}
+            </span>
           </div>
         </section>
 
@@ -105,16 +127,13 @@ export function Analytics() {
             <Results cur={cur} ok={ok} />
           </>
         )}
-        <NextStep text="Use what worked to choose who to target with the next promotion." action="Find customers" onClick={() => go('customers', { tab: 'find' })} />
+        <NextStep text="Use what worked to plan the next quarter's promotions." action="Planning" onClick={() => go('planning')} />
         </>}
       </div>
     </>
   );
 }
 
-function Field({ label, children }: { label: ReactNode; children: ReactNode }) {
-  return <label className="block min-w-0"><span className="mb-1.5 block text-[11.5px] font-semibold text-[var(--ink-2)]">{label}</span>{children}</label>;
-}
 
 /** a titled card: plain title, one helpful sentence, optional controls on the right */
 function Block({ title, sub, right, children, className = '' }: { title: ReactNode; sub?: ReactNode; right?: ReactNode; children: ReactNode; className?: string }) {
@@ -348,7 +367,7 @@ export function PageTop({ title, sub, right, tabs }: { title: string; sub: strin
           <h1 className="text-[18px] font-bold tracking-tight">{title}</h1>
           <p className="mt-0.5 text-[12.5px] text-[var(--ink-3)]">{sub}</p>
         </div>
-        {right}
+        {right ?? <Journey />}
       </div>
       {tabs && <div className="mt-3">{tabs}</div>}
     </div>

@@ -69,8 +69,6 @@ export function fitBeta(points: { depth: number; lift: number; baseline: number 
   return { beta, se: Math.sqrt(ss / Math.max(1, ps.length - 1) / sxx), n: ps.length };
 }
 
-export const demandLift = (beta: number, depthPct: number) => (1 - depthPct / 100) ** beta;
-
 export function estimateElasticity(results: CampaignResult[], perCustomer?: Map<string, CustomerCampaign[]>, typeOf?: Map<string, TypeId>): ElasticityModel {
   const price = results.filter((r) => PRICE_MECHANICS.includes(r.campaign.mechanic) && r.baselineUnits > 0 && r.units > 0);
   const toPoint = (r: CampaignResult): ElasticityPoint => ({ campaignId: r.campaign.id, name: r.campaign.name, mechanic: r.campaign.mechanic, depth: r.campaign.depth / 100, lift: r.units / r.baselineUnits, baseline: r.baselineUnits, start: r.campaign.start });

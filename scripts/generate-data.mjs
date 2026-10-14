@@ -131,14 +131,15 @@ const DAY = 864e5;
 // Latent design -> business customer type:  anyways = Sure Thing | deal, stockup, switcher = Persuadable |
 // ignores = Lost Cause | dog = Sleeping Dog (buys the brand regularly but buys LESS while it is on offer).
 // Shares follow what uplift studies typically find: customers who buy BECAUSE of an offer (deal, stockup, switcher) are a
-// minority (~30%), while customers who would buy anyway or never respond make up most of the base.
+// clear minority (~20%), while customers who would buy anyway (~35%) or never respond (~35%) make up most of the base, and
+// customers put off by offers (Sleeping Dogs) are a small group (~10%).
 const TYPES = {
   dog: { share: 0.10, trips: [2.4, 4.0], pOur: [0.55, 0.85], maxP: 0.0, thr: [40, 50], qty: [1.0, 1.0] },
-  anyways: { share: 0.29, trips: [2.6, 4.2], pOur: [0.74, 0.93], maxP: 0.0, thr: [12, 20], qty: [1.0, 1.0] },
-  deal: { share: 0.14, trips: [1.2, 2.2], pOur: [0.06, 0.18], maxP: 0.82, thr: [7, 13], qty: [1.1, 1.5] },
-  stockup: { share: 0.12, trips: [1.6, 2.8], pOur: [0.35, 0.6], maxP: 0.78, thr: [9, 16], qty: [2.6, 4.0] },
-  switcher: { share: 0.07, trips: [2.0, 3.4], pOur: [0.03, 0.11], maxP: 0.72, thr: [17, 26], qty: [1.0, 1.4] },
-  ignores: { share: 0.28, trips: [0.8, 1.8], pOur: [0.05, 0.25], maxP: 0.07, thr: [22, 35], qty: [1.0, 1.0] },
+  anyways: { share: 0.35, trips: [2.6, 4.2], pOur: [0.74, 0.93], maxP: 0.0, thr: [12, 20], qty: [1.0, 1.0] },
+  deal: { share: 0.06, trips: [1.2, 2.2], pOur: [0.06, 0.18], maxP: 0.82, thr: [7, 13], qty: [1.1, 1.5] },
+  stockup: { share: 0.11, trips: [1.6, 2.8], pOur: [0.35, 0.6], maxP: 0.78, thr: [9, 16], qty: [2.6, 4.0] },
+  switcher: { share: 0.04, trips: [2.0, 3.4], pOur: [0.03, 0.11], maxP: 0.72, thr: [17, 26], qty: [1.0, 1.4] },
+  ignores: { share: 0.34, trips: [0.8, 1.8], pOur: [0.05, 0.25], maxP: 0.07, thr: [22, 35], qty: [1.0, 1.0] },
 };
 // What each latent type tends to buy (multiplier on how often a category lands in the basket; 1 = average). Each customer
 // still varies around their type's profile, so the groups overlap but differ in a consistent, explainable way:
@@ -205,6 +206,10 @@ for (let i = 1; i <= N; i++) {
   if (rng() < 0.07) active1 = END - Math.floor(U(70, 240)) * DAY;
   const parkUntil = {};
   const promoTrips = {};
+  // a few Lost Causes (and the odd Sleeping Dog) start responding to offers in the last 3 months: their earlier years say
+  // "never reacts", their recent weeks say otherwise. The choice is hashed from the id so the random stream is unchanged.
+  const wakes = (type === 'ignores' && hash01(cid + 'wake') < 0.12) || (type === 'dog' && hash01(cid + 'wake') < 0.06);
+  const wakeDay = wakes ? END - Math.floor(30 + 55 * hash01(cid + 'day')) * DAY : Infinity;
 
   // dedicated promo-driven trips (the behavioural "response")
   for (const cp of CAMPAIGNS) {
@@ -212,7 +217,8 @@ for (let i = 1; i <= N; i++) {
     const aff = catW[cp.category] / meanW;
     // a points reward is worth less to a shopper than the same money off at the till
     const felt = cp.mechanic === 'CASHBACK' ? cp.depth * 0.7 : cp.depth;
-    let p = maxP * sigmoid((felt - thr) / 3.2) * clamp(0.55 + 0.45 * aff, 0.5, 1.25);
+    const woke = cp.s >= wakeDay;
+    let p = (woke ? 0.7 : maxP) * sigmoid((felt - (woke ? 12 : thr)) / 3.2) * clamp(0.55 + 0.45 * aff, 0.5, 1.25);
     if (cp.festive) p *= 1.15;
     if (cp.mechanic !== 'PCT_OFF') p *= 1.05;
     // mechanic fit by behaviour: stock-up shoppers like volume mechanics, deal seekers want instant savings,
@@ -273,7 +279,7 @@ for (let i = 1; i <= N; i++) {
     for (const ln of lines) {
       const cp = CAMPAIGNS.find((x) => x.category === ln.cat && t >= x.s && t <= x.e);
       // Sleeping Dogs are put off by offers: they largely stop buying the promoted brand while it is on promotion
-      const dogOff = type === 'dog' && CAMPAIGNS.some((x) => x.category === ln.cat && t >= x.s && t <= x.e + 14);
+      const dogOff = type === 'dog' && t < wakeDay && CAMPAIGNS.some((x) => x.category === ln.cat && t >= x.s && t <= x.e + 14);
       // a basket line is only visible to the retailer if the customer bought our brand; otherwise there is no record
       if (!ln.forced && !(rng() < (dogOff ? pOur * 0.2 : pOur))) continue;
       const prod = ln.prod ?? pick(byCat(ln.cat));

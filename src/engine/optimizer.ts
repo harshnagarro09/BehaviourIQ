@@ -23,8 +23,10 @@ import { MIN_SEG_UPLIFT, objectiveValue, type Objective, type SegPromo } from '.
 export const COVERAGES = [0.25, 0.5, 0.75, 1];
 
 export interface OptItem {
-  id: string; // type|category
+  id: string; // type|category, or type|segment|category
   type: TypeId;
+  /** optional split of the customer type, e.g. 'lapsing' customers planned separately from active ones */
+  segment?: 'active' | 'lapsing';
   category: string;
   members: string[];
   cells: SegPromo[];
@@ -39,6 +41,10 @@ export interface OptSettings {
   allowed: (p: PromoDef) => boolean;
   /** optional spending limits per category, in rupees (a minimum is only met with offers that clear the ROI hurdle) */
   limits?: Record<string, SpendLimit>;
+  /** optional cap on the share of a customer group that can get the offer (e.g. 0.5 = at most half of it) */
+  maxCoverage?: number;
+  /** optional cap on the share of an offer's cost that may go on purchases that would have happened anyway */
+  maxSubsidy?: number;
 }
 
 export interface SpendLimit { min?: number | null; max?: number | null }
@@ -92,6 +98,7 @@ interface Choice { cell: SegPromo; coverage: number; cost: number; units: number
 export function qualifies(c: SegPromo, s: OptSettings): boolean {
   if (!c.eligible.ok || !s.allowed(c.promo)) return false;
   if (c.investment <= 0 || c.uplift < MIN_SEG_UPLIFT || c.roi < s.hurdle) return false;
+  if (s.maxSubsidy != null && c.subsidy > s.maxSubsidy * c.investment) return false;
   return objectiveValue(c, s.objective) > 0 && !(c.incMargin <= 0 && s.objective === 'margin');
 }
 
@@ -103,7 +110,7 @@ function optionsFor(item: OptItem, s: OptSettings): { choices: Choice[]; reason?
   for (const c of item.cells) {
     if (!qualifies(c, s)) continue;
     const v = objectiveValue(c, s.objective);
-    for (const cov of COVERAGES) choices.push({ cell: c, coverage: cov, cost: c.investment * cov * keep, units: 0, value: v * cov * keep });
+    for (const cov of COVERAGES) if (cov <= (s.maxCoverage ?? 1) + 1e-9) choices.push({ cell: c, coverage: cov, cost: c.investment * cov * keep, units: 0, value: v * cov * keep });
   }
   return { choices, reason: choices.length ? undefined : 'No offer clears the ROI hurdle.' };
 }
@@ -298,15 +305,6 @@ export function blanket(items: OptItem[], promoKey: string, budget: number) {
 }
 
 // ------------------------------------------------------------------------ measurement plan
-/**
- * Smallest uplift (in points of buying chance) a treated-vs-holdout comparison can detect, two-sided 5% significance and
- * 80% power: 2.8 x sqrt(p(1-p) x (1/n_treated + 1/n_holdout)).
- */
-export function minDetectableUplift(p: number, nT: number, nC: number): number {
-  if (nT <= 0 || nC <= 0) return Infinity;
-  const q = Math.min(0.99, Math.max(0.01, p));
-  return 2.8 * Math.sqrt(q * (1 - q) * (1 / nT + 1 / nC));
-}
 
 /** stable 0..1 hash so the activation file assigns the same customers every time (no randomness at run time) */
 export function hash01(s: string): number {

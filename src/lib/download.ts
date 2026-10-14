@@ -30,7 +30,7 @@ const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n+
 const crc32 = (b: Uint8Array) => { let c = 0xffffffff; for (let i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
 
 /** minimal zip writer (store method) */
-function zip(files: { name: string; data: string }[]): Uint8Array {
+function zip(files: { name: string; data: string }[]): Uint8Array<ArrayBuffer> {
   const enc = new TextEncoder();
   const parts: Uint8Array[] = [];
   const central: Uint8Array[] = [];
@@ -60,7 +60,7 @@ function zip(files: { name: string; data: string }[]): Uint8Array {
   return out;
 }
 
-export function toXlsx(head: string[], rows: Cell[][], sheetName = 'Audience'): Uint8Array {
+export function toXlsx(head: string[], rows: Cell[][], sheetName = 'Audience'): Uint8Array<ArrayBuffer> {
   const NS = 'http://schemas.openxmlformats.org';
   return zip([
     { name: '[Content_Types].xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="${NS}/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>` },

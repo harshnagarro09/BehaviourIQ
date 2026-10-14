@@ -1,12 +1,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { buildEngine, type Engine } from '@/engine';
+import type { PlanConfig } from '@/lib/plan';
+import { loadSaved, saveKey, type Backup } from '@/lib/store';
+import type { LiveCampaign } from '@/lib/live';
 
-export type PageId = 'analytics' | 'customers' | 'planning' | 'simulation' | 'advisor';
+export type PageId = 'analytics' | 'planning' | 'simulation' | 'live' | 'advisor';
 
-export interface Decision {
-  status: 'accepted' | 'rejected';
-  optionKey: string;
-}
+/** A what-if version of the plan, tried on Simulation > Test the plan; it never changes the plan until applied */
+export interface Scenario { id: string; name: string; cfg: PlanConfig }
+
 
 interface Ctx {
   engine: Engine | null;
@@ -18,8 +20,22 @@ interface Ctx {
   params: Record<string, string>;
   /** write the current view's parameters into the address (for sharing / jumping straight to a view) */
   syncParams: (p: Record<string, string>) => void;
-  decisions: Record<string, Decision>;
-  decide: (id: string, d: Decision | null) => void;
+  /** the promotion plan built on Planning; Simulation tests it and can apply a scenario back to it */
+  plan: PlanConfig;
+  /** change the plan; `from` names where the change came from (e.g. a simulated scenario), so it can be shown and undone */
+  setPlan: (cfg: PlanConfig, from?: string) => void;
+  planFrom: string | null;
+  undoPlan: (() => void) | null;
+  scenarios: Scenario[];
+  setScenarios: (s: Scenario[]) => void;
+  /** finalised plans, scheduled as dated campaigns (Live campaigns) */
+  campaigns: LiveCampaign[];
+  setCampaigns: (c: LiveCampaign[]) => void;
+  /** replace the plan, scenarios and campaigns from a backup file */
+  restore: (b: Backup) => void;
+  /** the campaign name being typed in "Finalise and schedule", shared so Simulation can show it */
+  campaignName: string;
+  setCampaignName: (n: string) => void;
 }
 
 const C = createContext<Ctx>(null as never);
@@ -36,25 +52,41 @@ const toHash = (p: string, pr: Record<string, string>) => {
   return `#/${p}${q ? `?${q}` : ''}`;
 };
 
-const PAGES: PageId[] = ['analytics', 'customers', 'planning', 'simulation', 'advisor'];
+const PAGES: PageId[] = ['analytics', 'planning', 'simulation', 'live', 'advisor'];
 const DEFAULT_URL = `${import.meta.env.BASE_URL}data/promo_behaviour_data.csv`;
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [engine, setEngine] = useState<Engine | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [source, setSource] = useState('promo_behaviour_data.csv');
-  const [page, setPage] = useState<PageId>(() => {
-    const h = window.location.hash.replace('#/', '').split('?')[0] as PageId;
-    return PAGES.includes(h) ? h : 'analytics';
+  // old addresses still work
+  const [start] = useState(() => {
+    const h = window.location.hash.replace('#/', '').split('?')[0];
+    const q = hashQuery();
+    if (h === 'customers') return { page: 'simulation' as PageId, params: {} }; // the old Customer Prediction address
+    return { page: PAGES.includes(h as PageId) ? (h as PageId) : 'analytics', params: q };
   });
-  const [params, setParams] = useState<Record<string, string>>(hashQuery);
-  const [decisions, setDecisions] = useState<Record<string, Decision>>(() => {
-    try {
-      return JSON.parse(localStorage.getItem('behaviouriq.decisions') ?? '{}');
-    } catch {
-      return {};
-    }
-  });
+  const [page, setPage] = useState<PageId>(start.page);
+  const [params, setParams] = useState<Record<string, string>>(start.params);
+
+  const [saved] = useState(loadSaved);
+  const [plan, setPlanState] = useState<PlanConfig>(saved.plan);
+  const [campaignName, setCampaignName] = useState('');
+  const [prevPlan, setPrevPlan] = useState<PlanConfig | null>(null);
+  const [planFrom, setPlanFrom] = useState<string | null>(null);
+  const [scenarios, setScenarioState] = useState<Scenario[]>(saved.scenarios);
+  const [campaigns, setCampaignState] = useState<LiveCampaign[]>(saved.campaigns);
+  const setScenarios = useCallback((s: Scenario[]) => { setScenarioState(s); saveKey('scenarios', s); }, []);
+  const setPlan = useCallback((cfg: PlanConfig, from?: string) => {
+    setPlanState((cur) => { if (from) setPrevPlan(cur); return cfg; });
+    setPlanFrom(from ?? null);
+    if (!from) setPrevPlan(null);
+    saveKey('plan', cfg);
+  }, []);
+  const undoPlan = useMemo(() => (prevPlan ? () => { setPlanState(prevPlan); saveKey('plan', prevPlan); setPrevPlan(null); setPlanFrom(null); } : null), [prevPlan]);
+  const setCampaigns = useCallback((c: LiveCampaign[]) => { setCampaignState(c); saveKey('campaigns', c); }, []);
+  /** replace everything from a backup file */
+  const restore = useCallback((b: Backup) => { setPlanState(b.plan); saveKey('plan', b.plan); setPrevPlan(null); setPlanFrom(null); setScenarioState(b.scenarios); saveKey('scenarios', b.scenarios); setCampaignState(b.campaigns); saveKey('campaigns', b.campaigns); }, []);
 
   const loadText = useCallback((text: string, name: string) => {
     setEngine(null);
@@ -92,23 +124,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     window.history.replaceState(null, '', toHash(p, pr));
   }, []);
 
-  const decide = useCallback((id: string, d: Decision | null) => {
-    setDecisions((prev) => {
-      const next = { ...prev };
-      if (d) next[id] = d;
-      else delete next[id];
-      try {
-        localStorage.setItem('behaviouriq.decisions', JSON.stringify(next));
-      } catch {
-        /* storage unavailable */
-      }
-      return next;
-    });
-  }, []);
-
   const value = useMemo(
-    () => ({ engine, error, source, loadText, page, go, params, syncParams, decisions, decide }),
-    [engine, error, source, loadText, page, go, params, syncParams, decisions, decide],
+    () => ({ engine, error, source, loadText, page, go, params, syncParams, plan, setPlan, planFrom, undoPlan, scenarios, setScenarios, campaigns, setCampaigns, restore, campaignName, setCampaignName }),
+    [engine, error, source, loadText, page, go, params, syncParams, plan, setPlan, planFrom, undoPlan, scenarios, setScenarios, campaigns, setCampaigns, restore, campaignName, setCampaignName],
   );
   return <C.Provider value={value}>{children}</C.Provider>;
 }

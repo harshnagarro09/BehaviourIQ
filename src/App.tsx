@@ -1,23 +1,18 @@
 import { useRef } from 'react';
-import { BarChart3, CalendarRange, UserSearch, Activity, MessageSquareText, SlidersHorizontal, Upload } from 'lucide-react';
+import { BarChart3, CalendarRange, SlidersHorizontal, Radio, Activity, MessageSquareText, Upload } from 'lucide-react';
 import { RETAILER_NAME, DATA_NOTE } from '@/lib/brand';
 import { AppProvider, useApp, type PageId } from '@/state';
 import { Analytics } from '@/pages/Analytics';
-import { CustomerPrediction } from '@/pages/CustomerPrediction';
+import { SimulationPage } from '@/pages/SimulationPage';
+import { Live } from '@/pages/Live';
 import { Planning } from '@/pages/Planning';
-import { Simulation } from '@/pages/Simulation';
 import { Advisor } from '@/pages/Advisor';
 
 const NAV: { group: string; items: { id: PageId; label: string; icon: React.ReactNode }[] }[] = [
   { group: 'Analytics', items: [{ id: 'analytics', label: 'Behaviour Analytics', icon: <BarChart3 className="h-3.5 w-3.5" /> }] },
-  { group: 'Prediction', items: [{ id: 'customers', label: 'Customer Prediction', icon: <UserSearch className="h-3.5 w-3.5" /> }] },
-  {
-    group: 'Planning',
-    items: [
-      { id: 'planning', label: 'Planning', icon: <CalendarRange className="h-3.5 w-3.5" /> },
-      { id: 'simulation', label: 'Simulation', icon: <SlidersHorizontal className="h-3.5 w-3.5" /> },
-    ],
-  },
+  { group: 'Planning', items: [{ id: 'planning', label: 'Planning', icon: <CalendarRange className="h-3.5 w-3.5" /> }] },
+  { group: 'Simulate', items: [{ id: 'simulation', label: 'Simulation', icon: <SlidersHorizontal className="h-3.5 w-3.5" /> }] },
+  { group: 'Run', items: [{ id: 'live', label: 'Live campaigns', icon: <Radio className="h-3.5 w-3.5" /> }] },
   { group: 'Intelligence', items: [{ id: 'advisor', label: 'Advisor', icon: <MessageSquareText className="h-3.5 w-3.5" /> }] },
 ];
 
@@ -67,14 +62,14 @@ function Shell() {
           ))}
         </div>
         <main id="main-scroll" className="min-h-0 flex-1 overflow-y-auto">
-          {error && <div className="card m-6 border-[#f3b4b4] bg-[#fdeeee] p-4 text-[13px] text-[#b91c1c]"><p className="font-semibold">Could not load the data</p><p className="mt-1">{error}</p></div>}
+          {error && <div className="card m-6 border-[#f3b4b4] bg-[#fdeeee] p-4 text-[13px] text-[#b91c1c]"><p className="font-semibold">Could not load the data</p><p className="mt-1">{error}</p><button onClick={() => window.location.reload()} className="mt-3 inline-flex h-8 items-center rounded-lg border border-[#f3b4b4] bg-white px-3 text-[12.5px] font-semibold text-[#b91c1c] hover:bg-[#fff5f5]">Try again</button><p className="mt-2 text-[12px]">Or use “Load CSV” in the sidebar to open a data file from your computer.</p></div>}
           {!engine && !error && <Loading />}
           {engine && (
             <div key={page} className={`rise ${page === 'advisor' ? 'h-full' : ''}`}>
               {page === 'analytics' && <Analytics />}
-              {page === 'customers' && <CustomerPrediction />}
+              {page === 'simulation' && <SimulationPage />}
+              {page === 'live' && <Live />}
               {page === 'planning' && <Planning />}
-              {page === 'simulation' && <Simulation />}
               {page === 'advisor' && <Advisor />}
             </div>
           )}

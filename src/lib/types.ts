@@ -1,4 +1,4 @@
-// Presentation of the four customer types shared by Behaviour Analytics and Customer Prediction.
+// Presentation of the four customer types shared by Behaviour Analytics, Planning and Simulation.
 import type { TypeId } from '@/engine/behaviour';
 
 /** the standing treatment for each customer type, in one short line */

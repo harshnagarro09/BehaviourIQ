@@ -1,25 +1,11 @@
-import { useState, type ReactNode } from 'react';
-import { ArrowDown, ArrowRight, ArrowUp, ChevronDown } from 'lucide-react';
-import type { TypeId } from '@/engine/behaviour';
-import { TYPE_BY_ID } from '@/engine/segments';
+import type { ReactNode } from 'react';
+import { ArrowDown, ArrowRight, ArrowUp, Check, ChevronDown } from 'lucide-react';
 import { Help } from '@/components/Help';
 import type { GlossaryKey } from '@/lib/glossary';
-import { SIM_WINDOW_DAYS } from '@/engine/simulation';
+import { useApp, type PageId } from '@/state';
 
 export function Card({ children, className = '', pad = true }: { children: ReactNode; className?: string; pad?: boolean }) {
   return <section className={`card ${pad ? 'p-4' : ''} ${className}`}>{children}</section>;
-}
-
-export function CardTitle({ title, sub, right }: { title: ReactNode; sub?: ReactNode; right?: ReactNode }) {
-  return (
-    <div className="mb-3 flex items-start justify-between gap-3">
-      <div>
-        <h3 className="text-[13px] font-semibold tracking-tight">{title}</h3>
-        {sub && <p className="mt-0.5 text-[12px] leading-snug text-[var(--ink-3)]">{sub}</p>}
-      </div>
-      {right}
-    </div>
-  );
 }
 
 export function Delta({ value, good }: { value: string; good: boolean | null }) {
@@ -59,24 +45,6 @@ export function Chip({ children, tone = 'neutral' }: { children: ReactNode; tone
   return <span className="inline-flex items-center gap-1 whitespace-nowrap rounded px-1.5 py-[2px] text-[11px] font-semibold" style={{ background: m[tone][0], color: m[tone][1] }}>{children}</span>;
 }
 
-export function Btn({
-  children, onClick, variant = 'ghost', disabled, className = '',
-}: { children: ReactNode; onClick?: () => void; variant?: 'ghost' | 'accept' | 'primary' | 'reject' | 'navy' | 'ai'; disabled?: boolean; className?: string }) {
-  const v = {
-    ghost: 'border border-[var(--line)] bg-white text-[var(--ink)] hover:bg-[var(--page)]',
-    accept: 'border border-[#a7e8c8] bg-[#d1fae5] text-[#065f46] hover:bg-[#bbf3d8]',
-    primary: 'bg-[var(--green-dark)] text-white hover:bg-[#036a4c]',
-    reject: 'border border-[#fbc4c4] bg-[#fee2e2] text-[#b91c1c] hover:bg-[#fdd0d0]',
-    navy: 'bg-[var(--navy)] text-white hover:bg-black',
-    ai: 'border border-[#f5c98a] bg-[#fff7ea] text-[#b45309] hover:bg-[#ffefd2]',
-  }[variant];
-  return (
-    <button disabled={disabled} onClick={onClick} className={`inline-flex items-center justify-center gap-1 rounded-md px-2.5 py-1 text-[12px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${v} ${className}`}>
-      {children}
-    </button>
-  );
-}
-
 export function FilterSelect({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: { value: string; label: string }[] }) {
   return (
     <div className="relative">
@@ -102,33 +70,8 @@ export function Toggle<T extends string>({ value, onChange, options }: { value: 
   );
 }
 
-export function TypeBadge({ type }: { type: TypeId }) {
-  const t = TYPE_BY_ID[type];
-  return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[12px] font-medium">
-      <span className="h-2 w-2 rounded-full" style={{ background: t.color }} />{t.short}
-    </span>
-  );
-}
-
-export function Meter({ value, color = 'var(--green)', width = 90 }: { value: number; color?: string; width?: number }) {
-  return (
-    <span className="inline-block h-1.5 overflow-hidden rounded-full bg-[var(--line)] align-middle" style={{ width }}>
-      <span className="block h-full rounded-full" style={{ width: `${Math.max(0, Math.min(1, value)) * 100}%`, background: color }} />
-    </span>
-  );
-}
-
 
 /** Chart / Table switch for cards that can show either */
-/** "Offer window: next 14 days" with a "?" */
-export function WindowChip() {
-  return (
-    <span className="inline-flex items-center rounded-full bg-[var(--page)] px-2 py-0.5 text-[11px] font-medium text-[var(--ink-2)]">
-      Offer window: next {SIM_WINDOW_DAYS} days<Help term="predictionWindow" />
-    </span>
-  );
-}
 
 /** Marks whether the numbers in a card are actual history or a simulated result */
 export function SourceChip({ kind }: { kind: 'actual' | 'simulated' }) {
@@ -158,47 +101,33 @@ export function ViewToggle({ value, onChange }: { value: 'chart' | 'table'; onCh
   return <Toggle value={value} onChange={onChange} options={[{ id: 'chart', label: 'Chart' }, { id: 'table', label: 'Table' }]} />;
 }
 
-/**
- * A card for charts: a plain-language line saying what it shows, a short always-visible key that explains every
- * colour / axis / mark, and a collapse arrow so secondary charts can be tucked away.
- */
-export function Panel({
-  title, what, legend, right, children, defaultOpen = true, flush = false, className = '',
-}: {
-  title: ReactNode; what?: ReactNode; legend?: { label: string; text: string; color?: string }[]; right?: ReactNode;
-  children: ReactNode; defaultOpen?: boolean; flush?: boolean; className?: string;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
+/** The bridge to the next stage of the story (customers -> promotions -> who to target -> budget), at the end of a view */
+/** The three stages of the work, shown at the top of each stage so it is always clear where you are and what comes next */
+const JOURNEY: { page: PageId; label: string }[] = [
+  { page: 'analytics', label: 'Understand' },
+  { page: 'planning', label: 'Plan' },
+  { page: 'simulation', label: 'Simulate' },
+  { page: 'live', label: 'Run' },
+];
+export function Journey() {
+  const { page, go } = useApp();
+  const at = JOURNEY.findIndex((j) => j.page === page);
+  if (at < 0) return null;
   return (
-    <section className={`card ${className}`}>
-      <div className="flex flex-wrap items-start gap-2 px-4 py-3">
-        <button onClick={() => setOpen(!open)} aria-label={open ? 'Collapse' : 'Expand'} className="mt-0.5 rounded p-0.5 text-[var(--ink-3)] hover:bg-[var(--page)]">
-          <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? '' : '-rotate-90'}`} />
-        </button>
-        <div className="min-w-0 flex-1 cursor-pointer" onClick={() => setOpen(!open)}>
-          <h3 className="text-[13px] font-semibold tracking-tight">{title}</h3>
-          {what && <p className="mt-0.5 text-[11.5px] leading-snug text-[var(--ink-3)]">{what}</p>}
-        </div>
-        {open && right && <div className="flex flex-wrap items-center gap-2">{right}</div>}
-      </div>
-      {open && legend && legend.length > 0 && (
-        <p className="mx-4 mb-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] leading-snug text-[var(--ink-3)]">
-          {legend.map((l) => (
-            <span key={l.label} className="inline-flex items-start gap-1.5">
-              {l.color && <span className="mt-[3px] h-2 w-2 shrink-0 rounded-sm" style={{ background: l.color }} />}
-              {l.color && l.text.length > 45
-                ? <b className="cursor-help font-semibold text-[var(--ink-2)] underline decoration-dotted underline-offset-2" title={l.text}>{l.label}</b>
-                : <span><b className="font-semibold text-[var(--ink-2)]">{l.label}:</b> {l.text}</span>}
-            </span>
-          ))}
-        </p>
-      )}
-      {open && <div className={flush ? '' : 'px-4 pb-4'}>{children}</div>}
-    </section>
+    <nav aria-label="Where you are" className="flex flex-wrap items-center gap-1 text-[12px]">
+      {JOURNEY.map((j, i) => (
+        <span key={j.page} className="flex items-center gap-1">
+          <button onClick={() => go(j.page)} aria-current={i === at ? 'step' : undefined}
+            className={`rounded-full px-2.5 py-1 font-semibold ${i === at ? 'bg-[var(--navy)] text-white' : i < at ? 'text-[var(--green-dark)] hover:bg-[var(--page)]' : 'text-[var(--ink-3)] hover:bg-[var(--page)]'}`}>
+            {i < at && <Check className="mr-1 inline h-3 w-3" strokeWidth={3} />}{j.label}
+          </button>
+          {i < JOURNEY.length - 1 && <ArrowRight className="h-3 w-3 text-[var(--ink-3)]" />}
+        </span>
+      ))}
+    </nav>
   );
 }
 
-/** The bridge to the next stage of the story (customers -> promotions -> who to target -> budget), at the end of a view */
 export function NextStep({ text, action, onClick }: { text: ReactNode; action: string; onClick: () => void }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[var(--line)] bg-white px-4 py-3">

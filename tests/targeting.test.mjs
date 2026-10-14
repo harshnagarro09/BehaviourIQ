@@ -7,7 +7,7 @@ import { TYPE_IDS } from '../src/engine/insights.ts';
 import { catalogue, eligibility } from '../src/engine/promotions.ts';
 import { predictCategory } from '../src/engine/targeting.ts';
 import { responseProfiles } from '../src/engine/response.ts';
-import { optimise, activation, minDetectableUplift } from '../src/engine/optimizer.ts';
+import { optimise, activation } from '../src/engine/optimizer.ts';
 import { exposures } from '../src/engine/drivers.ts';
 import { backtest } from '../src/engine/backtest.ts';
 
@@ -29,8 +29,8 @@ test('ROI = incremental margin / promo investment; promo revenue is promoted lin
   assert.ok(e.results[0].promoRevenue <= fromLines + 1e-6, 'never more than the promoted lines took');
 });
 
-test('net promo profit is not shown on Behaviour Analytics or Customer Prediction', () => {
-  for (const f of ['src/pages/Analytics.tsx', 'src/pages/CustomerPrediction.tsx']) {
+test('net promo profit is not shown on Behaviour Analytics, Planning or Simulation', () => {
+  for (const f of ['src/pages/Analytics.tsx', 'src/pages/BudgetPlanner.tsx', 'src/pages/ScenarioLab.tsx']) {
     const t = fs.readFileSync(f, 'utf8');
     // as a KPI, column, chart metric or help term (the note explaining its removal is allowed)
     assert.ok(!/(label=|['"`>]\s*)net (promo )?profit|help="netProfit"|\.net\b/i.test(t), `${f} still shows net profit`);
@@ -95,7 +95,6 @@ test('activation file holds out the stated share and is stable', () => {
   const hold = rows.filter((r) => r.group === 'holdout').length;
   assert.ok(rows.length > 0 && Math.abs(hold / rows.length - 0.1) < 0.03);
   assert.deepEqual(activation(plan), rows);
-  assert.ok(minDetectableUplift(0.3, 1000, 1000) < minDetectableUplift(0.3, 100, 100));
 });
 
 test('response drivers use only behaviour from before each campaign', () => {
@@ -114,6 +113,7 @@ test('backtest: segment prediction is calibrated on recent campaigns', () => {
 
 // ------------------------------------------------------------------ Planning and Simulation use the same logic
 import { buildScenario } from '../src/engine/planner.ts';
+import { depthOptions } from '../src/engine/elasticity.ts';
 import { aggregateGroup, worthTargeting, TARGET_HURDLE, MIN_SEG_UPLIFT } from '../src/engine/targeting.ts';
 
 test('planner: scenarios come from the promotion catalogue and never include net profit', () => {
@@ -140,9 +140,9 @@ test('planner: a mechanic never run in the category is flagged for a test', () =
   if (r) assert.equal(r.flag, 'attention');
 });
 
-test('planner and Customer Prediction agree on the per-type numbers for the same category', () => {
+test('planner and Customer Prediction agree on the per-type numbers for the same category (one model: behaviour + price elasticity)', () => {
   const r = e.recommendations.find((x) => x.candidate.category === 'Snacks');
-  const p = predictCategory(e.ds, e.typeOf, 'Snacks', e.asOf, e.resp, e.assumptions, new Set(e.records.filter((x) => x.b.recencyDays <= 90).map((x) => x.cid)));
+  const p = predictCategory(e.ds, e.typeOf, 'Snacks', e.asOf, e.resp, e.assumptions, new Set(e.records.filter((x) => x.b.recencyDays <= 90).map((x) => x.cid)), depthOptions(e.elasticity.byCategory.get('Snacks')));
   const i = p.promos.findIndex((x) => x.key === r.best.option.key);
   const cells = ['persuadable', 'sure', 'lost', 'dog'].map((t) => p.cells.get(t)[i]);
   const s = buildScenario(cells);
@@ -162,50 +162,6 @@ test('simulation building blocks: guardrail blocks thin-margin offers, an untest
 
 import { makeCtx } from '../src/engine/simulation.ts';
 function buildCtxsOne(cid, cat) { return makeCtx(e.ds, cid, cat, e.asOf); }
-
-// ------------------------------------------------------------------ Customer Prediction audience builder
-import { buildAudience, applyFilters, audienceKpis, exportTable, GOALS, DEFAULT_AUDIENCE, sortRows } from '../src/engine/audience.ts';
-import { toCsv, toXlsx } from '../src/lib/download.ts';
-
-const aud = buildAudience(e, predictCategory(e.ds, e.typeOf, 'Snacks', e.asOf, e.resp, e.assumptions), 'recommended');
-
-test('audience: every customer is scored once, scores run 0-100, Sleeping Dogs are never offered', () => {
-  assert.equal(aud.rows.length, e.records.length);
-  assert.ok(aud.rows.every((r) => r.score >= 0 && r.score <= 100 && r.reason && r.reasons.length));
-  assert.ok(aud.rows.filter((r) => r.type === 'dog').every((r) => !r.offer && r.status === 'avoid'));
-  assert.equal(aud.offerByType.sure, null, 'Sure Things buy anyway: no discount');
-  const s = sortRows(aud.rows, 'score');
-  assert.ok(s[0].score >= s[s.length - 1].score);
-});
-
-test('audience: KPIs are the sum of the filtered rows, and every goal filter is honoured', () => {
-  for (const g of GOALS) {
-    const rows = applyFilters(aud.rows, g.filters);
-    const k = audienceKpis(rows);
-    assert.equal(k.customers, rows.length);
-    assert.ok(Math.abs(k.extraBuyers - rows.filter((r) => r.offer).reduce((t, r) => t + r.uplift, 0)) < 1e-9);
-    assert.ok(Math.abs(k.buyersWith - k.buyersWithout - k.extraBuyers) < 1e-9);
-    if (g.filters.recommendedOnly) assert.ok(rows.every((r) => r.status === 'target'));
-    if (g.filters.activity === 'lapsing') assert.ok(rows.every((r) => r.activity !== 'active'));
-    if (g.filters.type === 'notDog') assert.ok(rows.every((r) => r.type !== 'dog'));
-  }
-  assert.equal(applyFilters(aud.rows, DEFAULT_AUDIENCE).length, aud.rows.length);
-  assert.deepEqual(applyFilters(aud.rows, { ...DEFAULT_AUDIENCE, search: aud.rows[0].cid }).map((r) => r.cid), [aud.rows[0].cid]);
-});
-
-test('download: the file holds exactly the filtered audience, as CSV and as a valid .xlsx', () => {
-  const rows = applyFilters(aud.rows, GOALS[0].filters);
-  const { head, data } = exportTable(rows, 'Snacks');
-  assert.deepEqual(data.map((d) => d[0]), rows.map((r) => r.cid));
-  assert.ok(head.includes('response_score') && head.includes('targeting_reason') && head.includes('customer_type'));
-  const csv = toCsv(head, data);
-  assert.equal(csv.trim().split('\r\n').length, rows.length + 1);
-  const x = toXlsx(head, data);
-  assert.equal(String.fromCharCode(x[0], x[1]), 'PK');
-  const text = new TextDecoder().decode(x);
-  for (const part of ['[Content_Types].xml', 'xl/workbook.xml', 'xl/worksheets/sheet1.xml', 'xl/styles.xml']) assert.ok(text.includes(part), part);
-  assert.ok(text.includes(rows[rows.length - 1].cid));
-});
 
 // ---------------------------------------------------------------- budget by brand / category / SKU
 import { skuCatalog } from '../src/engine/products.ts';
@@ -305,21 +261,6 @@ test('reasons: every category in range is explained, funded money matches the pl
   assert.ok(typeof unallocated(plan, null).text === 'string');
   const big = optimise(allItems, { ...base30, budget: 1e6 });
   assert.match(unallocated(big, null).text, /already funded/);
-});
-
-test('audience: goals set who is in the audience, not who is offered; the type mix and offer split agree everywhere', () => {
-  for (const g of GOALS.filter((x) => x.id !== 'custom')) assert.ok(!g.filters.recommendedOnly, `${g.id} does not pre-filter to recommended customers`);
-  const rows = applyFilters(aud.rows, GOALS[0].filters);
-  const types = new Set(rows.map((r) => r.type));
-  assert.ok(types.size >= 3, 'an active-customer audience holds several customer types');
-  const k = audienceKpis(rows);
-  const byType = Object.fromEntries(['persuadable', 'sure', 'lost', 'dog'].map((t) => [t, rows.filter((r) => r.type === t)]));
-  assert.equal(Object.values(byType).reduce((s, x) => s + x.length, 0), k.customers);
-  assert.equal(Object.values(byType).reduce((s, x) => s + x.filter((r) => r.offer).length, 0), k.offered);
-  // a customer gets an offer exactly when their type does; Sleeping Dogs never
-  for (const r of rows) assert.equal(!!r.offer, !!aud.offerByType[r.type]);
-  const { data } = exportTable(rows, 'Snacks');
-  assert.equal(data.filter((d) => d[6] !== 'No offer').length, k.offered, 'the download marks the same customers as offered');
 });
 
 test('customer types: a quantity jump on deals alone does not make someone a Persuadable', () => {

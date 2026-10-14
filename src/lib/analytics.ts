@@ -3,8 +3,6 @@
 import type { Engine } from '@/engine';
 import type { Campaign } from '@/engine/data';
 import type { CustomerCampaign } from '@/engine/campaigns';
-import { cutIndex } from '@/engine/behaviour';
-import { returnRows } from '@/engine/returns';
 import { mechKey, type MechKey } from '@/engine/mechanics';
 
 export interface Filters {
@@ -42,18 +40,7 @@ export const roiOf = (a: Agg) => (a.cost > 0 ? a.incMargin / a.cost : 0);
 export const respOf = (a: Agg) => (a.reached ? a.buyers / a.reached : 0);
 /** Uplift share = incremental units / units sold in the windows */
 export const incShareOf = (a: Agg) => (a.units > 0 ? a.inc / a.units : 0);
-/** Subsidy rate = investment on units that would have sold anyway / investment */
-export const leakOf = (a: Agg) => (a.cost > 0 ? a.leak / a.cost : 0);
-/** Incremental revenue per rupee invested */
-export const incRevPerRupeeOf = (a: Agg) => (a.cost > 0 ? a.incRevenue / a.cost : 0);
-/** Cost per incremental unit */
-export const costPerIncUnitOf = (a: Agg) => (a.inc > 0 ? a.cost / a.inc : 0);
-/** Pull-forward share = post-window dip units / incremental units (diagnostic, not deducted from ROI) */
-export const pullShareOf = (a: Agg) => (a.inc > 0 ? Math.max(0, a.dip) / a.inc : 0);
 /** Margin from the extra units at full price (the part of incremental margin before the investment is paid) */
-export const grossIncMarginOf = (a: Agg) => a.incMargin + a.cost;
-/** Break-even coverage: how many times over the extra units paid back the investment (1 = break-even) */
-export const breakEvenOf = (a: Agg) => (a.cost > 0 ? grossIncMarginOf(a) / a.cost : 0);
 
 export type PromoKind = MechKey;
 export const mechOf = (c: Campaign): PromoKind => mechKey(c);
@@ -109,46 +96,6 @@ export function aggregateByCampaign(e: Engine, camps: Campaign[], ok: (cid: stri
   for (const [cid, rows] of e.perCustomer) {
     if (!ok(cid)) continue;
     for (const r of rows) { const a = out.get(r.campaignId); if (a) addRow(a, r); }
-  }
-  return out;
-}
-
-/**
- * aggregateByCampaign() limited to some products (brand / category / SKU filter). Promotions run for a whole category, so
- * reach stays the category's; sales, baseline, cost and margin come from the promotion x SKU rows (engine/returns.ts) of
- * the chosen products only, and a customer counts as a buyer only if they bought one of those products on the promotion.
- */
-export function aggregateByCampaignFor(e: Engine, camps: Campaign[], ok: (cid: string) => boolean, inScope?: (productId: string) => boolean): Map<string, Agg> {
-  const all = aggregateByCampaign(e, camps, ok);
-  if (!inScope) return all;
-  const out = new Map(camps.map((c) => [c.id, { ...emptyAgg(), campaigns: 1, reached: all.get(c.id)!.reached }]));
-  for (const r of returnRows(e.ds, e.perCustomer, camps, ok)) {
-    if (!inScope(r.productId)) continue;
-    const a = out.get(r.campaignId)!;
-    a.units += r.units; a.base += r.base; a.cost += r.cost; a.revenue += r.revenue; a.baseRevenue += r.baseRevenue;
-    a.incMargin += r.margin - r.baseMargin;
-  }
-  const byId = new Map(camps.map((c) => [c.id, c]));
-  for (const [cid, rows] of e.perCustomer) {
-    if (!ok(cid)) continue;
-    const lines = e.ds.byCustomer.get(cid)!;
-    for (const r of rows) {
-      const c = byId.get(r.campaignId);
-      if (!c) continue;
-      const a = out.get(c.id)!;
-      let bought = false;
-      for (let i = cutIndex(lines, c.start); i < lines.length && lines[i].day <= c.end; i++) {
-        const l = lines[i];
-        if (l.promoId !== c.id || !inScope(l.productId)) continue;
-        bought = true; a.promoUnits += l.qty; a.promoRevenue += l.unit * l.qty;
-      }
-      if (bought) a.buyers++;
-    }
-  }
-  for (const a of out.values()) {
-    a.inc = a.units - a.base;
-    a.incRevenue = a.revenue - a.baseRevenue;
-    a.leak = a.units > 0 ? a.cost * Math.min(1, a.base / a.units) : 0;
   }
   return out;
 }

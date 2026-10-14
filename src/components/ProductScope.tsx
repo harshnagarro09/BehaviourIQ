@@ -9,10 +9,17 @@ const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? on
  * Always-visible Brand -> Category -> SKU filter. Each picker starts at "All" and lists only what exists under the
  * choices above it, with product counts; a pick that no longer exists falls back to "All".
  */
-export function useProductFilter<T extends ProductLike>(items: T[]) {
-  const [brand, setBrand] = useState('all');
-  const [category, setCategory] = useState('all');
-  const [sku, setSku] = useState('all');
+export interface ProductSelection { brand: string; category: string; sku: string }
+
+/** With `ctrl`, the selection lives outside (e.g. in the shared plan); otherwise the hook keeps it */
+export function useProductFilter<T extends ProductLike>(items: T[], ctrl?: { value: ProductSelection; onChange: (v: ProductSelection) => void }) {
+  const [own, setOwn] = useState<ProductSelection>({ brand: 'all', category: 'all', sku: 'all' });
+  const sel = ctrl?.value ?? own;
+  const put = (v: ProductSelection) => (ctrl ? ctrl.onChange(v) : setOwn(v));
+  const { brand, category, sku } = sel;
+  const setBrand = (v: string) => put({ brand: v, category: 'all', sku: 'all' });
+  const setCategory = (v: string) => put({ ...sel, category: v, sku: 'all' });
+  const setSku = (v: string) => put({ ...sel, sku: v });
 
   const brands = uniq(items.map((s) => s.brand));
   const b = brands.includes(brand) ? brand : 'all';
@@ -28,11 +35,11 @@ export function useProductFilter<T extends ProductLike>(items: T[]) {
     : b === 'all' ? `${c}, all brands` : c === 'all' ? `${b}, all categories` : `${b} ${c}`;
 
   const brandPicker = (
-    <Picker label="Brand" value={b} onChange={(v) => { setBrand(v); setCategory('all'); setSku('all'); }}
+    <Picker label="Brand" value={b} onChange={setBrand}
       options={[{ value: 'all', label: 'All brands', hint: count(brands.length, 'brand') }, ...brands.map((x) => ({ value: x, label: x, hint: count(items.filter((s) => s.brand === x).length, 'product') }))]} />
   );
   const categoryPicker = (
-    <Picker label="Category" value={c} onChange={(v) => { setCategory(v); setSku('all'); }}
+    <Picker label="Category" value={c} onChange={setCategory}
       options={[{ value: 'all', label: 'All categories', hint: count(cats.length, 'category', 'categories') }, ...cats.map((x) => ({ value: x, label: x, hint: count(inBrand.filter((s) => s.category === x).length, 'product') }))]} />
   );
   const skuPicker = (
@@ -42,8 +49,8 @@ export function useProductFilter<T extends ProductLike>(items: T[]) {
   const controls = <div className="grid gap-3 sm:grid-cols-3">{brandPicker}{categoryPicker}{skuPicker}</div>;
   return {
     picked, label, controls, pickers: [brandPicker, categoryPicker, skuPicker] as const, isAll: b === 'all' && c === 'all' && p === 'all', category: c,
-    reset: () => { setBrand('all'); setCategory('all'); setSku('all'); },
+    reset: () => put({ brand: 'all', category: 'all', sku: 'all' }),
     /** focus on one category (all its brands and products), e.g. the category chosen on another tab */
-    setCategory: (v: string) => { setBrand('all'); setCategory(v); setSku('all'); },
+    setCategory: (v: string) => put({ brand: 'all', category: v, sku: 'all' }),
   };
 }

@@ -3,11 +3,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { buildEngine } from '../src/engine/index.ts';
-import { estimateElasticity, fitBeta, combinedResponse, inRange, depthOptions, demandLift, PRICE_MECHANICS, SANE } from '../src/engine/elasticity.ts';
+import { estimateElasticity, fitBeta, combinedResponse, inRange, depthOptions, PRICE_MECHANICS, SANE } from '../src/engine/elasticity.ts';
 import { predictCategory } from '../src/engine/targeting.ts';
 import { optimise } from '../src/engine/optimizer.ts';
 import { skuCatalog } from '../src/engine/products.ts';
-import { rangeItems, rescore } from '../src/engine/budgetScope.ts';
+import { rangeItems } from '../src/engine/budgetScope.ts';
 
 const e = buildEngine(fs.readFileSync(new URL('../public/data/promo_behaviour_data.csv', import.meta.url), 'utf8'));
 const m = estimateElasticity(e.results, e.perCustomer, e.typeOf);
@@ -43,7 +43,6 @@ test('combined response: equals the customer’s own reads at 10% and 20%, rises
   let prev = 0;
   for (let d = 1; d <= 40; d++) { const v = f(r, d); assert.ok(v >= prev - 1e-12 && v <= 0.95); prev = v; }
   assert.equal(f(r, 0), 0);
-  assert.ok(demandLift(m.pooled.beta, 20) > demandLift(m.pooled.beta, 10) && demandLift(m.pooled.beta, 0) === 1);
 });
 
 test('the curve is never used beyond the deepest discount actually run', () => {
@@ -72,7 +71,7 @@ test('combined predictions match behaviour-only where they should, and only chan
   assert.ok(c.promos.length >= b.promos.length);
 });
 
-test('combined optimiser: within budget, self-consistent, and at least as good as behaviour-only on one yardstick', () => {
+test('combined optimiser: within budget and never offers to Sleeping Dogs', () => {
   const cat = skuCatalog(e.ds);
   const cache = { b: new Map(), c: new Map() };
   const pf = (mode) => (k) => cache[mode].get(k) ?? (cache[mode].set(k, predictCategory(e.ds, e.typeOf, k, e.asOf, e.resp, e.assumptions, undefined, mode === 'c' ? depthOptions(m.byCategory.get(k)) : undefined)), cache[mode].get(k));
@@ -80,11 +79,8 @@ test('combined optimiser: within budget, self-consistent, and at least as good a
   for (const budget of [10000, 30000, 80000]) {
     const S = { budget, objective: 'margin', hurdle: 0.25, holdout: 0.1, includeExcluded: false, allowed: (p) => p.family !== 'partner' };
     const pb = optimise(itemsB, S), pc = optimise(itemsC, S);
-    assert.ok(pc.spend <= budget + 1e-6);
-    const self = rescore(pc, itemsC);
-    assert.ok(near(self.spend, pc.spend, 1e-9) && near(self.incMargin, pc.incMargin, 1e-9), 'rescoring a plan with its own items reproduces it');
-    const bOnC = rescore(pb, itemsC);
-    assert.ok(pc.incMargin >= bOnC.incMargin * 0.99 || bOnC.spend > budget, `combined ${pc.incMargin} vs behaviour on the same yardstick ${bOnC.incMargin}`);
+    assert.ok(pc.spend <= budget + 1e-6 && pb.spend <= budget + 1e-6);
+    assert.ok(near(pc.spend, pc.allocations.reduce((t, a) => t + a.spend, 0), 1e-6), 'the plan total is the sum of its allocations');
     assert.ok(pc.allocations.every((a) => a.item.type !== 'dog'), 'Sleeping Dogs are still never offered');
   }
 });

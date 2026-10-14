@@ -100,32 +100,5 @@ export function makeCtx(ds: Dataset, cid: string, cat: string, asOf: number): Ct
   return { cid, cat, b, qFull, qPromo, baselineUnits14, p0, due, rLow, rHigh, affinity };
 }
 
-/** Rule 3: observed response at a given depth, read between the customer's shallow and deep response */
-export function observedResponse(ctx: Pick<Ctx, 'rLow' | 'rHigh'>, depth: number, A: Assumptions = DEFAULT_ASSUMPTIONS): number {
-  if (depth <= 0) return 0;
-  if (depth <= 10) return ctx.rLow * (depth / 10);
-  if (depth < 20) return ctx.rLow + (ctx.rHigh - ctx.rLow) * ((depth - 10) / 10);
-  return ctx.rHigh + (1 - ctx.rHigh) * A.deepOfferExtra * ((depth - 20) / 30);
-}
-
-/** Rule 4b: how well the mechanic suits this customer's usual basket */
-export function mechanicFit(ctx: Ctx, mechanic: string, listPrice: number, minSpend: number, A: Assumptions = DEFAULT_ASSUMPTIONS): number {
-  if (mechanic === 'BOGO' || mechanic === 'MULTIBUY_3FOR2') {
-    if (ctx.b.qtyRatio >= 1.7) return A.multiBuyFitStockup;
-    if (ctx.qFull <= 1.3 && ctx.b.qtyRatio < 1.3) return A.multiBuyFitSingle;
-    return 1;
-  }
-  if (mechanic === 'FLAT_OFF' && minSpend > 0) return ctx.qPromo * listPrice >= minSpend ? 1 : A.minSpendFit;
-  return 1;
-}
-
 /** Customers whose volume falls in promotion windows are put off by offers (Sleeping Dogs) */
 export const isPutOff = (ctx: Pick<Ctx, 'b'>) => ctx.b.lift < 0.6 && ctx.b.fullPriceBuysPerMonth >= 1.5;
-
-/** Rule 5: simulated chance of buying with an offer */
-export function chanceWithOffer(ctx: Ctx, depth: number, mechanic: string, listPrice: number, minSpend: number, A: Assumptions = DEFAULT_ASSUMPTIONS): number {
-  if (depth <= 0) return ctx.p0;
-  if (isPutOff(ctx)) return ctx.p0 * clamp(ctx.b.lift, 0.3, 0.9);
-  const r = observedResponse(ctx, depth, A) * ctx.affinity * mechanicFit(ctx, mechanic, listPrice, minSpend, A);
-  return Math.max(ctx.p0, Math.min(0.97, r));
-}

@@ -59,36 +59,40 @@ export interface Classification {
 const clamp = (v: number, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 
+/** The hand-set cutoffs behind the four customer types (checked for sensitivity in reliability.ts) */
+export interface TypeRules { dogLift: number; dogFull: number; qty: number; resp: number; sureFull: number; sureDeal: number; lostResp: number }
+export const TYPE_RULES: TypeRules = { dogLift: 0.6, dogFull: 1.5, qty: 1.7, resp: 0.1, sureFull: 2.5, sureDeal: 0.3, lostResp: 0.2 };
+
 /** Rules are checked in this order; each reads one observable behaviour. */
-export function classify(b: Behaviour): Classification {
+export function classify(b: Behaviour, R: TypeRules = TYPE_RULES): Classification {
   const reasons: string[] = [];
   let type: TypeId;
   let margin: number;
-  if (b.lift < 0.6 && b.fullPriceBuysPerMonth >= 1.5) {
+  if (b.lift < R.dogLift && b.fullPriceBuysPerMonth >= R.dogFull) {
     type = 'dog';
-    margin = (0.6 - b.lift) / 0.4;
+    margin = (R.dogLift - b.lift) / 0.4;
     reasons.push(`Buys our brand ${b.fullPriceBuysPerMonth.toFixed(1)} times a month at full price`);
     reasons.push(`During promotions their volume falls to ${pct(b.lift)} of normal`);
-  } else if (b.qtyRatio >= 1.7 && b.respRate >= 0.1) {
+  } else if (b.qtyRatio >= R.qty && b.respRate >= R.resp) {
     // stocking up on a deal is only a sign of persuasion when they respond to offers at all: a bulk buy on one or two
     // promotions by someone who ignores the rest is chance, not a reaction to the offer
     type = 'persuadable';
-    margin = (b.qtyRatio - 1.7) / 0.8;
+    margin = (b.qtyRatio - R.qty) / 0.8;
     reasons.push(`Buys ${b.qtyRatio.toFixed(1)}x the usual quantity when a promotion runs`);
     if (b.dipRatio < 0.8) reasons.push(`Category buying drops to ${pct(b.dipRatio)} of normal afterwards (pull-forward)`);
-  } else if (b.fullPriceBuysPerMonth >= 2.5 && b.promoReliance <= 0.3) {
+  } else if (b.fullPriceBuysPerMonth >= R.sureFull && b.promoReliance <= R.sureDeal) {
     type = 'sure';
-    margin = (b.fullPriceBuysPerMonth - 2.5) / 2;
+    margin = (b.fullPriceBuysPerMonth - R.sureFull) / 2;
     reasons.push(`Buys our brand at full price ${b.fullPriceBuysPerMonth.toFixed(1)} times a month`);
     reasons.push(`Only ${pct(b.promoReliance)} of their purchases of it needed a promotion`);
-  } else if (b.respRate < 0.2) {
+  } else if (b.respRate < R.lostResp) {
     type = 'lost';
-    margin = (0.2 - b.respRate) / 0.2;
+    margin = (R.lostResp - b.respRate) / R.lostResp;
     reasons.push(`Responded to only ${b.respondedCampaigns} of ${b.activeCampaigns} campaigns (${pct(b.respRate)})`);
     reasons.push(`Buys our brand just ${b.fullPriceBuysPerMonth.toFixed(1)} times a month at full price`);
   } else {
     type = 'persuadable';
-    margin = (b.respRate - 0.2) / 0.4;
+    margin = (b.respRate - R.lostResp) / 0.4;
     reasons.push(`Responded to ${b.respondedCampaigns} of ${b.activeCampaigns} campaigns (${pct(b.respRate)})`);
     reasons.push(`${pct(b.promoReliance)} of their purchases of our brand were on promotion`);
   }
